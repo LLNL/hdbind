@@ -165,7 +165,7 @@ def parse_args():
 
     parser.add_argument(
         "-b",
-        "--batchsize",
+        "--batch_size",
         default=32,
         type=int,
         required=False,
@@ -224,10 +224,10 @@ def load_with_verbose_info(filename):
 # Note: The performance of TF is largely dependent upon the implementation
 # This version (maybe final one) shows the best perf with scalability
 # among multiple different variants tried
-def encode_tf(N, Q, level_hvs, id_hvs, feature_matrix):
-    global args
-    BATCH_SIZE = args.batch_size
-    assert N % BATCH_SIZE == 0
+def encode_tf(N, Q, level_hvs, id_hvs, feature_matrix, batch_size):
+    #global args
+    #BATCH_SIZE = args.batch_size
+    assert N % batch_size == 0
 
     with tf.device("/gpu:0"):
         encode_sample = lambda i: tf.reduce_sum(
@@ -237,8 +237,7 @@ def encode_tf(N, Q, level_hvs, id_hvs, feature_matrix):
                     tf.cast(
                         tf.scalar_mul(
                             Q,
-                            tf.gather(feature_matrix, tf.range(i, i + BATCH_SIZE))
-                            # tf.convert_to_tensor(feature_matrix[i:i+BATCH_SIZE])
+                            tf.gather(feature_matrix, tf.range(i, i + batch_size))
                         ),
                         tf.int32,
                     ),
@@ -248,11 +247,11 @@ def encode_tf(N, Q, level_hvs, id_hvs, feature_matrix):
             axis=1,
         )
 
-        tf_hv_matrix = tf.TensorArray(dtype=tf.float32, size=N // BATCH_SIZE)
+        tf_hv_matrix = tf.TensorArray(dtype=tf.float32, size=N // batch_size)
         cond = lambda i, _: i < N
         body = lambda i, ta: (
-            i + BATCH_SIZE,
-            ta.write(i // BATCH_SIZE, encode_sample(i)),
+            i + batch_size,
+            ta.write(i // batch_size, encode_sample(i)),
         )
         with timing_part(str(encode_tf)):
             tf_hv_matrix_final = tf.while_loop(
@@ -265,8 +264,8 @@ def encode_tf(N, Q, level_hvs, id_hvs, feature_matrix):
             )
 
 
-def encode(x, x_test, D, Q):
-    global args
+def encode(x, x_test, D, Q, batch_size):
+    #global args
     F = x.shape[1]
 
     # Base hypervectors
@@ -292,27 +291,24 @@ def encode(x, x_test, D, Q):
         id_hvs.append(np.roll(id_base, f))
     id_hvs = np.array(id_hvs, dtype=np.float32)
 
-    BATCH_SIZE = args.batch_size
-
-    def create_dummy_for_batch(x, BATCH_SIZE):
+    def create_dummy_for_batch(x, batch_size):
         N = x.shape[0]
-        dummy_size = BATCH_SIZE - N % BATCH_SIZE
-        if dummy_size == BATCH_SIZE:
+        dummy_size = batch_size - N % batch_size
+        if dummy_size == batch_size:
             return x
 
         dummy = np.zeros((dummy_size, x.shape[1]))
         return np.vstack((x, dummy))
 
     N = x.shape[0]
-    x = create_dummy_for_batch(x, BATCH_SIZE)
+    x = create_dummy_for_batch(x, batch_size)
     N_test = x_test.shape[0]
-    x_test = create_dummy_for_batch(x_test, BATCH_SIZE)
+    x_test = create_dummy_for_batch(x_test, batch_size)
 
-    x_h = encode_tf(x.shape[0], Q, level_hvs, id_hvs, x)
-    x_test_h = encode_tf(x_test.shape[0], Q, level_hvs, id_hvs, x_test)
+    # TODO: use named arguments
+    x_h = encode_tf(x.shape[0], Q, level_hvs, id_hvs, x, batch_size)
+    x_test_h = encode_tf(x_test.shape[0], Q, level_hvs, id_hvs, x_test, batch_size)
 
-    # print(tf.shape(x_h))
-    # print(tf.shape(x_test_h))
 
     return tf.slice(x_h, [0, 0], [N, -1]), tf.slice(x_test_h, [0, 0], [N_test, -1])
 
@@ -363,9 +359,10 @@ def retrain(model, x_h, y, K, x_test_h, y_test, epochs):
     return model
 
 
-def retrain_batch(model, x_h, y, K, x_test_h, y_test, epochs):
-    global args
-    B = args.batch_size
+def retrain_batch(model, x_h, y, K, x_test_h, y_test, epochs, batch_size, sim_metric):
+    #global args
+    #B = args.batch_size
+    B = batch_size
 
     pbar = tqdm(range(epochs))
     train_accuracy = None
@@ -391,7 +388,7 @@ def retrain_batch(model, x_h, y, K, x_test_h, y_test, epochs):
                     y_batch = y[i : i + B]
 
                     sims = tf.linalg.matmul(model, x_batch, False, True)
-                    if args.sim_metric == "cos":
+                    if sim_metric == "cos":
                         sims /= tf.norm(model)  # * tf.norm(x_h[i])
                     y_pred = tf.math.argmax(sims, 0)
                     wrong = y_pred != y_batch  # .numpy()
@@ -416,10 +413,11 @@ from sklearn.metrics import classification_report
 from sklearn.dummy import DummyClassifier
 
 
-def test(model, x_test_h, y_test):
+def test(model, x_test_h, y_test, sim_metric):
     with timing_part(str(test)):
         sims = tf.linalg.matmul(x_test_h, model, False, True) / tf.norm(model)
-        if args.sim_metric == "cos":
+        
+        if sim_metric == "cos":
             sims /= tf.norm(model)  # * tf.norm(x_h[i])
         y_pred = tf.argmax(sims, 1)
         n_correct = tf.reduce_sum(tf.cast(y_test == y_pred, tf.float32))
@@ -432,53 +430,31 @@ def test(model, x_test_h, y_test):
     print(classification_report(y_pred=y_pred, y_true=y_test))
 
 
-def load_pdbbind_from_hdf(
-    hdf_path,
-    dataset_name,
-    train_split_path,
-    test_split_path,
-    bind_thresh,
-    no_bind_thresh,
-):
+def train_test_loop(x_train, x_test, y_train, y_test, iterations, dimensions, Q, K, batch_size, sim_metric):
+    # Preprocessing
+    x_train, x_test = normalize(x_train, x_test)
 
-    """
-    input: parameters (dataset name, threshold values, train/test splits) and h5 file containing data and binding measurements
-    output: numpy array with features
-    """
-    import h5py
+    #import pdb
+    #pdb.set_trace()
+    x_train, y_train = shuffle_data(x_train, y_train)  # need to shuffle training set only
 
-    f = h5py.File(hdf_path, "r")
+    # Encoding
+    print("Encoding: D = {}".format(dimensions))
+    x_train_h, x_test_h = encode(x_train, x_test, dimensions, Q, batch_size)
 
-    # need an argument for train split, need an argument for test split
+    # Training
+    model = singlepass_training(x_train_h, y_train, K)
+    test(model, x_test_h, y_test, sim_metric)
 
-    train_df = pd.read_csv(train_split_path)
-    test_df = pd.read_csv(test_split_path)
+    model = retrain_batch(model, x_train_h, y_train, K, x_test_h, y_test, iterations, batch_size, sim_metric)
+    test(model, x_test_h, y_test, sim_metric)
 
-    train_ids = train_df["pdbid"]
-    test_ids = train_df["pdbid"]
 
-    train_list = []
-    test_list = []
 
-    for key in list(f):
-        if key in train_ids:
-            train_list.append(key)
-        elif key in test_ids:
-            test_list.append(key)
-        else:
-            print(f"key: {key} not contained in train or test split")
-            continue
-
-    train_data_list = []
-    for pdbid in train_list:
-        pass
-
-    test_data_list = []
 
 
 def main():
     global args
-    args = parse_args()
 
     # Random seed initialization
     # TODO: TF random seed for CUDA if any
@@ -487,27 +463,15 @@ def main():
     random.seed(args.random_seed)
 
     # File Loading
-    x, y, K = load_with_verbose_info(args.train_data)
+    x_train, y_train, K = load_with_verbose_info(args.train_data)
 
     x_test, y_test, _ = load_with_verbose_info(args.test_data)
     n_test = len(x_test)
 
-    # Preprocessing
-    x, x_test = normalize(x, x_test)
-    x, y = shuffle_data(x, y)  # need to shuffle training set only
 
-    # Encoding
-    print("Encoding: D = {}".format(args.dimensions))
-    x_h, x_test_h = encode(x, x_test, args.dimensions, args.Q)
-    # print(tf.size(x_h), tf.size(x_test_h))
-
-    # Training
-    model = singlepass_training(x_h, y, K)
-    test(model, x_test_h, y_test)
-
-    # model = retrain(model, x_h, y, K, x_test_h, y_test, args.iterations)
-    model = retrain_batch(model, x_h, y, K, x_test_h, y_test, args.iterations)
-    test(model, x_test_h, y_test)
+    # K is the number of classes
+    #TODO: use named arguments
+    train_test_loop(x_train, x_test, y_train, y_test, args.iterations, args.dimensions, args.Q, K, args.batch_size)
 
     dummy_class_model_uniform = DummyClassifier(
         strategy="uniform", random_state=args.random_seed
@@ -529,4 +493,5 @@ def main():
 
 
 if __name__ == "__main__":
+    args = parse_args()
     main()
