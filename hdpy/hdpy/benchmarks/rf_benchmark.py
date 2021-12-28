@@ -7,7 +7,7 @@ from sklearn.model_selection import RandomizedSearchCV
 import argparse
 
 parser = argparse.ArgumentParser()
-#parser.add_argument("--input-data", help="path to training dataset")
+# parser.add_argument("--input-data", help="path to training dataset")
 
 parser.add_argument("--train-data", help="path to training dataset")
 parser.add_argument("--test-data", help="path to test dataset")
@@ -66,18 +66,18 @@ def load_data(data_file):
 
     return data
 
-def main(): 
+
+def main():
 
     x_train, y_train = load_data(args.train_data)
     x_test, y_test = load_data(args.test_data)
 
     # need to mask out the labels of 2 which mean ambiguous and make our problem harder
 
-    #x_train = x_train[y_train != 2]
-    #y_train = y_train[y_train != 2]
-    #x_test = x_test[y_test != 2]
-    #y_test = y_test[y_test != 2]
-
+    # x_train = x_train[y_train != 2]
+    # y_train = y_train[y_train != 2]
+    # x_test = x_test[y_test != 2]
+    # y_test = y_test[y_test != 2]
 
     model = RandomForestClassifier()
 
@@ -89,7 +89,8 @@ def main():
 
     print(classification_report(y_true=y_test, y_pred=y_pred))
 
-    print(roc_auc_score(y_true=y_test, y_score=y_pred_proba[:,1]))
+    print(roc_auc_score(y_true=y_test, y_score=y_pred_proba[:, 1]))
+
 
 if __name__ == "__main__":
 

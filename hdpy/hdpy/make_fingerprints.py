@@ -130,7 +130,6 @@ def main():
     out_df = pd.concat([out_df, pd.DataFrame({"label": labels})], axis=1)
     out_df = pd.concat([out_df, pd.DataFrame(fps)], axis=1)
 
-
     out_df.to_csv(f"{output_dir}/{args.output_prefix}_pdbid_list.csv")
 
 
