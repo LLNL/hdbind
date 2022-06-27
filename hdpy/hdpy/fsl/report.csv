@@ -1,0 +1,5 @@
+Function	CPU Time	CPU Time:Effective Time	CPU Time:Effective Time:Idle	CPU Time:Effective Time:Poor	CPU Time:Effective Time:Ok	CPU Time:Effective Time:Ideal	CPU Time:Effective Time:Over	CPU Time:Spin Time	CPU Time:Overhead Time	Module	Function (Full)	Source File	Start Address
+__GI___libc_malloc	0.010000	0.010000	0.010000	0.0	0.0	0.0	0.0	0.0	0.0	libc.so.6	__GI___libc_malloc	malloc.c	0x85740
+__GI___xstat	0.010000	0.010000	0.010000	0.0	0.0	0.0	0.0	0.0	0.0	libc.so.6	__GI___xstat	xstat.c	0xef450
+open	0.010000	0.010000	0.010000	0.0	0.0	0.0	0.0	0.0	0.0	libpthread.so.0	open	syscall-template.S	0xeed0
+pymalloc_alloc	0.010000	0.010000	0.010000	0.0	0.0	0.0	0.0	0.0	0.0	python3.8	pymalloc_alloc	obmalloc.c	0x69dc0

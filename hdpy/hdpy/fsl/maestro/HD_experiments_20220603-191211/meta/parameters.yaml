@@ -1,0 +1,54 @@
+TARGET.mpro.FEAT.ecfp:
+  labels: !!python/object/apply:collections.OrderedDict
+  - - - $(TARGET.label)
+      - TARGET.mpro
+    - - $(FEAT.label)
+      - FEAT.ecfp
+  params:
+    $(FEAT): ecfp
+    $(TARGET): mpro
+TARGET.mpro.FEAT.maacs:
+  labels: !!python/object/apply:collections.OrderedDict
+  - - - $(TARGET.label)
+      - TARGET.mpro
+    - - $(FEAT.label)
+      - FEAT.maacs
+  params:
+    $(FEAT): maacs
+    $(TARGET): mpro
+TARGET.mpro.FEAT.mordred:
+  labels: !!python/object/apply:collections.OrderedDict
+  - - - $(TARGET.label)
+      - TARGET.mpro
+    - - $(FEAT.label)
+      - FEAT.mordred
+  params:
+    $(FEAT): mordred
+    $(TARGET): mpro
+TARGET.mpro.FEAT.rdkit:
+  labels: !!python/object/apply:collections.OrderedDict
+  - - - $(TARGET.label)
+      - TARGET.mpro
+    - - $(FEAT.label)
+      - FEAT.rdkit
+  params:
+    $(FEAT): rdkit
+    $(TARGET): mpro
+TARGET.mpro.FEAT.smiles_to_image:
+  labels: !!python/object/apply:collections.OrderedDict
+  - - - $(TARGET.label)
+      - TARGET.mpro
+    - - $(FEAT.label)
+      - FEAT.smiles_to_image
+  params:
+    $(FEAT): smiles_to_image
+    $(TARGET): mpro
+TARGET.mpro.FEAT.smiles_to_seq:
+  labels: !!python/object/apply:collections.OrderedDict
+  - - - $(TARGET.label)
+      - TARGET.mpro
+    - - $(FEAT.label)
+      - FEAT.smiles_to_seq
+  params:
+    $(FEAT): smiles_to_seq
+    $(TARGET): mpro

@@ -1,0 +1,42 @@
+Hierarchy Level	Metric Name	Metric Value
+0	Elapsed Time	12.925694
+1	SP GFLOPS	0.0
+1	DP GFLOPS	0.0
+1	x87 GFLOPS	0.0
+1	CPI Rate	0.906694
+1	Average CPU Frequency	2780877112.139565
+1	Total Thread Count	111
+0	Effective Physical Core Utilization	3.3% (1.200 out of 36)
+1	Effective Logical Core Utilization	1.6% (1.163 out of 72)
+0	Memory Bound	24.8
+1	Cache Bound	12.4
+1	DRAM Bound	0.0
+1	NUMA: % of Remote Accesses	0.0
+0	Vectorization	0.0
+1	Instruction Mix	
+2	SP FLOPs	0.0
+3	Packed	0.0
+4	128-bit	0.0
+4	256-bit	0.0
+3	Scalar	0.0
+2	DP FLOPs	0.0
+3	Packed	0.0
+4	128-bit	0.0
+4	256-bit	0.0
+3	Scalar	0.0
+2	x87 FLOPs	0.0
+2	Non-FP	100.0
+1	FP Arith/Mem Rd Instr. Ratio	0.0
+1	FP Arith/Mem Wr Instr. Ratio	0.0
+0	Collection and Platform Info	
+1	Application Command Line	python "experiment_single_classifier.py" "--dataset" "pdbbind" "--out_csv" "debug_results.csv" "--n_problems" "10" "--support_path" "/g/g13/jones289/workspace/hd-cuda-master/datasets/pdbbind/fusion_ml/fusion/train_fusion.npy" "--query_path" "/g/g13/jones289/workspace/hd-cuda-master/datasets/pdbbind/fusion_ml/fusion/test_fusion.npy" "--kquery" "-1" 
+1	Operating System	3.10.0-1160.53.1.1chaos.ch6.x86_64 NAME="Red Hat Enterprise Linux Server" VERSION="7.9 (Maipo)" ID="rhel" ID_LIKE="fedora" VARIANT="Server" VARIANT_ID="server" VERSION_ID="7.9" PRETTY_NAME="Red Hat Enterprise Linux Server 7.9 (Maipo)" ANSI_COLOR="0;31" CPE_NAME="cpe:/o:redhat:enterprise_linux:7.9:GA:server" HOME_URL="https://www.redhat.com/" BUG_REPORT_URL="https://bugzilla.redhat.com/"  REDHAT_BUGZILLA_PRODUCT="Red Hat Enterprise Linux 7" REDHAT_BUGZILLA_PRODUCT_VERSION=7.9 REDHAT_SUPPORT_PRODUCT="Red Hat Enterprise Linux" REDHAT_SUPPORT_PRODUCT_VERSION="7.9"
+1	Computer Name	pascal12
+1	Result Size	13127238
+1	Collection start time	01:39:32 26/03/2022 UTC
+1	Collection stop time	01:39:45 26/03/2022 UTC
+1	Collector Type	Driverless Perf per-process sampling
+1	CPU	
+2	Name	Intel(R) Xeon(R) Processor code named Broadwell
+2	Frequency	2100001160
+2	Logical CPU Count	72

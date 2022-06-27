@@ -1,0 +1,1614 @@
+[2022-06-02 16:30:26,010: INFO] Loading custom parameter generator from '/usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_postera_study_pgen.py'
+[2022-06-02 16:30:28,571: INFO] INFO Logging Level -- Enabled
+[2022-06-02 16:30:28,571: WARNING] WARNING Logging Level -- Enabled
+[2022-06-02 16:30:28,571: CRITICAL] CRITICAL Logging Level -- Enabled
+[2022-06-02 16:30:28,575: INFO] 
+------------------------------------------
+Submission attempts =       1
+Submission throttle limit = 0
+Use temporary directory =   False
+Tmp Dir = 
+------------------------------------------
+[2022-06-02 16:30:28,575: INFO] 
+==================================================
+name: HD_experiments
+description: run HDC experiments on various configurations.
+==================================================
+
+[2022-06-02 16:30:28,575: INFO] 
+==================================================
+Constructing parameter study 'HD_experiments'
+==================================================
+
+[2022-06-02 16:30:28,575: INFO] 
+==================================================
+Processing step '_source'
+==================================================
+
+[2022-06-02 16:30:28,575: INFO] Encountered '_source'. Adding and continuing.
+[2022-06-02 16:30:28,576: INFO] 
+==================================================
+Processing step 'dude'
+==================================================
+
+[2022-06-02 16:30:28,576: INFO] 
+==================================================
+Expanding step 'dude'
+==================================================
+-------- Used Parameters --------
+{'FEAT', 'TARGET'}
+---------------------------------
+[2022-06-02 16:30:28,576: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.ecfp]
+**********************************
+[2022-06-02 16:30:28,576: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/ecfp
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_ecfp_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,576: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/ecfp
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_ecfp_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,576: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.smiles_to_seq]
+**********************************
+[2022-06-02 16:30:28,576: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/smiles_to_seq
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_smiles_to_seq_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,576: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/smiles_to_seq
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_smiles_to_seq_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,576: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.smiles_to_image]
+**********************************
+[2022-06-02 16:30:28,577: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/smiles_to_image
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_smiles_to_image_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,577: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/smiles_to_image
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_smiles_to_image_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,577: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.mordred]
+**********************************
+[2022-06-02 16:30:28,577: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/mordred
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_mordred_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,577: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/mordred
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_mordred_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,577: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.maacs]
+**********************************
+[2022-06-02 16:30:28,577: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/maacs
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_maacs_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,577: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/maacs
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_maacs_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,577: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.rdkit]
+**********************************
+[2022-06-02 16:30:28,577: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/rdkit
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_rdkit_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,577: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/dude/deepchem_feats/mpro/rdkit
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mpro_rdkit_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy --kquery -1
+
+[2022-06-02 16:30:28,579: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/meta
+[2022-06-02 16:30:28,582: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/meta/study
+[2022-06-02 16:30:28,638: INFO] Checking DAG status at 2022-06-02 16:30:28.638368
+[2022-06-02 16:30:28,664: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:30:28,664: INFO] Launching all ready steps...
+[2022-06-02 16:30:28,664: INFO] Calling execute for StepRecord 'dude_FEAT.ecfp.TARGET.mpro'
+[2022-06-02 16:30:28,665: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.ecfp.TARGET.mpro
+[2022-06-02 16:30:28,669: INFO] Generating script for dude_FEAT.ecfp.TARGET.mpro into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.ecfp.TARGET.mpro
+[2022-06-02 16:30:28,669: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-02 16:30:28,670: WARNING] 'post' is not supported -- ommitted.
+[2022-06-02 16:30:28,670: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-02 16:30:28,670: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-02 16:30:28,670: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-02 16:30:28,670: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-02 16:30:28,670: INFO] Scheduling workflow step 'dude_FEAT.ecfp.TARGET.mpro'.
+[2022-06-02 16:30:28,675: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.ecfp.TARGET.mpro/dude_FEAT.ecfp.TARGET.mpro.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-02 16:30:28,675: INFO] Attempting submission of 'dude_FEAT.ecfp.TARGET.mpro' (attempt 1 of 1)...
+[2022-06-02 16:30:28,712: INFO] Submission returned status OK.
+[2022-06-02 16:30:28,713: INFO] Calling execute for StepRecord 'dude_FEAT.smiles_to_seq.TARGET.mpro'
+[2022-06-02 16:30:28,714: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.smiles_to_seq.TARGET.mpro
+[2022-06-02 16:30:28,715: INFO] Generating script for dude_FEAT.smiles_to_seq.TARGET.mpro into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.smiles_to_seq.TARGET.mpro
+[2022-06-02 16:30:28,715: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-02 16:30:28,715: WARNING] 'post' is not supported -- ommitted.
+[2022-06-02 16:30:28,715: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-02 16:30:28,715: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-02 16:30:28,715: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-02 16:30:28,715: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-02 16:30:28,715: INFO] Scheduling workflow step 'dude_FEAT.smiles_to_seq.TARGET.mpro'.
+[2022-06-02 16:30:28,720: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.smiles_to_seq.TARGET.mpro/dude_FEAT.smiles_to_seq.TARGET.mpro.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-02 16:30:28,720: INFO] Attempting submission of 'dude_FEAT.smiles_to_seq.TARGET.mpro' (attempt 1 of 1)...
+[2022-06-02 16:30:28,751: INFO] Submission returned status OK.
+[2022-06-02 16:30:28,751: INFO] Calling execute for StepRecord 'dude_FEAT.smiles_to_image.TARGET.mpro'
+[2022-06-02 16:30:28,752: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.smiles_to_image.TARGET.mpro
+[2022-06-02 16:30:28,753: INFO] Generating script for dude_FEAT.smiles_to_image.TARGET.mpro into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.smiles_to_image.TARGET.mpro
+[2022-06-02 16:30:28,753: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-02 16:30:28,753: WARNING] 'post' is not supported -- ommitted.
+[2022-06-02 16:30:28,753: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-02 16:30:28,753: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-02 16:30:28,753: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-02 16:30:28,753: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-02 16:30:28,753: INFO] Scheduling workflow step 'dude_FEAT.smiles_to_image.TARGET.mpro'.
+[2022-06-02 16:30:28,758: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.smiles_to_image.TARGET.mpro/dude_FEAT.smiles_to_image.TARGET.mpro.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-02 16:30:28,758: INFO] Attempting submission of 'dude_FEAT.smiles_to_image.TARGET.mpro' (attempt 1 of 1)...
+[2022-06-02 16:30:28,790: INFO] Submission returned status OK.
+[2022-06-02 16:30:28,790: INFO] Calling execute for StepRecord 'dude_FEAT.mordred.TARGET.mpro'
+[2022-06-02 16:30:28,794: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.mordred.TARGET.mpro
+[2022-06-02 16:30:28,796: INFO] Generating script for dude_FEAT.mordred.TARGET.mpro into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.mordred.TARGET.mpro
+[2022-06-02 16:30:28,796: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-02 16:30:28,796: WARNING] 'post' is not supported -- ommitted.
+[2022-06-02 16:30:28,796: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-02 16:30:28,796: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-02 16:30:28,796: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-02 16:30:28,796: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-02 16:30:28,796: INFO] Scheduling workflow step 'dude_FEAT.mordred.TARGET.mpro'.
+[2022-06-02 16:30:28,801: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.mordred.TARGET.mpro/dude_FEAT.mordred.TARGET.mpro.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-02 16:30:28,801: INFO] Attempting submission of 'dude_FEAT.mordred.TARGET.mpro' (attempt 1 of 1)...
+[2022-06-02 16:30:28,828: INFO] Submission returned status OK.
+[2022-06-02 16:30:28,828: INFO] Calling execute for StepRecord 'dude_FEAT.maacs.TARGET.mpro'
+[2022-06-02 16:30:28,829: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.maacs.TARGET.mpro
+[2022-06-02 16:30:28,830: INFO] Generating script for dude_FEAT.maacs.TARGET.mpro into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.maacs.TARGET.mpro
+[2022-06-02 16:30:28,831: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-02 16:30:28,831: WARNING] 'post' is not supported -- ommitted.
+[2022-06-02 16:30:28,831: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-02 16:30:28,831: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-02 16:30:28,831: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-02 16:30:28,831: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-02 16:30:28,831: INFO] Scheduling workflow step 'dude_FEAT.maacs.TARGET.mpro'.
+[2022-06-02 16:30:28,842: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.maacs.TARGET.mpro/dude_FEAT.maacs.TARGET.mpro.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-02 16:30:28,842: INFO] Attempting submission of 'dude_FEAT.maacs.TARGET.mpro' (attempt 1 of 1)...
+[2022-06-02 16:30:28,867: INFO] Submission returned status OK.
+[2022-06-02 16:30:28,867: INFO] Calling execute for StepRecord 'dude_FEAT.rdkit.TARGET.mpro'
+[2022-06-02 16:30:28,868: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.rdkit.TARGET.mpro
+[2022-06-02 16:30:28,873: INFO] Generating script for dude_FEAT.rdkit.TARGET.mpro into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.rdkit.TARGET.mpro
+[2022-06-02 16:30:28,873: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-02 16:30:28,873: WARNING] 'post' is not supported -- ommitted.
+[2022-06-02 16:30:28,873: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-02 16:30:28,873: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-02 16:30:28,873: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-02 16:30:28,873: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-02 16:30:28,873: INFO] Scheduling workflow step 'dude_FEAT.rdkit.TARGET.mpro'.
+[2022-06-02 16:30:28,878: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163025/dude/FEAT.rdkit.TARGET.mpro/dude_FEAT.rdkit.TARGET.mpro.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-02 16:30:28,878: INFO] Attempting submission of 'dude_FEAT.rdkit.TARGET.mpro' (attempt 1 of 1)...
+[2022-06-02 16:30:28,902: INFO] Submission returned status OK.
+[2022-06-02 16:31:29,024: INFO] Checking DAG status at 2022-06-02 16:31:29.024331
+[2022-06-02 16:31:29,041: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:31:29,041: INFO] Launching all ready steps...
+[2022-06-02 16:32:29,129: INFO] Checking DAG status at 2022-06-02 16:32:29.129937
+[2022-06-02 16:32:29,148: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:32:29,149: INFO] Step 'dude_FEAT.maacs.TARGET.mpro' was cancelled.
+[2022-06-02 16:32:29,149: INFO] Step 'dude_FEAT.ecfp.TARGET.mpro' was cancelled.
+[2022-06-02 16:32:29,149: INFO] Step 'dude_FEAT.rdkit.TARGET.mpro' was cancelled.
+[2022-06-02 16:32:29,149: INFO] Step 'dude_FEAT.smiles_to_seq.TARGET.mpro' was cancelled.
+[2022-06-02 16:32:29,149: INFO] Step 'dude_FEAT.mordred.TARGET.mpro' was cancelled.
+[2022-06-02 16:32:29,149: INFO] Step 'dude_FEAT.smiles_to_image.TARGET.mpro' was cancelled.
+[2022-06-02 16:32:29,149: INFO] Launching all ready steps...
+[2022-06-02 16:33:29,239: INFO] Checking DAG status at 2022-06-02 16:33:29.239943
+[2022-06-02 16:33:29,295: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:33:29,295: INFO] Launching all ready steps...
+[2022-06-02 16:34:29,384: INFO] Checking DAG status at 2022-06-02 16:34:29.384827
+[2022-06-02 16:34:29,421: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:34:29,422: INFO] Launching all ready steps...
+[2022-06-02 16:35:29,511: INFO] Checking DAG status at 2022-06-02 16:35:29.511195
+[2022-06-02 16:35:29,557: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:35:29,557: INFO] Launching all ready steps...
+[2022-06-02 16:36:29,659: INFO] Checking DAG status at 2022-06-02 16:36:29.659508
+[2022-06-02 16:36:29,706: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:36:29,706: INFO] Launching all ready steps...
+[2022-06-02 16:37:29,795: INFO] Checking DAG status at 2022-06-02 16:37:29.795732
+[2022-06-02 16:37:29,838: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:37:29,839: INFO] Launching all ready steps...
+[2022-06-02 16:38:29,924: INFO] Checking DAG status at 2022-06-02 16:38:29.924337
+[2022-06-02 16:38:29,959: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:38:29,960: INFO] Launching all ready steps...
+[2022-06-02 16:39:30,038: INFO] Checking DAG status at 2022-06-02 16:39:30.038406
+[2022-06-02 16:39:30,071: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:39:30,071: INFO] Launching all ready steps...
+[2022-06-02 16:40:30,146: INFO] Checking DAG status at 2022-06-02 16:40:30.146086
+[2022-06-02 16:40:30,177: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:40:30,177: INFO] Launching all ready steps...
+[2022-06-02 16:41:30,257: INFO] Checking DAG status at 2022-06-02 16:41:30.257070
+[2022-06-02 16:41:30,272: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:41:30,272: INFO] Launching all ready steps...
+[2022-06-02 16:42:30,359: INFO] Checking DAG status at 2022-06-02 16:42:30.359870
+[2022-06-02 16:42:30,394: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:42:30,394: INFO] Launching all ready steps...
+[2022-06-02 16:43:30,467: INFO] Checking DAG status at 2022-06-02 16:43:30.466952
+[2022-06-02 16:43:30,500: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:43:30,500: INFO] Launching all ready steps...
+[2022-06-02 16:44:30,572: INFO] Checking DAG status at 2022-06-02 16:44:30.572291
+[2022-06-02 16:44:30,607: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:44:30,607: INFO] Launching all ready steps...
+[2022-06-02 16:45:30,680: INFO] Checking DAG status at 2022-06-02 16:45:30.679963
+[2022-06-02 16:45:30,713: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:45:30,714: INFO] Launching all ready steps...
+[2022-06-02 16:46:30,786: INFO] Checking DAG status at 2022-06-02 16:46:30.785967
+[2022-06-02 16:46:30,834: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:46:30,835: INFO] Launching all ready steps...
+[2022-06-02 16:47:30,926: INFO] Checking DAG status at 2022-06-02 16:47:30.925961
+[2022-06-02 16:47:30,983: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:47:30,983: INFO] Launching all ready steps...
+[2022-06-02 16:48:31,124: INFO] Checking DAG status at 2022-06-02 16:48:31.124046
+[2022-06-02 16:48:31,172: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:48:31,172: INFO] Launching all ready steps...
+[2022-06-02 16:49:31,243: INFO] Checking DAG status at 2022-06-02 16:49:31.243939
+[2022-06-02 16:49:31,277: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:49:31,277: INFO] Launching all ready steps...
+[2022-06-02 16:50:31,352: INFO] Checking DAG status at 2022-06-02 16:50:31.352872
+[2022-06-02 16:50:31,386: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:50:31,387: INFO] Launching all ready steps...
+[2022-06-02 16:51:31,458: INFO] Checking DAG status at 2022-06-02 16:51:31.458951
+[2022-06-02 16:51:31,499: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:51:31,499: INFO] Launching all ready steps...
+[2022-06-02 16:52:31,573: INFO] Checking DAG status at 2022-06-02 16:52:31.573553
+[2022-06-02 16:52:31,621: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:52:31,621: INFO] Launching all ready steps...
+[2022-06-02 16:53:31,694: INFO] Checking DAG status at 2022-06-02 16:53:31.694801
+[2022-06-02 16:53:31,735: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:53:31,735: INFO] Launching all ready steps...
+[2022-06-02 16:54:31,808: INFO] Checking DAG status at 2022-06-02 16:54:31.808029
+[2022-06-02 16:54:31,849: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:54:31,849: INFO] Launching all ready steps...
+[2022-06-02 16:55:31,922: INFO] Checking DAG status at 2022-06-02 16:55:31.922135
+[2022-06-02 16:55:31,960: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:55:31,960: INFO] Launching all ready steps...
+[2022-06-02 16:56:32,032: INFO] Checking DAG status at 2022-06-02 16:56:32.032695
+[2022-06-02 16:56:32,068: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:56:32,068: INFO] Launching all ready steps...
+[2022-06-02 16:57:32,140: INFO] Checking DAG status at 2022-06-02 16:57:32.140944
+[2022-06-02 16:57:32,178: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:57:32,178: INFO] Launching all ready steps...
+[2022-06-02 16:58:32,250: INFO] Checking DAG status at 2022-06-02 16:58:32.250500
+[2022-06-02 16:58:32,291: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:58:32,291: INFO] Launching all ready steps...
+[2022-06-02 16:59:32,363: INFO] Checking DAG status at 2022-06-02 16:59:32.363632
+[2022-06-02 16:59:32,398: INFO] Jobs found for user 'jones289'.
+[2022-06-02 16:59:32,399: INFO] Launching all ready steps...
+[2022-06-02 17:00:32,471: INFO] Checking DAG status at 2022-06-02 17:00:32.471963
+[2022-06-02 17:00:32,509: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:00:32,509: INFO] Launching all ready steps...
+[2022-06-02 17:01:32,582: INFO] Checking DAG status at 2022-06-02 17:01:32.582913
+[2022-06-02 17:01:32,623: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:01:32,623: INFO] Launching all ready steps...
+[2022-06-02 17:02:32,695: INFO] Checking DAG status at 2022-06-02 17:02:32.695955
+[2022-06-02 17:02:32,730: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:02:32,730: INFO] Launching all ready steps...
+[2022-06-02 17:03:32,801: INFO] Checking DAG status at 2022-06-02 17:03:32.801018
+[2022-06-02 17:03:32,836: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:03:32,836: INFO] Launching all ready steps...
+[2022-06-02 17:04:32,919: INFO] Checking DAG status at 2022-06-02 17:04:32.919860
+[2022-06-02 17:04:32,958: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:04:32,958: INFO] Launching all ready steps...
+[2022-06-02 17:05:33,031: INFO] Checking DAG status at 2022-06-02 17:05:33.031211
+[2022-06-02 17:05:33,065: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:05:33,065: INFO] Launching all ready steps...
+[2022-06-02 17:06:33,139: INFO] Checking DAG status at 2022-06-02 17:06:33.139099
+[2022-06-02 17:06:33,177: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:06:33,177: INFO] Launching all ready steps...
+[2022-06-02 17:07:33,250: INFO] Checking DAG status at 2022-06-02 17:07:33.250586
+[2022-06-02 17:07:33,283: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:07:33,283: INFO] Launching all ready steps...
+[2022-06-02 17:08:33,355: INFO] Checking DAG status at 2022-06-02 17:08:33.355238
+[2022-06-02 17:08:33,389: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:08:33,389: INFO] Launching all ready steps...
+[2022-06-02 17:09:33,466: INFO] Checking DAG status at 2022-06-02 17:09:33.466697
+[2022-06-02 17:09:33,525: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:09:33,525: INFO] Launching all ready steps...
+[2022-06-02 17:10:33,608: INFO] Checking DAG status at 2022-06-02 17:10:33.608688
+[2022-06-02 17:10:33,645: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:10:33,645: INFO] Launching all ready steps...
+[2022-06-02 17:11:33,730: INFO] Checking DAG status at 2022-06-02 17:11:33.730227
+[2022-06-02 17:11:33,765: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:11:33,765: INFO] Launching all ready steps...
+[2022-06-02 17:12:33,841: INFO] Checking DAG status at 2022-06-02 17:12:33.841233
+[2022-06-02 17:12:33,875: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:12:33,875: INFO] Launching all ready steps...
+[2022-06-02 17:13:33,948: INFO] Checking DAG status at 2022-06-02 17:13:33.948517
+[2022-06-02 17:13:33,982: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:13:33,982: INFO] Launching all ready steps...
+[2022-06-02 17:14:34,055: INFO] Checking DAG status at 2022-06-02 17:14:34.055590
+[2022-06-02 17:14:34,090: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:14:34,091: INFO] Launching all ready steps...
+[2022-06-02 17:15:34,164: INFO] Checking DAG status at 2022-06-02 17:15:34.164038
+[2022-06-02 17:15:34,198: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:15:34,198: INFO] Launching all ready steps...
+[2022-06-02 17:16:34,274: INFO] Checking DAG status at 2022-06-02 17:16:34.274572
+[2022-06-02 17:16:34,311: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:16:34,311: INFO] Launching all ready steps...
+[2022-06-02 17:17:34,384: INFO] Checking DAG status at 2022-06-02 17:17:34.384855
+[2022-06-02 17:17:34,418: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:17:34,419: INFO] Launching all ready steps...
+[2022-06-02 17:18:34,493: INFO] Checking DAG status at 2022-06-02 17:18:34.493198
+[2022-06-02 17:18:34,528: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:18:34,528: INFO] Launching all ready steps...
+[2022-06-02 17:19:34,605: INFO] Checking DAG status at 2022-06-02 17:19:34.605084
+[2022-06-02 17:19:34,642: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:19:34,642: INFO] Launching all ready steps...
+[2022-06-02 17:20:34,727: INFO] Checking DAG status at 2022-06-02 17:20:34.727795
+[2022-06-02 17:20:34,788: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:20:34,788: INFO] Launching all ready steps...
+[2022-06-02 17:21:34,898: INFO] Checking DAG status at 2022-06-02 17:21:34.898095
+[2022-06-02 17:21:34,949: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:21:34,950: INFO] Launching all ready steps...
+[2022-06-02 17:22:35,053: INFO] Checking DAG status at 2022-06-02 17:22:35.053126
+[2022-06-02 17:22:35,112: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:22:35,112: INFO] Launching all ready steps...
+[2022-06-02 17:23:35,210: INFO] Checking DAG status at 2022-06-02 17:23:35.210064
+[2022-06-02 17:23:35,255: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:23:35,255: INFO] Launching all ready steps...
+[2022-06-02 17:24:35,353: INFO] Checking DAG status at 2022-06-02 17:24:35.353778
+[2022-06-02 17:24:35,396: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:24:35,396: INFO] Launching all ready steps...
+[2022-06-02 17:25:35,490: INFO] Checking DAG status at 2022-06-02 17:25:35.490456
+[2022-06-02 17:25:35,537: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:25:35,537: INFO] Launching all ready steps...
+[2022-06-02 17:26:35,616: INFO] Checking DAG status at 2022-06-02 17:26:35.616144
+[2022-06-02 17:26:35,658: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:26:35,658: INFO] Launching all ready steps...
+[2022-06-02 17:27:35,740: INFO] Checking DAG status at 2022-06-02 17:27:35.740409
+[2022-06-02 17:27:35,781: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:27:35,781: INFO] Launching all ready steps...
+[2022-06-02 17:28:35,866: INFO] Checking DAG status at 2022-06-02 17:28:35.866731
+[2022-06-02 17:28:35,911: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:28:35,912: INFO] Launching all ready steps...
+[2022-06-02 17:29:35,996: INFO] Checking DAG status at 2022-06-02 17:29:35.996153
+[2022-06-02 17:29:36,045: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:29:36,045: INFO] Launching all ready steps...
+[2022-06-02 17:30:36,137: INFO] Checking DAG status at 2022-06-02 17:30:36.137817
+[2022-06-02 17:30:36,228: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:30:36,228: INFO] Launching all ready steps...
+[2022-06-02 17:31:36,331: INFO] Checking DAG status at 2022-06-02 17:31:36.331826
+[2022-06-02 17:31:36,374: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:31:36,374: INFO] Launching all ready steps...
+[2022-06-02 17:32:36,466: INFO] Checking DAG status at 2022-06-02 17:32:36.466821
+[2022-06-02 17:32:36,513: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:32:36,513: INFO] Launching all ready steps...
+[2022-06-02 17:33:36,587: INFO] Checking DAG status at 2022-06-02 17:33:36.587947
+[2022-06-02 17:33:36,629: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:33:36,629: INFO] Launching all ready steps...
+[2022-06-02 17:34:36,716: INFO] Checking DAG status at 2022-06-02 17:34:36.716606
+[2022-06-02 17:34:36,762: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:34:36,762: INFO] Launching all ready steps...
+[2022-06-02 17:35:36,845: INFO] Checking DAG status at 2022-06-02 17:35:36.845797
+[2022-06-02 17:35:36,892: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:35:36,893: INFO] Launching all ready steps...
+[2022-06-02 17:36:36,991: INFO] Checking DAG status at 2022-06-02 17:36:36.991131
+[2022-06-02 17:36:37,031: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:36:37,031: INFO] Launching all ready steps...
+[2022-06-02 17:37:37,108: INFO] Checking DAG status at 2022-06-02 17:37:37.108407
+[2022-06-02 17:37:37,154: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:37:37,154: INFO] Launching all ready steps...
+[2022-06-02 17:38:37,235: INFO] Checking DAG status at 2022-06-02 17:38:37.235049
+[2022-06-02 17:38:37,271: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:38:37,271: INFO] Launching all ready steps...
+[2022-06-02 17:39:37,350: INFO] Checking DAG status at 2022-06-02 17:39:37.349970
+[2022-06-02 17:39:37,383: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:39:37,383: INFO] Launching all ready steps...
+[2022-06-02 17:40:37,462: INFO] Checking DAG status at 2022-06-02 17:40:37.462236
+[2022-06-02 17:40:37,495: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:40:37,496: INFO] Launching all ready steps...
+[2022-06-02 17:41:37,588: INFO] Checking DAG status at 2022-06-02 17:41:37.588025
+[2022-06-02 17:41:37,643: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:41:37,643: INFO] Launching all ready steps...
+[2022-06-02 17:42:37,724: INFO] Checking DAG status at 2022-06-02 17:42:37.724290
+[2022-06-02 17:42:37,759: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:42:37,759: INFO] Launching all ready steps...
+[2022-06-02 17:43:37,844: INFO] Checking DAG status at 2022-06-02 17:43:37.844378
+[2022-06-02 17:43:37,879: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:43:37,879: INFO] Launching all ready steps...
+[2022-06-02 17:44:37,953: INFO] Checking DAG status at 2022-06-02 17:44:37.953024
+[2022-06-02 17:44:37,993: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:44:37,993: INFO] Launching all ready steps...
+[2022-06-02 17:45:38,065: INFO] Checking DAG status at 2022-06-02 17:45:38.065541
+[2022-06-02 17:45:38,100: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:45:38,101: INFO] Launching all ready steps...
+[2022-06-02 17:46:38,182: INFO] Checking DAG status at 2022-06-02 17:46:38.182069
+[2022-06-02 17:46:38,218: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:46:38,218: INFO] Launching all ready steps...
+[2022-06-02 17:47:38,546: INFO] Checking DAG status at 2022-06-02 17:47:38.546180
+[2022-06-02 17:47:38,621: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:47:38,621: INFO] Launching all ready steps...
+[2022-06-02 17:48:38,693: INFO] Checking DAG status at 2022-06-02 17:48:38.693252
+[2022-06-02 17:48:38,753: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:48:38,753: INFO] Launching all ready steps...
+[2022-06-02 17:49:38,824: INFO] Checking DAG status at 2022-06-02 17:49:38.824901
+[2022-06-02 17:49:38,861: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:49:38,861: INFO] Launching all ready steps...
+[2022-06-02 17:50:38,933: INFO] Checking DAG status at 2022-06-02 17:50:38.933693
+[2022-06-02 17:50:38,968: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:50:38,968: INFO] Launching all ready steps...
+[2022-06-02 17:51:39,053: INFO] Checking DAG status at 2022-06-02 17:51:39.053023
+[2022-06-02 17:51:39,093: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:51:39,094: INFO] Launching all ready steps...
+[2022-06-02 17:52:39,169: INFO] Checking DAG status at 2022-06-02 17:52:39.168990
+[2022-06-02 17:52:39,205: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:52:39,205: INFO] Launching all ready steps...
+[2022-06-02 17:53:39,279: INFO] Checking DAG status at 2022-06-02 17:53:39.279727
+[2022-06-02 17:53:39,315: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:53:39,315: INFO] Launching all ready steps...
+[2022-06-02 17:54:39,669: INFO] Checking DAG status at 2022-06-02 17:54:39.669231
+[2022-06-02 17:54:39,706: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:54:39,706: INFO] Launching all ready steps...
+[2022-06-02 17:55:39,778: INFO] Checking DAG status at 2022-06-02 17:55:39.778528
+[2022-06-02 17:55:39,816: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:55:39,816: INFO] Launching all ready steps...
+[2022-06-02 17:56:39,899: INFO] Checking DAG status at 2022-06-02 17:56:39.899131
+[2022-06-02 17:56:39,941: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:56:39,942: INFO] Launching all ready steps...
+[2022-06-02 17:57:40,013: INFO] Checking DAG status at 2022-06-02 17:57:40.013568
+[2022-06-02 17:57:40,047: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:57:40,047: INFO] Launching all ready steps...
+[2022-06-02 17:58:40,123: INFO] Checking DAG status at 2022-06-02 17:58:40.123619
+[2022-06-02 17:58:40,155: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:58:40,155: INFO] Launching all ready steps...
+[2022-06-02 17:59:40,228: INFO] Checking DAG status at 2022-06-02 17:59:40.228062
+[2022-06-02 17:59:40,259: INFO] Jobs found for user 'jones289'.
+[2022-06-02 17:59:40,259: INFO] Launching all ready steps...
+[2022-06-02 18:00:40,332: INFO] Checking DAG status at 2022-06-02 18:00:40.332761
+[2022-06-02 18:00:40,367: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:00:40,367: INFO] Launching all ready steps...
+[2022-06-02 18:01:40,442: INFO] Checking DAG status at 2022-06-02 18:01:40.442016
+[2022-06-02 18:01:40,474: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:01:40,474: INFO] Launching all ready steps...
+[2022-06-02 18:02:40,547: INFO] Checking DAG status at 2022-06-02 18:02:40.547589
+[2022-06-02 18:02:40,580: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:02:40,581: INFO] Launching all ready steps...
+[2022-06-02 18:03:40,653: INFO] Checking DAG status at 2022-06-02 18:03:40.653720
+[2022-06-02 18:03:40,684: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:03:40,685: INFO] Launching all ready steps...
+[2022-06-02 18:04:40,759: INFO] Checking DAG status at 2022-06-02 18:04:40.759021
+[2022-06-02 18:04:40,791: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:04:40,791: INFO] Launching all ready steps...
+[2022-06-02 18:05:40,850: INFO] Checking DAG status at 2022-06-02 18:05:40.850053
+[2022-06-02 18:05:40,883: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:05:40,883: INFO] Launching all ready steps...
+[2022-06-02 18:06:40,966: INFO] Checking DAG status at 2022-06-02 18:06:40.966677
+[2022-06-02 18:06:41,001: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:06:41,002: INFO] Launching all ready steps...
+[2022-06-02 18:07:41,074: INFO] Checking DAG status at 2022-06-02 18:07:41.074001
+[2022-06-02 18:07:41,107: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:07:41,107: INFO] Launching all ready steps...
+[2022-06-02 18:08:41,180: INFO] Checking DAG status at 2022-06-02 18:08:41.180740
+[2022-06-02 18:08:41,214: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:08:41,214: INFO] Launching all ready steps...
+[2022-06-02 18:09:41,289: INFO] Checking DAG status at 2022-06-02 18:09:41.289507
+[2022-06-02 18:09:41,322: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:09:41,322: INFO] Launching all ready steps...
+[2022-06-02 18:10:41,396: INFO] Checking DAG status at 2022-06-02 18:10:41.396587
+[2022-06-02 18:10:41,429: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:10:41,429: INFO] Launching all ready steps...
+[2022-06-02 18:11:41,511: INFO] Checking DAG status at 2022-06-02 18:11:41.511698
+[2022-06-02 18:11:41,544: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:11:41,544: INFO] Launching all ready steps...
+[2022-06-02 18:12:41,619: INFO] Checking DAG status at 2022-06-02 18:12:41.619907
+[2022-06-02 18:12:41,655: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:12:41,655: INFO] Launching all ready steps...
+[2022-06-02 18:13:41,728: INFO] Checking DAG status at 2022-06-02 18:13:41.728166
+[2022-06-02 18:13:41,766: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:13:41,766: INFO] Launching all ready steps...
+[2022-06-02 18:14:41,840: INFO] Checking DAG status at 2022-06-02 18:14:41.840345
+[2022-06-02 18:14:41,872: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:14:41,872: INFO] Launching all ready steps...
+[2022-06-02 18:15:41,944: INFO] Checking DAG status at 2022-06-02 18:15:41.944650
+[2022-06-02 18:15:41,976: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:15:41,976: INFO] Launching all ready steps...
+[2022-06-02 18:16:42,060: INFO] Checking DAG status at 2022-06-02 18:16:42.060311
+[2022-06-02 18:16:42,093: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:16:42,093: INFO] Launching all ready steps...
+[2022-06-02 18:17:42,166: INFO] Checking DAG status at 2022-06-02 18:17:42.166479
+[2022-06-02 18:17:42,198: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:17:42,198: INFO] Launching all ready steps...
+[2022-06-02 18:18:42,274: INFO] Checking DAG status at 2022-06-02 18:18:42.274065
+[2022-06-02 18:18:42,305: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:18:42,305: INFO] Launching all ready steps...
+[2022-06-02 18:19:42,378: INFO] Checking DAG status at 2022-06-02 18:19:42.378271
+[2022-06-02 18:19:42,410: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:19:42,410: INFO] Launching all ready steps...
+[2022-06-02 18:20:42,484: INFO] Checking DAG status at 2022-06-02 18:20:42.484385
+[2022-06-02 18:20:42,516: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:20:42,516: INFO] Launching all ready steps...
+[2022-06-02 18:21:42,597: INFO] Checking DAG status at 2022-06-02 18:21:42.597064
+[2022-06-02 18:21:42,629: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:21:42,629: INFO] Launching all ready steps...
+[2022-06-02 18:22:42,703: INFO] Checking DAG status at 2022-06-02 18:22:42.703948
+[2022-06-02 18:22:42,737: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:22:42,737: INFO] Launching all ready steps...
+[2022-06-02 18:23:42,810: INFO] Checking DAG status at 2022-06-02 18:23:42.810275
+[2022-06-02 18:23:42,842: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:23:42,842: INFO] Launching all ready steps...
+[2022-06-02 18:24:42,916: INFO] Checking DAG status at 2022-06-02 18:24:42.916588
+[2022-06-02 18:24:42,951: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:24:42,951: INFO] Launching all ready steps...
+[2022-06-02 18:25:43,023: INFO] Checking DAG status at 2022-06-02 18:25:43.023793
+[2022-06-02 18:25:43,056: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:25:43,056: INFO] Launching all ready steps...
+[2022-06-02 18:26:43,144: INFO] Checking DAG status at 2022-06-02 18:26:43.144341
+[2022-06-02 18:26:43,177: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:26:43,177: INFO] Launching all ready steps...
+[2022-06-02 18:27:43,249: INFO] Checking DAG status at 2022-06-02 18:27:43.249368
+[2022-06-02 18:27:43,286: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:27:43,286: INFO] Launching all ready steps...
+[2022-06-02 18:28:43,362: INFO] Checking DAG status at 2022-06-02 18:28:43.362644
+[2022-06-02 18:28:43,409: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:28:43,409: INFO] Launching all ready steps...
+[2022-06-02 18:29:43,481: INFO] Checking DAG status at 2022-06-02 18:29:43.481888
+[2022-06-02 18:29:43,534: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:29:43,534: INFO] Launching all ready steps...
+[2022-06-02 18:30:43,616: INFO] Checking DAG status at 2022-06-02 18:30:43.616702
+[2022-06-02 18:30:43,680: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:30:43,680: INFO] Launching all ready steps...
+[2022-06-02 18:31:43,761: INFO] Checking DAG status at 2022-06-02 18:31:43.761889
+[2022-06-02 18:31:43,843: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:31:43,843: INFO] Launching all ready steps...
+[2022-06-02 18:32:43,916: INFO] Checking DAG status at 2022-06-02 18:32:43.916584
+[2022-06-02 18:32:44,005: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:32:44,005: INFO] Launching all ready steps...
+[2022-06-02 18:33:44,077: INFO] Checking DAG status at 2022-06-02 18:33:44.077650
+[2022-06-02 18:33:44,178: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:33:44,178: INFO] Launching all ready steps...
+[2022-06-02 18:34:44,254: INFO] Checking DAG status at 2022-06-02 18:34:44.254431
+[2022-06-02 18:34:44,355: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:34:44,355: INFO] Launching all ready steps...
+[2022-06-02 18:35:44,425: INFO] Checking DAG status at 2022-06-02 18:35:44.425568
+[2022-06-02 18:35:44,519: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:35:44,519: INFO] Launching all ready steps...
+[2022-06-02 18:36:44,601: INFO] Checking DAG status at 2022-06-02 18:36:44.601571
+[2022-06-02 18:36:44,699: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:36:44,699: INFO] Launching all ready steps...
+[2022-06-02 18:37:44,770: INFO] Checking DAG status at 2022-06-02 18:37:44.770581
+[2022-06-02 18:37:44,870: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:37:44,870: INFO] Launching all ready steps...
+[2022-06-02 18:38:44,943: INFO] Checking DAG status at 2022-06-02 18:38:44.943276
+[2022-06-02 18:38:45,041: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:38:45,041: INFO] Launching all ready steps...
+[2022-06-02 18:39:45,113: INFO] Checking DAG status at 2022-06-02 18:39:45.113053
+[2022-06-02 18:39:45,226: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:39:45,226: INFO] Launching all ready steps...
+[2022-06-02 18:40:45,253: INFO] Checking DAG status at 2022-06-02 18:40:45.253070
+[2022-06-02 18:40:45,363: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:40:45,363: INFO] Launching all ready steps...
+[2022-06-02 18:41:45,444: INFO] Checking DAG status at 2022-06-02 18:41:45.444467
+[2022-06-02 18:41:45,568: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:41:45,568: INFO] Launching all ready steps...
+[2022-06-02 18:42:45,641: INFO] Checking DAG status at 2022-06-02 18:42:45.641674
+[2022-06-02 18:42:45,771: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:42:45,771: INFO] Launching all ready steps...
+[2022-06-02 18:43:45,843: INFO] Checking DAG status at 2022-06-02 18:43:45.843098
+[2022-06-02 18:43:45,966: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:43:45,966: INFO] Launching all ready steps...
+[2022-06-02 18:44:46,039: INFO] Checking DAG status at 2022-06-02 18:44:46.039445
+[2022-06-02 18:44:46,153: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:44:46,153: INFO] Launching all ready steps...
+[2022-06-02 18:45:46,226: INFO] Checking DAG status at 2022-06-02 18:45:46.226313
+[2022-06-02 18:45:46,342: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:45:46,343: INFO] Launching all ready steps...
+[2022-06-02 18:46:46,417: INFO] Checking DAG status at 2022-06-02 18:46:46.417809
+[2022-06-02 18:46:46,546: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:46:46,546: INFO] Launching all ready steps...
+[2022-06-02 18:47:46,621: INFO] Checking DAG status at 2022-06-02 18:47:46.621972
+[2022-06-02 18:47:46,761: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:47:46,761: INFO] Launching all ready steps...
+[2022-06-02 18:48:46,836: INFO] Checking DAG status at 2022-06-02 18:48:46.836684
+[2022-06-02 18:48:46,960: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:48:46,960: INFO] Launching all ready steps...
+[2022-06-02 18:49:47,032: INFO] Checking DAG status at 2022-06-02 18:49:47.032634
+[2022-06-02 18:49:47,210: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:49:47,210: INFO] Launching all ready steps...
+[2022-06-02 18:50:47,285: INFO] Checking DAG status at 2022-06-02 18:50:47.285143
+[2022-06-02 18:50:47,407: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:50:47,407: INFO] Launching all ready steps...
+[2022-06-02 18:51:47,479: INFO] Checking DAG status at 2022-06-02 18:51:47.479137
+[2022-06-02 18:51:47,598: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:51:47,598: INFO] Launching all ready steps...
+[2022-06-02 18:52:47,671: INFO] Checking DAG status at 2022-06-02 18:52:47.671902
+[2022-06-02 18:52:47,789: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:52:47,789: INFO] Launching all ready steps...
+[2022-06-02 18:53:47,863: INFO] Checking DAG status at 2022-06-02 18:53:47.863381
+[2022-06-02 18:53:47,998: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:53:47,998: INFO] Launching all ready steps...
+[2022-06-02 18:54:48,073: INFO] Checking DAG status at 2022-06-02 18:54:48.073635
+[2022-06-02 18:54:48,182: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:54:48,182: INFO] Launching all ready steps...
+[2022-06-02 18:55:48,255: INFO] Checking DAG status at 2022-06-02 18:55:48.255141
+[2022-06-02 18:55:48,364: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:55:48,364: INFO] Launching all ready steps...
+[2022-06-02 18:56:48,439: INFO] Checking DAG status at 2022-06-02 18:56:48.439053
+[2022-06-02 18:56:48,538: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:56:48,538: INFO] Launching all ready steps...
+[2022-06-02 18:57:48,612: INFO] Checking DAG status at 2022-06-02 18:57:48.612862
+[2022-06-02 18:57:48,718: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:57:48,719: INFO] Launching all ready steps...
+[2022-06-02 18:58:48,794: INFO] Checking DAG status at 2022-06-02 18:58:48.794821
+[2022-06-02 18:58:48,902: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:58:48,902: INFO] Launching all ready steps...
+[2022-06-02 18:59:48,974: INFO] Checking DAG status at 2022-06-02 18:59:48.974699
+[2022-06-02 18:59:49,091: INFO] Jobs found for user 'jones289'.
+[2022-06-02 18:59:49,091: INFO] Launching all ready steps...
+[2022-06-02 19:00:49,165: INFO] Checking DAG status at 2022-06-02 19:00:49.165769
+[2022-06-02 19:00:49,264: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:00:49,264: INFO] Launching all ready steps...
+[2022-06-02 19:01:49,302: INFO] Checking DAG status at 2022-06-02 19:01:49.302150
+[2022-06-02 19:01:49,406: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:01:49,407: INFO] Launching all ready steps...
+[2022-06-02 19:02:49,481: INFO] Checking DAG status at 2022-06-02 19:02:49.481644
+[2022-06-02 19:02:49,575: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:02:49,575: INFO] Launching all ready steps...
+[2022-06-02 19:03:49,647: INFO] Checking DAG status at 2022-06-02 19:03:49.647042
+[2022-06-02 19:03:49,752: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:03:49,752: INFO] Launching all ready steps...
+[2022-06-02 19:04:49,843: INFO] Checking DAG status at 2022-06-02 19:04:49.843001
+[2022-06-02 19:04:49,948: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:04:49,948: INFO] Launching all ready steps...
+[2022-06-02 19:05:50,019: INFO] Checking DAG status at 2022-06-02 19:05:50.019419
+[2022-06-02 19:05:50,128: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:05:50,129: INFO] Launching all ready steps...
+[2022-06-02 19:06:50,211: INFO] Checking DAG status at 2022-06-02 19:06:50.211079
+[2022-06-02 19:06:50,318: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:06:50,318: INFO] Launching all ready steps...
+[2022-06-02 19:07:50,390: INFO] Checking DAG status at 2022-06-02 19:07:50.390225
+[2022-06-02 19:07:50,500: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:07:50,500: INFO] Launching all ready steps...
+[2022-06-02 19:08:50,576: INFO] Checking DAG status at 2022-06-02 19:08:50.575991
+[2022-06-02 19:08:50,688: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:08:50,688: INFO] Launching all ready steps...
+[2022-06-02 19:09:50,761: INFO] Checking DAG status at 2022-06-02 19:09:50.761833
+[2022-06-02 19:09:50,870: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:09:50,870: INFO] Launching all ready steps...
+[2022-06-02 19:10:50,944: INFO] Checking DAG status at 2022-06-02 19:10:50.944425
+[2022-06-02 19:10:51,060: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:10:51,060: INFO] Launching all ready steps...
+[2022-06-02 19:11:51,142: INFO] Checking DAG status at 2022-06-02 19:11:51.142248
+[2022-06-02 19:11:51,243: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:11:51,243: INFO] Launching all ready steps...
+[2022-06-02 19:12:51,317: INFO] Checking DAG status at 2022-06-02 19:12:51.317876
+[2022-06-02 19:12:51,424: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:12:51,424: INFO] Launching all ready steps...
+[2022-06-02 19:13:51,496: INFO] Checking DAG status at 2022-06-02 19:13:51.496578
+[2022-06-02 19:13:51,611: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:13:51,611: INFO] Launching all ready steps...
+[2022-06-02 19:14:51,688: INFO] Checking DAG status at 2022-06-02 19:14:51.688161
+[2022-06-02 19:14:51,801: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:14:51,801: INFO] Launching all ready steps...
+[2022-06-02 19:15:51,873: INFO] Checking DAG status at 2022-06-02 19:15:51.873924
+[2022-06-02 19:15:51,979: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:15:51,979: INFO] Launching all ready steps...
+[2022-06-02 19:16:52,063: INFO] Checking DAG status at 2022-06-02 19:16:52.063952
+[2022-06-02 19:16:52,176: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:16:52,176: INFO] Launching all ready steps...
+[2022-06-02 19:17:52,249: INFO] Checking DAG status at 2022-06-02 19:17:52.249117
+[2022-06-02 19:17:52,373: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:17:52,373: INFO] Launching all ready steps...
+[2022-06-02 19:18:52,448: INFO] Checking DAG status at 2022-06-02 19:18:52.448116
+[2022-06-02 19:18:52,544: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:18:52,544: INFO] Launching all ready steps...
+[2022-06-02 19:19:52,617: INFO] Checking DAG status at 2022-06-02 19:19:52.617236
+[2022-06-02 19:19:52,724: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:19:52,724: INFO] Launching all ready steps...
+[2022-06-02 19:20:52,799: INFO] Checking DAG status at 2022-06-02 19:20:52.799205
+[2022-06-02 19:20:52,884: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:20:52,884: INFO] Launching all ready steps...
+[2022-06-02 19:21:52,965: INFO] Checking DAG status at 2022-06-02 19:21:52.965650
+[2022-06-02 19:21:53,085: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:21:53,086: INFO] Launching all ready steps...
+[2022-06-02 19:22:53,160: INFO] Checking DAG status at 2022-06-02 19:22:53.160929
+[2022-06-02 19:22:53,277: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:22:53,277: INFO] Launching all ready steps...
+[2022-06-02 19:23:53,350: INFO] Checking DAG status at 2022-06-02 19:23:53.350745
+[2022-06-02 19:23:53,458: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:23:53,458: INFO] Launching all ready steps...
+[2022-06-02 19:24:53,533: INFO] Checking DAG status at 2022-06-02 19:24:53.533318
+[2022-06-02 19:24:53,648: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:24:53,648: INFO] Launching all ready steps...
+[2022-06-02 19:25:53,721: INFO] Checking DAG status at 2022-06-02 19:25:53.721210
+[2022-06-02 19:25:53,831: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:25:53,831: INFO] Launching all ready steps...
+[2022-06-02 19:26:53,915: INFO] Checking DAG status at 2022-06-02 19:26:53.915360
+[2022-06-02 19:26:54,024: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:26:54,025: INFO] Launching all ready steps...
+[2022-06-02 19:27:54,098: INFO] Checking DAG status at 2022-06-02 19:27:54.098868
+[2022-06-02 19:27:54,215: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:27:54,215: INFO] Launching all ready steps...
+[2022-06-02 19:28:54,290: INFO] Checking DAG status at 2022-06-02 19:28:54.289988
+[2022-06-02 19:28:54,401: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:28:54,401: INFO] Launching all ready steps...
+[2022-06-02 19:29:54,474: INFO] Checking DAG status at 2022-06-02 19:29:54.474742
+[2022-06-02 19:29:54,578: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:29:54,579: INFO] Launching all ready steps...
+[2022-06-02 19:30:54,654: INFO] Checking DAG status at 2022-06-02 19:30:54.654120
+[2022-06-02 19:30:54,767: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:30:54,767: INFO] Launching all ready steps...
+[2022-06-02 19:31:54,851: INFO] Checking DAG status at 2022-06-02 19:31:54.851488
+[2022-06-02 19:31:54,961: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:31:54,961: INFO] Launching all ready steps...
+[2022-06-02 19:32:55,035: INFO] Checking DAG status at 2022-06-02 19:32:55.035276
+[2022-06-02 19:32:55,136: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:32:55,136: INFO] Launching all ready steps...
+[2022-06-02 19:33:55,209: INFO] Checking DAG status at 2022-06-02 19:33:55.209511
+[2022-06-02 19:33:55,313: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:33:55,313: INFO] Launching all ready steps...
+[2022-06-02 19:34:55,387: INFO] Checking DAG status at 2022-06-02 19:34:55.387267
+[2022-06-02 19:34:55,498: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:34:55,498: INFO] Launching all ready steps...
+[2022-06-02 19:35:55,570: INFO] Checking DAG status at 2022-06-02 19:35:55.570160
+[2022-06-02 19:35:55,681: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:35:55,682: INFO] Launching all ready steps...
+[2022-06-02 19:36:55,765: INFO] Checking DAG status at 2022-06-02 19:36:55.765697
+[2022-06-02 19:36:55,861: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:36:55,861: INFO] Launching all ready steps...
+[2022-06-02 19:37:55,934: INFO] Checking DAG status at 2022-06-02 19:37:55.933990
+[2022-06-02 19:37:56,039: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:37:56,039: INFO] Launching all ready steps...
+[2022-06-02 19:38:56,112: INFO] Checking DAG status at 2022-06-02 19:38:56.112678
+[2022-06-02 19:38:56,213: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:38:56,213: INFO] Launching all ready steps...
+[2022-06-02 19:39:56,286: INFO] Checking DAG status at 2022-06-02 19:39:56.286573
+[2022-06-02 19:39:56,394: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:39:56,394: INFO] Launching all ready steps...
+[2022-06-02 19:40:56,468: INFO] Checking DAG status at 2022-06-02 19:40:56.468406
+[2022-06-02 19:40:56,565: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:40:56,565: INFO] Launching all ready steps...
+[2022-06-02 19:41:56,646: INFO] Checking DAG status at 2022-06-02 19:41:56.646819
+[2022-06-02 19:41:56,762: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:41:56,762: INFO] Launching all ready steps...
+[2022-06-02 19:42:56,836: INFO] Checking DAG status at 2022-06-02 19:42:56.836386
+[2022-06-02 19:42:56,947: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:42:56,947: INFO] Launching all ready steps...
+[2022-06-02 19:43:57,019: INFO] Checking DAG status at 2022-06-02 19:43:57.019389
+[2022-06-02 19:43:57,127: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:43:57,127: INFO] Launching all ready steps...
+[2022-06-02 19:44:57,201: INFO] Checking DAG status at 2022-06-02 19:44:57.201115
+[2022-06-02 19:44:57,314: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:44:57,314: INFO] Launching all ready steps...
+[2022-06-02 19:45:57,387: INFO] Checking DAG status at 2022-06-02 19:45:57.387377
+[2022-06-02 19:45:57,547: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:45:57,547: INFO] Launching all ready steps...
+[2022-06-02 19:46:57,632: INFO] Checking DAG status at 2022-06-02 19:46:57.632096
+[2022-06-02 19:46:57,742: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:46:57,743: INFO] Launching all ready steps...
+[2022-06-02 19:47:57,814: INFO] Checking DAG status at 2022-06-02 19:47:57.814932
+[2022-06-02 19:47:57,955: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:47:57,955: INFO] Launching all ready steps...
+[2022-06-02 19:48:58,029: INFO] Checking DAG status at 2022-06-02 19:48:58.029163
+[2022-06-02 19:48:58,148: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:48:58,149: INFO] Launching all ready steps...
+[2022-06-02 19:49:58,221: INFO] Checking DAG status at 2022-06-02 19:49:58.221945
+[2022-06-02 19:49:58,394: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:49:58,394: INFO] Launching all ready steps...
+[2022-06-02 19:50:58,469: INFO] Checking DAG status at 2022-06-02 19:50:58.469082
+[2022-06-02 19:50:58,574: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:50:58,574: INFO] Launching all ready steps...
+[2022-06-02 19:51:58,655: INFO] Checking DAG status at 2022-06-02 19:51:58.655817
+[2022-06-02 19:51:58,761: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:51:58,761: INFO] Launching all ready steps...
+[2022-06-02 19:52:58,836: INFO] Checking DAG status at 2022-06-02 19:52:58.836587
+[2022-06-02 19:52:58,944: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:52:58,944: INFO] Launching all ready steps...
+[2022-06-02 19:53:59,018: INFO] Checking DAG status at 2022-06-02 19:53:59.018107
+[2022-06-02 19:53:59,113: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:53:59,113: INFO] Launching all ready steps...
+[2022-06-02 19:54:59,186: INFO] Checking DAG status at 2022-06-02 19:54:59.186919
+[2022-06-02 19:54:59,284: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:54:59,285: INFO] Launching all ready steps...
+[2022-06-02 19:55:59,357: INFO] Checking DAG status at 2022-06-02 19:55:59.357211
+[2022-06-02 19:55:59,468: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:55:59,469: INFO] Launching all ready steps...
+[2022-06-02 19:56:59,552: INFO] Checking DAG status at 2022-06-02 19:56:59.552340
+[2022-06-02 19:56:59,650: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:56:59,650: INFO] Launching all ready steps...
+[2022-06-02 19:57:59,721: INFO] Checking DAG status at 2022-06-02 19:57:59.721555
+[2022-06-02 19:57:59,825: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:57:59,825: INFO] Launching all ready steps...
+[2022-06-02 19:58:59,898: INFO] Checking DAG status at 2022-06-02 19:58:59.898584
+[2022-06-02 19:58:59,997: INFO] Jobs found for user 'jones289'.
+[2022-06-02 19:58:59,997: INFO] Launching all ready steps...
+[2022-06-02 20:00:00,070: INFO] Checking DAG status at 2022-06-02 20:00:00.070604
+[2022-06-02 20:00:00,183: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:00:00,184: INFO] Launching all ready steps...
+[2022-06-02 20:01:00,259: INFO] Checking DAG status at 2022-06-02 20:01:00.259536
+[2022-06-02 20:01:00,358: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:01:00,358: INFO] Launching all ready steps...
+[2022-06-02 20:02:00,439: INFO] Checking DAG status at 2022-06-02 20:02:00.439776
+[2022-06-02 20:02:00,553: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:02:00,553: INFO] Launching all ready steps...
+[2022-06-02 20:03:00,627: INFO] Checking DAG status at 2022-06-02 20:03:00.627640
+[2022-06-02 20:03:00,726: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:03:00,726: INFO] Launching all ready steps...
+[2022-06-02 20:04:00,800: INFO] Checking DAG status at 2022-06-02 20:04:00.800211
+[2022-06-02 20:04:00,903: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:04:00,903: INFO] Launching all ready steps...
+[2022-06-02 20:05:00,978: INFO] Checking DAG status at 2022-06-02 20:05:00.977982
+[2022-06-02 20:05:01,079: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:05:01,079: INFO] Launching all ready steps...
+[2022-06-02 20:06:01,152: INFO] Checking DAG status at 2022-06-02 20:06:01.152180
+[2022-06-02 20:06:01,249: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:06:01,249: INFO] Launching all ready steps...
+[2022-06-02 20:07:01,333: INFO] Checking DAG status at 2022-06-02 20:07:01.333601
+[2022-06-02 20:07:01,447: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:07:01,448: INFO] Launching all ready steps...
+[2022-06-02 20:08:01,520: INFO] Checking DAG status at 2022-06-02 20:08:01.519987
+[2022-06-02 20:08:01,619: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:08:01,619: INFO] Launching all ready steps...
+[2022-06-02 20:09:01,693: INFO] Checking DAG status at 2022-06-02 20:09:01.693045
+[2022-06-02 20:09:01,794: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:09:01,794: INFO] Launching all ready steps...
+[2022-06-02 20:10:01,866: INFO] Checking DAG status at 2022-06-02 20:10:01.866617
+[2022-06-02 20:10:01,977: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:10:01,977: INFO] Launching all ready steps...
+[2022-06-02 20:11:02,053: INFO] Checking DAG status at 2022-06-02 20:11:02.053160
+[2022-06-02 20:11:02,150: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:11:02,150: INFO] Launching all ready steps...
+[2022-06-02 20:12:02,231: INFO] Checking DAG status at 2022-06-02 20:12:02.231484
+[2022-06-02 20:12:02,341: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:12:02,341: INFO] Launching all ready steps...
+[2022-06-02 20:13:02,415: INFO] Checking DAG status at 2022-06-02 20:13:02.415316
+[2022-06-02 20:13:02,514: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:13:02,514: INFO] Launching all ready steps...
+[2022-06-02 20:14:02,587: INFO] Checking DAG status at 2022-06-02 20:14:02.586993
+[2022-06-02 20:14:02,676: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:14:02,676: INFO] Launching all ready steps...
+[2022-06-02 20:15:02,749: INFO] Checking DAG status at 2022-06-02 20:15:02.749573
+[2022-06-02 20:15:02,851: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:15:02,852: INFO] Launching all ready steps...
+[2022-06-02 20:16:02,924: INFO] Checking DAG status at 2022-06-02 20:16:02.924867
+[2022-06-02 20:16:03,036: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:16:03,036: INFO] Launching all ready steps...
+[2022-06-02 20:17:03,120: INFO] Checking DAG status at 2022-06-02 20:17:03.120485
+[2022-06-02 20:17:03,227: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:17:03,227: INFO] Launching all ready steps...
+[2022-06-02 20:18:03,301: INFO] Checking DAG status at 2022-06-02 20:18:03.301677
+[2022-06-02 20:18:03,408: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:18:03,408: INFO] Launching all ready steps...
+[2022-06-02 20:19:03,482: INFO] Checking DAG status at 2022-06-02 20:19:03.482635
+[2022-06-02 20:19:03,594: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:19:03,594: INFO] Launching all ready steps...
+[2022-06-02 20:20:03,667: INFO] Checking DAG status at 2022-06-02 20:20:03.666998
+[2022-06-02 20:20:03,776: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:20:03,776: INFO] Launching all ready steps...
+[2022-06-02 20:21:03,850: INFO] Checking DAG status at 2022-06-02 20:21:03.850176
+[2022-06-02 20:21:03,963: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:21:03,964: INFO] Launching all ready steps...
+[2022-06-02 20:22:04,046: INFO] Checking DAG status at 2022-06-02 20:22:04.046267
+[2022-06-02 20:22:04,138: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:22:04,138: INFO] Launching all ready steps...
+[2022-06-02 20:23:04,211: INFO] Checking DAG status at 2022-06-02 20:23:04.211409
+[2022-06-02 20:23:04,313: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:23:04,313: INFO] Launching all ready steps...
+[2022-06-02 20:24:04,385: INFO] Checking DAG status at 2022-06-02 20:24:04.385661
+[2022-06-02 20:24:04,496: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:24:04,496: INFO] Launching all ready steps...
+[2022-06-02 20:25:04,570: INFO] Checking DAG status at 2022-06-02 20:25:04.569983
+[2022-06-02 20:25:04,679: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:25:04,680: INFO] Launching all ready steps...
+[2022-06-02 20:26:04,753: INFO] Checking DAG status at 2022-06-02 20:26:04.752996
+[2022-06-02 20:26:04,852: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:26:04,852: INFO] Launching all ready steps...
+[2022-06-02 20:27:04,890: INFO] Checking DAG status at 2022-06-02 20:27:04.890122
+[2022-06-02 20:27:04,997: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:27:04,997: INFO] Launching all ready steps...
+[2022-06-02 20:28:05,068: INFO] Checking DAG status at 2022-06-02 20:28:05.068516
+[2022-06-02 20:28:05,172: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:28:05,172: INFO] Launching all ready steps...
+[2022-06-02 20:29:05,244: INFO] Checking DAG status at 2022-06-02 20:29:05.244641
+[2022-06-02 20:29:05,363: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:29:05,363: INFO] Launching all ready steps...
+[2022-06-02 20:30:05,435: INFO] Checking DAG status at 2022-06-02 20:30:05.435429
+[2022-06-02 20:30:05,544: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:30:05,544: INFO] Launching all ready steps...
+[2022-06-02 20:31:05,618: INFO] Checking DAG status at 2022-06-02 20:31:05.618705
+[2022-06-02 20:31:05,730: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:31:05,730: INFO] Launching all ready steps...
+[2022-06-02 20:32:05,811: INFO] Checking DAG status at 2022-06-02 20:32:05.811020
+[2022-06-02 20:32:05,918: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:32:05,919: INFO] Launching all ready steps...
+[2022-06-02 20:33:05,993: INFO] Checking DAG status at 2022-06-02 20:33:05.993403
+[2022-06-02 20:33:06,104: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:33:06,104: INFO] Launching all ready steps...
+[2022-06-02 20:34:06,177: INFO] Checking DAG status at 2022-06-02 20:34:06.177598
+[2022-06-02 20:34:06,297: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:34:06,297: INFO] Launching all ready steps...
+[2022-06-02 20:35:06,373: INFO] Checking DAG status at 2022-06-02 20:35:06.373032
+[2022-06-02 20:35:06,497: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:35:06,498: INFO] Launching all ready steps...
+[2022-06-02 20:36:06,570: INFO] Checking DAG status at 2022-06-02 20:36:06.570564
+[2022-06-02 20:36:06,688: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:36:06,688: INFO] Launching all ready steps...
+[2022-06-02 20:37:06,773: INFO] Checking DAG status at 2022-06-02 20:37:06.773324
+[2022-06-02 20:37:06,892: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:37:06,892: INFO] Launching all ready steps...
+[2022-06-02 20:38:06,964: INFO] Checking DAG status at 2022-06-02 20:38:06.964475
+[2022-06-02 20:38:07,083: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:38:07,084: INFO] Launching all ready steps...
+[2022-06-02 20:39:07,159: INFO] Checking DAG status at 2022-06-02 20:39:07.159417
+[2022-06-02 20:39:07,286: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:39:07,286: INFO] Launching all ready steps...
+[2022-06-02 20:40:07,359: INFO] Checking DAG status at 2022-06-02 20:40:07.359917
+[2022-06-02 20:40:07,478: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:40:07,478: INFO] Launching all ready steps...
+[2022-06-02 20:41:07,553: INFO] Checking DAG status at 2022-06-02 20:41:07.553942
+[2022-06-02 20:41:07,681: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:41:07,681: INFO] Launching all ready steps...
+[2022-06-02 20:42:07,764: INFO] Checking DAG status at 2022-06-02 20:42:07.764922
+[2022-06-02 20:42:07,886: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:42:07,886: INFO] Launching all ready steps...
+[2022-06-02 20:43:08,001: INFO] Checking DAG status at 2022-06-02 20:43:08.001205
+[2022-06-02 20:43:08,156: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:43:08,156: INFO] Launching all ready steps...
+[2022-06-02 20:44:08,229: INFO] Checking DAG status at 2022-06-02 20:44:08.229468
+[2022-06-02 20:44:08,351: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:44:08,352: INFO] Launching all ready steps...
+[2022-06-02 20:45:08,426: INFO] Checking DAG status at 2022-06-02 20:45:08.426404
+[2022-06-02 20:45:08,554: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:45:08,554: INFO] Launching all ready steps...
+[2022-06-02 20:46:08,626: INFO] Checking DAG status at 2022-06-02 20:46:08.626583
+[2022-06-02 20:46:08,756: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:46:08,756: INFO] Launching all ready steps...
+[2022-06-02 20:47:08,840: INFO] Checking DAG status at 2022-06-02 20:47:08.840666
+[2022-06-02 20:47:08,958: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:47:08,958: INFO] Launching all ready steps...
+[2022-06-02 20:48:09,032: INFO] Checking DAG status at 2022-06-02 20:48:09.031982
+[2022-06-02 20:48:09,200: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:48:09,200: INFO] Launching all ready steps...
+[2022-06-02 20:49:09,273: INFO] Checking DAG status at 2022-06-02 20:49:09.273865
+[2022-06-02 20:49:09,393: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:49:09,393: INFO] Launching all ready steps...
+[2022-06-02 20:50:09,466: INFO] Checking DAG status at 2022-06-02 20:50:09.466310
+[2022-06-02 20:50:09,654: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:50:09,654: INFO] Launching all ready steps...
+[2022-06-02 20:51:09,729: INFO] Checking DAG status at 2022-06-02 20:51:09.729607
+[2022-06-02 20:51:09,848: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:51:09,849: INFO] Launching all ready steps...
+[2022-06-02 20:52:09,931: INFO] Checking DAG status at 2022-06-02 20:52:09.931644
+[2022-06-02 20:52:10,059: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:52:10,060: INFO] Launching all ready steps...
+[2022-06-02 20:53:10,135: INFO] Checking DAG status at 2022-06-02 20:53:10.135255
+[2022-06-02 20:53:10,268: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:53:10,268: INFO] Launching all ready steps...
+[2022-06-02 20:54:10,345: INFO] Checking DAG status at 2022-06-02 20:54:10.345197
+[2022-06-02 20:54:10,461: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:54:10,461: INFO] Launching all ready steps...
+[2022-06-02 20:55:10,537: INFO] Checking DAG status at 2022-06-02 20:55:10.537134
+[2022-06-02 20:55:10,654: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:55:10,654: INFO] Launching all ready steps...
+[2022-06-02 20:56:10,727: INFO] Checking DAG status at 2022-06-02 20:56:10.727518
+[2022-06-02 20:56:10,856: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:56:10,856: INFO] Launching all ready steps...
+[2022-06-02 20:57:10,940: INFO] Checking DAG status at 2022-06-02 20:57:10.940236
+[2022-06-02 20:57:11,072: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:57:11,072: INFO] Launching all ready steps...
+[2022-06-02 20:58:11,146: INFO] Checking DAG status at 2022-06-02 20:58:11.146115
+[2022-06-02 20:58:11,284: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:58:11,284: INFO] Launching all ready steps...
+[2022-06-02 20:59:11,360: INFO] Checking DAG status at 2022-06-02 20:59:11.360716
+[2022-06-02 20:59:11,494: INFO] Jobs found for user 'jones289'.
+[2022-06-02 20:59:11,494: INFO] Launching all ready steps...
+[2022-06-02 21:00:11,569: INFO] Checking DAG status at 2022-06-02 21:00:11.569044
+[2022-06-02 21:00:11,694: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:00:11,695: INFO] Launching all ready steps...
+[2022-06-02 21:01:11,768: INFO] Checking DAG status at 2022-06-02 21:01:11.768528
+[2022-06-02 21:01:11,895: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:01:11,895: INFO] Launching all ready steps...
+[2022-06-02 21:02:11,976: INFO] Checking DAG status at 2022-06-02 21:02:11.976390
+[2022-06-02 21:02:12,120: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:02:12,121: INFO] Launching all ready steps...
+[2022-06-02 21:03:12,194: INFO] Checking DAG status at 2022-06-02 21:03:12.194419
+[2022-06-02 21:03:12,305: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:03:12,305: INFO] Launching all ready steps...
+[2022-06-02 21:04:12,378: INFO] Checking DAG status at 2022-06-02 21:04:12.378818
+[2022-06-02 21:04:12,511: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:04:12,511: INFO] Launching all ready steps...
+[2022-06-02 21:05:12,587: INFO] Checking DAG status at 2022-06-02 21:05:12.587359
+[2022-06-02 21:05:12,719: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:05:12,720: INFO] Launching all ready steps...
+[2022-06-02 21:06:12,793: INFO] Checking DAG status at 2022-06-02 21:06:12.793773
+[2022-06-02 21:06:12,930: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:06:12,930: INFO] Launching all ready steps...
+[2022-06-02 21:07:13,014: INFO] Checking DAG status at 2022-06-02 21:07:13.014810
+[2022-06-02 21:07:13,163: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:07:13,163: INFO] Launching all ready steps...
+[2022-06-02 21:08:13,235: INFO] Checking DAG status at 2022-06-02 21:08:13.235770
+[2022-06-02 21:08:13,375: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:08:13,376: INFO] Launching all ready steps...
+[2022-06-02 21:09:13,453: INFO] Checking DAG status at 2022-06-02 21:09:13.453915
+[2022-06-02 21:09:13,595: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:09:13,595: INFO] Launching all ready steps...
+[2022-06-02 21:10:13,667: INFO] Checking DAG status at 2022-06-02 21:10:13.667595
+[2022-06-02 21:10:13,810: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:10:13,811: INFO] Launching all ready steps...
+[2022-06-02 21:11:13,885: INFO] Checking DAG status at 2022-06-02 21:11:13.885485
+[2022-06-02 21:11:14,034: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:11:14,034: INFO] Launching all ready steps...
+[2022-06-02 21:12:14,116: INFO] Checking DAG status at 2022-06-02 21:12:14.116595
+[2022-06-02 21:12:14,267: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:12:14,267: INFO] Launching all ready steps...
+[2022-06-02 21:13:14,343: INFO] Checking DAG status at 2022-06-02 21:13:14.343177
+[2022-06-02 21:13:14,473: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:13:14,473: INFO] Launching all ready steps...
+[2022-06-02 21:14:14,549: INFO] Checking DAG status at 2022-06-02 21:14:14.549237
+[2022-06-02 21:14:14,681: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:14:14,681: INFO] Launching all ready steps...
+[2022-06-02 21:15:14,756: INFO] Checking DAG status at 2022-06-02 21:15:14.756179
+[2022-06-02 21:15:14,889: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:15:14,889: INFO] Launching all ready steps...
+[2022-06-02 21:16:14,962: INFO] Checking DAG status at 2022-06-02 21:16:14.962659
+[2022-06-02 21:16:15,088: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:16:15,088: INFO] Launching all ready steps...
+[2022-06-02 21:17:15,175: INFO] Checking DAG status at 2022-06-02 21:17:15.175845
+[2022-06-02 21:17:15,305: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:17:15,305: INFO] Launching all ready steps...
+[2022-06-02 21:18:15,378: INFO] Checking DAG status at 2022-06-02 21:18:15.378360
+[2022-06-02 21:18:15,512: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:18:15,512: INFO] Launching all ready steps...
+[2022-06-02 21:19:15,587: INFO] Checking DAG status at 2022-06-02 21:19:15.587027
+[2022-06-02 21:19:15,722: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:19:15,723: INFO] Launching all ready steps...
+[2022-06-02 21:20:15,795: INFO] Checking DAG status at 2022-06-02 21:20:15.795978
+[2022-06-02 21:20:15,945: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:20:15,945: INFO] Launching all ready steps...
+[2022-06-02 21:21:16,019: INFO] Checking DAG status at 2022-06-02 21:21:16.019885
+[2022-06-02 21:21:16,151: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:21:16,151: INFO] Launching all ready steps...
+[2022-06-02 21:22:16,234: INFO] Checking DAG status at 2022-06-02 21:22:16.234147
+[2022-06-02 21:22:16,347: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:22:16,348: INFO] Launching all ready steps...
+[2022-06-02 21:23:16,422: INFO] Checking DAG status at 2022-06-02 21:23:16.422411
+[2022-06-02 21:23:16,560: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:23:16,561: INFO] Launching all ready steps...
+[2022-06-02 21:24:16,634: INFO] Checking DAG status at 2022-06-02 21:24:16.634148
+[2022-06-02 21:24:16,774: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:24:16,775: INFO] Launching all ready steps...
+[2022-06-02 21:25:16,850: INFO] Checking DAG status at 2022-06-02 21:25:16.850303
+[2022-06-02 21:25:16,991: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:25:16,991: INFO] Launching all ready steps...
+[2022-06-02 21:26:17,032: INFO] Checking DAG status at 2022-06-02 21:26:17.032630
+[2022-06-02 21:26:17,173: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:26:17,173: INFO] Launching all ready steps...
+[2022-06-02 21:27:17,261: INFO] Checking DAG status at 2022-06-02 21:27:17.261440
+[2022-06-02 21:27:17,396: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:27:17,396: INFO] Launching all ready steps...
+[2022-06-02 21:28:17,470: INFO] Checking DAG status at 2022-06-02 21:28:17.470507
+[2022-06-02 21:28:17,626: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:28:17,626: INFO] Launching all ready steps...
+[2022-06-02 21:29:17,701: INFO] Checking DAG status at 2022-06-02 21:29:17.701618
+[2022-06-02 21:29:17,838: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:29:17,838: INFO] Launching all ready steps...
+[2022-06-02 21:30:17,911: INFO] Checking DAG status at 2022-06-02 21:30:17.911256
+[2022-06-02 21:30:18,065: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:30:18,065: INFO] Launching all ready steps...
+[2022-06-02 21:31:18,140: INFO] Checking DAG status at 2022-06-02 21:31:18.140342
+[2022-06-02 21:31:18,315: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:31:18,315: INFO] Launching all ready steps...
+[2022-06-02 21:32:18,397: INFO] Checking DAG status at 2022-06-02 21:32:18.397229
+[2022-06-02 21:32:18,551: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:32:18,551: INFO] Launching all ready steps...
+[2022-06-02 21:33:18,626: INFO] Checking DAG status at 2022-06-02 21:33:18.626759
+[2022-06-02 21:33:18,783: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:33:18,783: INFO] Launching all ready steps...
+[2022-06-02 21:34:18,856: INFO] Checking DAG status at 2022-06-02 21:34:18.856094
+[2022-06-02 21:34:19,004: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:34:19,004: INFO] Launching all ready steps...
+[2022-06-02 21:35:19,081: INFO] Checking DAG status at 2022-06-02 21:35:19.081871
+[2022-06-02 21:35:19,221: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:35:19,221: INFO] Launching all ready steps...
+[2022-06-02 21:36:19,295: INFO] Checking DAG status at 2022-06-02 21:36:19.295184
+[2022-06-02 21:36:19,441: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:36:19,441: INFO] Launching all ready steps...
+[2022-06-02 21:37:19,526: INFO] Checking DAG status at 2022-06-02 21:37:19.526748
+[2022-06-02 21:37:19,665: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:37:19,665: INFO] Launching all ready steps...
+[2022-06-02 21:38:19,737: INFO] Checking DAG status at 2022-06-02 21:38:19.737810
+[2022-06-02 21:38:19,875: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:38:19,875: INFO] Launching all ready steps...
+[2022-06-02 21:39:19,951: INFO] Checking DAG status at 2022-06-02 21:39:19.951086
+[2022-06-02 21:39:20,082: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:39:20,082: INFO] Launching all ready steps...
+[2022-06-02 21:40:20,155: INFO] Checking DAG status at 2022-06-02 21:40:20.155257
+[2022-06-02 21:40:20,298: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:40:20,298: INFO] Launching all ready steps...
+[2022-06-02 21:41:20,374: INFO] Checking DAG status at 2022-06-02 21:41:20.374888
+[2022-06-02 21:41:20,521: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:41:20,521: INFO] Launching all ready steps...
+[2022-06-02 21:42:20,607: INFO] Checking DAG status at 2022-06-02 21:42:20.607235
+[2022-06-02 21:42:20,745: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:42:20,745: INFO] Launching all ready steps...
+[2022-06-02 21:43:20,856: INFO] Checking DAG status at 2022-06-02 21:43:20.856844
+[2022-06-02 21:43:21,014: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:43:21,014: INFO] Launching all ready steps...
+[2022-06-02 21:44:21,032: INFO] Checking DAG status at 2022-06-02 21:44:21.032200
+[2022-06-02 21:44:21,170: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:44:21,170: INFO] Launching all ready steps...
+[2022-06-02 21:45:21,245: INFO] Checking DAG status at 2022-06-02 21:45:21.245550
+[2022-06-02 21:45:21,383: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:45:21,383: INFO] Launching all ready steps...
+[2022-06-02 21:46:21,456: INFO] Checking DAG status at 2022-06-02 21:46:21.456015
+[2022-06-02 21:46:21,595: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:46:21,595: INFO] Launching all ready steps...
+[2022-06-02 21:47:21,679: INFO] Checking DAG status at 2022-06-02 21:47:21.679294
+[2022-06-02 21:47:21,810: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:47:21,810: INFO] Launching all ready steps...
+[2022-06-02 21:48:21,883: INFO] Checking DAG status at 2022-06-02 21:48:21.883656
+[2022-06-02 21:48:22,080: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:48:22,080: INFO] Launching all ready steps...
+[2022-06-02 21:49:22,157: INFO] Checking DAG status at 2022-06-02 21:49:22.157284
+[2022-06-02 21:49:22,315: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:49:22,315: INFO] Launching all ready steps...
+[2022-06-02 21:50:22,389: INFO] Checking DAG status at 2022-06-02 21:50:22.389440
+[2022-06-02 21:50:22,612: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:50:22,613: INFO] Launching all ready steps...
+[2022-06-02 21:51:22,687: INFO] Checking DAG status at 2022-06-02 21:51:22.687535
+[2022-06-02 21:51:22,833: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:51:22,833: INFO] Launching all ready steps...
+[2022-06-02 21:52:22,915: INFO] Checking DAG status at 2022-06-02 21:52:22.915123
+[2022-06-02 21:52:23,069: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:52:23,069: INFO] Launching all ready steps...
+[2022-06-02 21:53:23,143: INFO] Checking DAG status at 2022-06-02 21:53:23.143287
+[2022-06-02 21:53:23,296: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:53:23,297: INFO] Launching all ready steps...
+[2022-06-02 21:54:23,369: INFO] Checking DAG status at 2022-06-02 21:54:23.369848
+[2022-06-02 21:54:23,525: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:54:23,526: INFO] Launching all ready steps...
+[2022-06-02 21:55:23,600: INFO] Checking DAG status at 2022-06-02 21:55:23.600600
+[2022-06-02 21:55:23,757: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:55:23,757: INFO] Launching all ready steps...
+[2022-06-02 21:56:23,830: INFO] Checking DAG status at 2022-06-02 21:56:23.830371
+[2022-06-02 21:56:23,995: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:56:23,995: INFO] Launching all ready steps...
+[2022-06-02 21:57:24,081: INFO] Checking DAG status at 2022-06-02 21:57:24.081133
+[2022-06-02 21:57:24,245: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:57:24,245: INFO] Launching all ready steps...
+[2022-06-02 21:58:24,318: INFO] Checking DAG status at 2022-06-02 21:58:24.318795
+[2022-06-02 21:58:24,467: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:58:24,467: INFO] Launching all ready steps...
+[2022-06-02 21:59:24,542: INFO] Checking DAG status at 2022-06-02 21:59:24.541988
+[2022-06-02 21:59:24,708: INFO] Jobs found for user 'jones289'.
+[2022-06-02 21:59:24,708: INFO] Launching all ready steps...
+[2022-06-02 22:00:24,780: INFO] Checking DAG status at 2022-06-02 22:00:24.780877
+[2022-06-02 22:00:24,943: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:00:24,943: INFO] Launching all ready steps...
+[2022-06-02 22:01:25,020: INFO] Checking DAG status at 2022-06-02 22:01:25.020332
+[2022-06-02 22:01:25,186: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:01:25,186: INFO] Launching all ready steps...
+[2022-06-02 22:02:25,270: INFO] Checking DAG status at 2022-06-02 22:02:25.270157
+[2022-06-02 22:02:25,437: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:02:25,437: INFO] Launching all ready steps...
+[2022-06-02 22:03:25,512: INFO] Checking DAG status at 2022-06-02 22:03:25.512196
+[2022-06-02 22:03:25,683: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:03:25,683: INFO] Launching all ready steps...
+[2022-06-02 22:04:25,756: INFO] Checking DAG status at 2022-06-02 22:04:25.756813
+[2022-06-02 22:04:25,790: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:04:25,790: INFO] Launching all ready steps...
+[2022-06-02 22:05:25,866: INFO] Checking DAG status at 2022-06-02 22:05:25.866186
+[2022-06-02 22:05:26,029: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:05:26,030: INFO] Launching all ready steps...
+[2022-06-02 22:06:26,102: INFO] Checking DAG status at 2022-06-02 22:06:26.102029
+[2022-06-02 22:06:26,262: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:06:26,262: INFO] Launching all ready steps...
+[2022-06-02 22:07:26,349: INFO] Checking DAG status at 2022-06-02 22:07:26.349451
+[2022-06-02 22:07:26,508: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:07:26,508: INFO] Launching all ready steps...
+[2022-06-02 22:08:26,580: INFO] Checking DAG status at 2022-06-02 22:08:26.580490
+[2022-06-02 22:08:26,733: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:08:26,734: INFO] Launching all ready steps...
+[2022-06-02 22:09:26,807: INFO] Checking DAG status at 2022-06-02 22:09:26.807836
+[2022-06-02 22:09:26,967: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:09:26,967: INFO] Launching all ready steps...
+[2022-06-02 22:10:27,040: INFO] Checking DAG status at 2022-06-02 22:10:27.040105
+[2022-06-02 22:10:27,199: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:10:27,199: INFO] Launching all ready steps...
+[2022-06-02 22:11:27,275: INFO] Checking DAG status at 2022-06-02 22:11:27.275569
+[2022-06-02 22:11:27,440: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:11:27,440: INFO] Launching all ready steps...
+[2022-06-02 22:12:27,565: INFO] Checking DAG status at 2022-06-02 22:12:27.565720
+[2022-06-02 22:12:27,790: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:12:27,790: INFO] Launching all ready steps...
+[2022-06-02 22:13:27,866: INFO] Checking DAG status at 2022-06-02 22:13:27.866520
+[2022-06-02 22:13:28,036: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:13:28,036: INFO] Launching all ready steps...
+[2022-06-02 22:14:28,107: INFO] Checking DAG status at 2022-06-02 22:14:28.107930
+[2022-06-02 22:14:28,282: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:14:28,282: INFO] Launching all ready steps...
+[2022-06-02 22:15:28,358: INFO] Checking DAG status at 2022-06-02 22:15:28.358396
+[2022-06-02 22:15:28,535: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:15:28,535: INFO] Launching all ready steps...
+[2022-06-02 22:16:28,607: INFO] Checking DAG status at 2022-06-02 22:16:28.607448
+[2022-06-02 22:16:28,757: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:16:28,757: INFO] Launching all ready steps...
+[2022-06-02 22:17:28,840: INFO] Checking DAG status at 2022-06-02 22:17:28.840768
+[2022-06-02 22:17:28,998: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:17:28,998: INFO] Launching all ready steps...
+[2022-06-02 22:18:29,032: INFO] Checking DAG status at 2022-06-02 22:18:29.032033
+[2022-06-02 22:18:29,167: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:18:29,167: INFO] Launching all ready steps...
+[2022-06-02 22:19:29,243: INFO] Checking DAG status at 2022-06-02 22:19:29.243554
+[2022-06-02 22:19:29,364: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:19:29,364: INFO] Launching all ready steps...
+[2022-06-02 22:20:29,436: INFO] Checking DAG status at 2022-06-02 22:20:29.436761
+[2022-06-02 22:20:29,577: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:20:29,577: INFO] Launching all ready steps...
+[2022-06-02 22:21:29,651: INFO] Checking DAG status at 2022-06-02 22:21:29.651858
+[2022-06-02 22:21:29,786: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:21:29,786: INFO] Launching all ready steps...
+[2022-06-02 22:22:29,870: INFO] Checking DAG status at 2022-06-02 22:22:29.870392
+[2022-06-02 22:22:30,017: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:22:30,017: INFO] Launching all ready steps...
+[2022-06-02 22:23:30,092: INFO] Checking DAG status at 2022-06-02 22:23:30.092108
+[2022-06-02 22:23:30,227: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:23:30,227: INFO] Launching all ready steps...
+[2022-06-02 22:24:30,298: INFO] Checking DAG status at 2022-06-02 22:24:30.298766
+[2022-06-02 22:24:30,403: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:24:30,403: INFO] Launching all ready steps...
+[2022-06-02 22:25:30,476: INFO] Checking DAG status at 2022-06-02 22:25:30.476371
+[2022-06-02 22:25:30,624: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:25:30,624: INFO] Launching all ready steps...
+[2022-06-02 22:26:30,695: INFO] Checking DAG status at 2022-06-02 22:26:30.695208
+[2022-06-02 22:26:30,836: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:26:30,836: INFO] Launching all ready steps...
+[2022-06-02 22:27:30,920: INFO] Checking DAG status at 2022-06-02 22:27:30.920075
+[2022-06-02 22:27:31,066: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:27:31,066: INFO] Launching all ready steps...
+[2022-06-02 22:28:31,138: INFO] Checking DAG status at 2022-06-02 22:28:31.138679
+[2022-06-02 22:28:31,233: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:28:31,234: INFO] Launching all ready steps...
+[2022-06-02 22:29:31,310: INFO] Checking DAG status at 2022-06-02 22:29:31.310416
+[2022-06-02 22:29:31,431: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:29:31,431: INFO] Launching all ready steps...
+[2022-06-02 22:30:31,504: INFO] Checking DAG status at 2022-06-02 22:30:31.504328
+[2022-06-02 22:30:31,606: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:30:31,606: INFO] Launching all ready steps...
+[2022-06-02 22:31:31,680: INFO] Checking DAG status at 2022-06-02 22:31:31.679973
+[2022-06-02 22:31:31,793: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:31:31,794: INFO] Launching all ready steps...
+[2022-06-02 22:32:31,877: INFO] Checking DAG status at 2022-06-02 22:32:31.877929
+[2022-06-02 22:32:31,990: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:32:31,990: INFO] Launching all ready steps...
+[2022-06-02 22:33:32,065: INFO] Checking DAG status at 2022-06-02 22:33:32.065895
+[2022-06-02 22:33:32,629: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:33:32,629: INFO] Launching all ready steps...
+[2022-06-02 22:34:32,707: INFO] Checking DAG status at 2022-06-02 22:34:32.707124
+[2022-06-02 22:34:32,815: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:34:32,815: INFO] Launching all ready steps...
+[2022-06-02 22:35:32,862: INFO] Checking DAG status at 2022-06-02 22:35:32.862440
+[2022-06-02 22:35:32,974: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:35:32,974: INFO] Launching all ready steps...
+[2022-06-02 22:36:33,047: INFO] Checking DAG status at 2022-06-02 22:36:33.047155
+[2022-06-02 22:36:33,145: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:36:33,145: INFO] Launching all ready steps...
+[2022-06-02 22:37:33,230: INFO] Checking DAG status at 2022-06-02 22:37:33.230160
+[2022-06-02 22:37:33,339: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:37:33,339: INFO] Launching all ready steps...
+[2022-06-02 22:38:33,466: INFO] Checking DAG status at 2022-06-02 22:38:33.466311
+[2022-06-02 22:38:33,582: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:38:33,582: INFO] Launching all ready steps...
+[2022-06-02 22:39:33,670: INFO] Checking DAG status at 2022-06-02 22:39:33.670888
+[2022-06-02 22:39:33,786: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:39:33,786: INFO] Launching all ready steps...
+[2022-06-02 22:40:33,858: INFO] Checking DAG status at 2022-06-02 22:40:33.858891
+[2022-06-02 22:40:33,991: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:40:33,991: INFO] Launching all ready steps...
+[2022-06-02 22:41:34,065: INFO] Checking DAG status at 2022-06-02 22:41:34.065093
+[2022-06-02 22:41:34,185: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:41:34,185: INFO] Launching all ready steps...
+[2022-06-02 22:42:34,270: INFO] Checking DAG status at 2022-06-02 22:42:34.270503
+[2022-06-02 22:42:34,394: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:42:34,394: INFO] Launching all ready steps...
+[2022-06-02 22:43:34,509: INFO] Checking DAG status at 2022-06-02 22:43:34.509780
+[2022-06-02 22:43:34,658: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:43:34,658: INFO] Launching all ready steps...
+[2022-06-02 22:44:34,731: INFO] Checking DAG status at 2022-06-02 22:44:34.730980
+[2022-06-02 22:44:34,847: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:44:34,847: INFO] Launching all ready steps...
+[2022-06-02 22:45:34,921: INFO] Checking DAG status at 2022-06-02 22:45:34.921710
+[2022-06-02 22:45:35,032: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:45:35,032: INFO] Launching all ready steps...
+[2022-06-02 22:46:35,106: INFO] Checking DAG status at 2022-06-02 22:46:35.106576
+[2022-06-02 22:46:35,240: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:46:35,240: INFO] Launching all ready steps...
+[2022-06-02 22:47:35,325: INFO] Checking DAG status at 2022-06-02 22:47:35.325866
+[2022-06-02 22:47:35,453: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:47:35,454: INFO] Launching all ready steps...
+[2022-06-02 22:48:35,526: INFO] Checking DAG status at 2022-06-02 22:48:35.526722
+[2022-06-02 22:48:35,694: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:48:35,694: INFO] Launching all ready steps...
+[2022-06-02 22:49:35,772: INFO] Checking DAG status at 2022-06-02 22:49:35.772016
+[2022-06-02 22:49:35,895: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:49:35,895: INFO] Launching all ready steps...
+[2022-06-02 22:50:35,970: INFO] Checking DAG status at 2022-06-02 22:50:35.970321
+[2022-06-02 22:50:36,116: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:50:36,116: INFO] Launching all ready steps...
+[2022-06-02 22:51:36,192: INFO] Checking DAG status at 2022-06-02 22:51:36.192053
+[2022-06-02 22:51:36,303: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:51:36,303: INFO] Launching all ready steps...
+[2022-06-02 22:52:36,386: INFO] Checking DAG status at 2022-06-02 22:52:36.386795
+[2022-06-02 22:52:36,517: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:52:36,517: INFO] Launching all ready steps...
+[2022-06-02 22:53:36,591: INFO] Checking DAG status at 2022-06-02 22:53:36.591456
+[2022-06-02 22:53:36,701: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:53:36,701: INFO] Launching all ready steps...
+[2022-06-02 22:54:36,774: INFO] Checking DAG status at 2022-06-02 22:54:36.774662
+[2022-06-02 22:54:36,901: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:54:36,902: INFO] Launching all ready steps...
+[2022-06-02 22:55:36,975: INFO] Checking DAG status at 2022-06-02 22:55:36.975745
+[2022-06-02 22:55:37,073: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:55:37,073: INFO] Launching all ready steps...
+[2022-06-02 22:56:37,148: INFO] Checking DAG status at 2022-06-02 22:56:37.148088
+[2022-06-02 22:56:37,247: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:56:37,248: INFO] Launching all ready steps...
+[2022-06-02 22:57:37,331: INFO] Checking DAG status at 2022-06-02 22:57:37.331356
+[2022-06-02 22:57:37,426: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:57:37,426: INFO] Launching all ready steps...
+[2022-06-02 22:58:38,190: INFO] Checking DAG status at 2022-06-02 22:58:38.190678
+[2022-06-02 22:58:38,269: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:58:38,269: INFO] Launching all ready steps...
+[2022-06-02 22:59:38,343: INFO] Checking DAG status at 2022-06-02 22:59:38.343912
+[2022-06-02 22:59:38,440: INFO] Jobs found for user 'jones289'.
+[2022-06-02 22:59:38,440: INFO] Launching all ready steps...
+[2022-06-02 23:00:38,512: INFO] Checking DAG status at 2022-06-02 23:00:38.512780
+[2022-06-02 23:00:38,631: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:00:38,632: INFO] Launching all ready steps...
+[2022-06-02 23:01:38,707: INFO] Checking DAG status at 2022-06-02 23:01:38.707464
+[2022-06-02 23:01:38,851: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:01:38,851: INFO] Launching all ready steps...
+[2022-06-02 23:02:38,933: INFO] Checking DAG status at 2022-06-02 23:02:38.933457
+[2022-06-02 23:02:39,054: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:02:39,054: INFO] Launching all ready steps...
+[2022-06-02 23:03:39,127: INFO] Checking DAG status at 2022-06-02 23:03:39.127926
+[2022-06-02 23:03:39,247: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:03:39,247: INFO] Launching all ready steps...
+[2022-06-02 23:04:39,321: INFO] Checking DAG status at 2022-06-02 23:04:39.321146
+[2022-06-02 23:04:39,430: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:04:39,430: INFO] Launching all ready steps...
+[2022-06-02 23:05:39,503: INFO] Checking DAG status at 2022-06-02 23:05:39.503870
+[2022-06-02 23:05:39,617: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:05:39,618: INFO] Launching all ready steps...
+[2022-06-02 23:06:39,688: INFO] Checking DAG status at 2022-06-02 23:06:39.688689
+[2022-06-02 23:06:39,817: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:06:39,817: INFO] Launching all ready steps...
+[2022-06-02 23:07:39,900: INFO] Checking DAG status at 2022-06-02 23:07:39.900920
+[2022-06-02 23:07:40,004: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:07:40,004: INFO] Launching all ready steps...
+[2022-06-02 23:08:40,076: INFO] Checking DAG status at 2022-06-02 23:08:40.076521
+[2022-06-02 23:08:40,191: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:08:40,191: INFO] Launching all ready steps...
+[2022-06-02 23:09:40,286: INFO] Checking DAG status at 2022-06-02 23:09:40.285964
+[2022-06-02 23:09:40,399: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:09:40,399: INFO] Launching all ready steps...
+[2022-06-02 23:10:40,481: INFO] Checking DAG status at 2022-06-02 23:10:40.481909
+[2022-06-02 23:10:40,593: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:10:40,593: INFO] Launching all ready steps...
+[2022-06-02 23:11:40,667: INFO] Checking DAG status at 2022-06-02 23:11:40.667536
+[2022-06-02 23:11:40,793: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:11:40,793: INFO] Launching all ready steps...
+[2022-06-02 23:12:40,878: INFO] Checking DAG status at 2022-06-02 23:12:40.878119
+[2022-06-02 23:12:40,986: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:12:40,986: INFO] Launching all ready steps...
+[2022-06-02 23:13:41,038: INFO] Checking DAG status at 2022-06-02 23:13:41.038711
+[2022-06-02 23:13:41,154: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:13:41,154: INFO] Launching all ready steps...
+[2022-06-02 23:14:41,229: INFO] Checking DAG status at 2022-06-02 23:14:41.229461
+[2022-06-02 23:14:41,352: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:14:41,352: INFO] Launching all ready steps...
+[2022-06-02 23:15:41,426: INFO] Checking DAG status at 2022-06-02 23:15:41.426917
+[2022-06-02 23:15:41,540: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:15:41,541: INFO] Launching all ready steps...
+[2022-06-02 23:16:41,614: INFO] Checking DAG status at 2022-06-02 23:16:41.614381
+[2022-06-02 23:16:41,746: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:16:41,746: INFO] Launching all ready steps...
+[2022-06-02 23:17:41,834: INFO] Checking DAG status at 2022-06-02 23:17:41.834385
+[2022-06-02 23:17:41,945: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:17:41,945: INFO] Launching all ready steps...
+[2022-06-02 23:18:42,017: INFO] Checking DAG status at 2022-06-02 23:18:42.017501
+[2022-06-02 23:18:42,126: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:18:42,126: INFO] Launching all ready steps...
+[2022-06-02 23:19:42,200: INFO] Checking DAG status at 2022-06-02 23:19:42.200807
+[2022-06-02 23:19:42,329: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:19:42,329: INFO] Launching all ready steps...
+[2022-06-02 23:20:42,403: INFO] Checking DAG status at 2022-06-02 23:20:42.403526
+[2022-06-02 23:20:42,517: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:20:42,517: INFO] Launching all ready steps...
+[2022-06-02 23:21:42,592: INFO] Checking DAG status at 2022-06-02 23:21:42.592499
+[2022-06-02 23:21:42,725: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:21:42,725: INFO] Launching all ready steps...
+[2022-06-02 23:22:42,808: INFO] Checking DAG status at 2022-06-02 23:22:42.808257
+[2022-06-02 23:22:42,926: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:22:42,926: INFO] Launching all ready steps...
+[2022-06-02 23:23:43,004: INFO] Checking DAG status at 2022-06-02 23:23:43.004727
+[2022-06-02 23:23:43,105: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:23:43,105: INFO] Launching all ready steps...
+[2022-06-02 23:24:43,181: INFO] Checking DAG status at 2022-06-02 23:24:43.181448
+[2022-06-02 23:24:43,313: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:24:43,313: INFO] Launching all ready steps...
+[2022-06-02 23:25:43,385: INFO] Checking DAG status at 2022-06-02 23:25:43.385854
+[2022-06-02 23:25:43,493: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:25:43,493: INFO] Launching all ready steps...
+[2022-06-02 23:26:43,566: INFO] Checking DAG status at 2022-06-02 23:26:43.565998
+[2022-06-02 23:26:43,674: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:26:43,674: INFO] Launching all ready steps...
+[2022-06-02 23:27:43,756: INFO] Checking DAG status at 2022-06-02 23:27:43.756111
+[2022-06-02 23:27:43,895: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:27:43,895: INFO] Launching all ready steps...
+[2022-06-02 23:28:43,968: INFO] Checking DAG status at 2022-06-02 23:28:43.968936
+[2022-06-02 23:28:44,086: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:28:44,086: INFO] Launching all ready steps...
+[2022-06-02 23:29:44,158: INFO] Checking DAG status at 2022-06-02 23:29:44.158744
+[2022-06-02 23:29:44,275: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:29:44,276: INFO] Launching all ready steps...
+[2022-06-02 23:30:44,348: INFO] Checking DAG status at 2022-06-02 23:30:44.348562
+[2022-06-02 23:30:44,476: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:30:44,477: INFO] Launching all ready steps...
+[2022-06-02 23:31:44,550: INFO] Checking DAG status at 2022-06-02 23:31:44.550147
+[2022-06-02 23:31:44,647: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:31:44,648: INFO] Launching all ready steps...
+[2022-06-02 23:32:44,729: INFO] Checking DAG status at 2022-06-02 23:32:44.729193
+[2022-06-02 23:32:44,859: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:32:44,859: INFO] Launching all ready steps...
+[2022-06-02 23:33:44,932: INFO] Checking DAG status at 2022-06-02 23:33:44.932005
+[2022-06-02 23:33:45,061: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:33:45,061: INFO] Launching all ready steps...
+[2022-06-02 23:34:45,139: INFO] Checking DAG status at 2022-06-02 23:34:45.139376
+[2022-06-02 23:34:45,254: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:34:45,254: INFO] Launching all ready steps...
+[2022-06-02 23:35:45,327: INFO] Checking DAG status at 2022-06-02 23:35:45.327727
+[2022-06-02 23:35:45,425: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:35:45,425: INFO] Launching all ready steps...
+[2022-06-02 23:36:45,498: INFO] Checking DAG status at 2022-06-02 23:36:45.498718
+[2022-06-02 23:36:45,616: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:36:45,616: INFO] Launching all ready steps...
+[2022-06-02 23:37:45,697: INFO] Checking DAG status at 2022-06-02 23:37:45.697085
+[2022-06-02 23:37:45,821: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:37:45,821: INFO] Launching all ready steps...
+[2022-06-02 23:38:45,892: INFO] Checking DAG status at 2022-06-02 23:38:45.892619
+[2022-06-02 23:38:46,013: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:38:46,013: INFO] Launching all ready steps...
+[2022-06-02 23:39:46,084: INFO] Checking DAG status at 2022-06-02 23:39:46.084554
+[2022-06-02 23:39:46,181: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:39:46,182: INFO] Launching all ready steps...
+[2022-06-02 23:40:46,252: INFO] Checking DAG status at 2022-06-02 23:40:46.252875
+[2022-06-02 23:40:46,346: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:40:46,346: INFO] Launching all ready steps...
+[2022-06-02 23:41:46,419: INFO] Checking DAG status at 2022-06-02 23:41:46.419760
+[2022-06-02 23:41:46,526: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:41:46,526: INFO] Launching all ready steps...
+[2022-06-02 23:42:46,610: INFO] Checking DAG status at 2022-06-02 23:42:46.610192
+[2022-06-02 23:42:46,717: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:42:46,718: INFO] Launching all ready steps...
+[2022-06-02 23:43:46,811: INFO] Checking DAG status at 2022-06-02 23:43:46.811907
+[2022-06-02 23:43:46,921: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:43:46,921: INFO] Launching all ready steps...
+[2022-06-02 23:44:46,993: INFO] Checking DAG status at 2022-06-02 23:44:46.993135
+[2022-06-02 23:44:47,099: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:44:47,099: INFO] Launching all ready steps...
+[2022-06-02 23:45:47,170: INFO] Checking DAG status at 2022-06-02 23:45:47.170451
+[2022-06-02 23:45:47,266: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:45:47,266: INFO] Launching all ready steps...
+[2022-06-02 23:46:47,337: INFO] Checking DAG status at 2022-06-02 23:46:47.337251
+[2022-06-02 23:46:47,424: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:46:47,425: INFO] Launching all ready steps...
+[2022-06-02 23:47:47,506: INFO] Checking DAG status at 2022-06-02 23:47:47.506399
+[2022-06-02 23:47:47,580: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:47:47,580: INFO] Launching all ready steps...
+[2022-06-02 23:48:47,652: INFO] Checking DAG status at 2022-06-02 23:48:47.652387
+[2022-06-02 23:48:47,770: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:48:47,770: INFO] Launching all ready steps...
+[2022-06-02 23:49:47,841: INFO] Checking DAG status at 2022-06-02 23:49:47.841372
+[2022-06-02 23:49:47,931: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:49:47,931: INFO] Launching all ready steps...
+[2022-06-02 23:50:48,002: INFO] Checking DAG status at 2022-06-02 23:50:48.002635
+[2022-06-02 23:50:48,111: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:50:48,111: INFO] Launching all ready steps...
+[2022-06-02 23:51:48,182: INFO] Checking DAG status at 2022-06-02 23:51:48.182628
+[2022-06-02 23:51:48,247: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:51:48,247: INFO] Launching all ready steps...
+[2022-06-02 23:52:48,329: INFO] Checking DAG status at 2022-06-02 23:52:48.329007
+[2022-06-02 23:52:48,391: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:52:48,392: INFO] Launching all ready steps...
+[2022-06-02 23:53:48,465: INFO] Checking DAG status at 2022-06-02 23:53:48.464984
+[2022-06-02 23:53:48,541: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:53:48,542: INFO] Launching all ready steps...
+[2022-06-02 23:54:48,613: INFO] Checking DAG status at 2022-06-02 23:54:48.613341
+[2022-06-02 23:54:48,692: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:54:48,692: INFO] Launching all ready steps...
+[2022-06-02 23:55:48,766: INFO] Checking DAG status at 2022-06-02 23:55:48.766465
+[2022-06-02 23:55:48,848: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:55:48,849: INFO] Launching all ready steps...
+[2022-06-02 23:56:48,869: INFO] Checking DAG status at 2022-06-02 23:56:48.869832
+[2022-06-02 23:56:48,935: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:56:48,935: INFO] Launching all ready steps...
+[2022-06-02 23:57:49,017: INFO] Checking DAG status at 2022-06-02 23:57:49.017239
+[2022-06-02 23:57:49,101: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:57:49,101: INFO] Launching all ready steps...
+[2022-06-02 23:58:49,173: INFO] Checking DAG status at 2022-06-02 23:58:49.173882
+[2022-06-02 23:58:49,268: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:58:49,269: INFO] Launching all ready steps...
+[2022-06-02 23:59:49,341: INFO] Checking DAG status at 2022-06-02 23:59:49.341703
+[2022-06-02 23:59:49,424: INFO] Jobs found for user 'jones289'.
+[2022-06-02 23:59:49,424: INFO] Launching all ready steps...
+[2022-06-03 00:00:49,497: INFO] Checking DAG status at 2022-06-03 00:00:49.497716
+[2022-06-03 00:00:49,595: INFO] Jobs found for user 'jones289'.
+[2022-06-03 00:00:49,595: INFO] Launching all ready steps...
+[2022-06-03 00:01:49,669: INFO] Checking DAG status at 2022-06-03 00:01:49.669282
+[2022-06-03 00:01:49,771: INFO] Jobs found for user 'jones289'.
+[2022-06-03 00:01:49,771: INFO] Launching all ready steps...
+[2022-06-03 00:02:49,853: INFO] Checking DAG status at 2022-06-03 00:02:49.853124
+[2022-06-03 00:02:49,931: INFO] Jobs found for user 'jones289'.
+[2022-06-03 00:02:49,931: INFO] Launching all ready steps...
+[2022-06-03 00:03:50,005: INFO] Checking DAG status at 2022-06-03 00:03:50.005281
+[2022-06-03 00:03:50,072: INFO] Jobs found for user 'jones289'.
+[2022-06-03 00:03:50,072: INFO] Launching all ready steps...
+[2022-06-03 00:04:50,144: INFO] Checking DAG status at 2022-06-03 00:04:50.144805
+[2022-06-03 00:04:50,284: INFO] Jobs found for user 'jones289'.
+[2022-06-03 00:04:50,284: INFO] Launching all ready steps...
+[2022-06-03 00:05:50,355: INFO] Checking DAG status at 2022-06-03 00:05:50.355283
+[2022-06-03 00:05:50,435: INFO] Jobs found for user 'jones289'.
+[2022-06-03 00:05:50,436: INFO] Launching all ready steps...
+[2022-06-03 00:06:50,509: INFO] Checking DAG status at 2022-06-03 00:06:50.509518
+[2022-06-03 00:06:50,595: INFO] Jobs found for user 'jones289'.
+[2022-06-03 00:06:50,595: INFO] Launching all ready steps...
+[2022-06-03 00:07:50,677: INFO] Checking DAG status at 2022-06-03 00:07:50.677619
+[2022-06-03 00:07:50,763: INFO] Jobs found for user 'jones289'.
+[2022-06-03 00:07:50,763: INFO] Launching all ready steps...
+[2022-06-03 00:08:50,836: INFO] Checking DAG status at 2022-06-03 00:08:50.836193
+[2022-06-03 00:08:50,905: INFO] Jobs found for user 'jones289'.
+[2022-06-03 00:08:50,905: INFO] Launching all ready steps...

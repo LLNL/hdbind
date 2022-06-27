@@ -1,0 +1,161 @@
+BASH_ENV: /usr/share/lmod/lmod/init/bash
+BASH_FUNC__spack_shell_wrapper(): "() {  for var in LD_LIBRARY_PATH DYLD_LIBRARY_PATH\
+  \ DYLD_FALLBACK_LIBRARY_PATH;\n do\n eval \"if [ -n \\\"\\${${var}-}\\\" ]; then\
+  \ export SPACK_$var=\\${${var}}; fi\";\n done;\n if [ -n \"${ZSH_VERSION:-}\" ];\
+  \ then\n emulate -L sh;\n fi;\n _sp_flags=\"\";\n while [ ! -z ${1+x} ] && [ \"\
+  ${1#-}\" != \"${1}\" ]; do\n _sp_flags=\"$_sp_flags $1\";\n shift;\n done;\n if\
+  \ [ -n \"$_sp_flags\" ] && [ \"${_sp_flags#*h}\" != \"${_sp_flags}\" ] || [ \"${_sp_flags#*V}\"\
+  \ != \"${_sp_flags}\" ]; then\n command spack $_sp_flags \"$@\";\n return;\n fi;\n\
+  \ _sp_subcommand=\"\";\n if [ ! -z ${1+x} ]; then\n _sp_subcommand=\"$1\";\n shift;\n\
+  \ fi;\n case $_sp_subcommand in \n \"cd\")\n _sp_arg=\"\";\n if [ -n \"$1\" ]; then\n\
+  \ _sp_arg=\"$1\";\n shift;\n fi;\n if [ \"$_sp_arg\" = \"-h\" ] || [ \"$_sp_arg\"\
+  \ = \"--help\" ]; then\n command spack cd -h;\n else\n LOC=\"$(spack location $_sp_arg\
+  \ \"$@\")\";\n if [ -d \"$LOC\" ]; then\n cd \"$LOC\";\n else\n return 1;\n fi;\n\
+  \ fi;\n return\n ;;\n \"env\")\n _sp_arg=\"\";\n if [ -n \"$1\" ]; then\n _sp_arg=\"\
+  $1\";\n shift;\n fi;\n if [ \"$_sp_arg\" = \"-h\" ] || [ \"$_sp_arg\" = \"--help\"\
+  \ ]; then\n command spack env -h;\n else\n case $_sp_arg in \n activate)\n _a=\"\
+  \ $@\";\n if [ -z ${1+x} ] || [ \"${_a#* --sh}\" != \"$_a\" ] || [ \"${_a#* --csh}\"\
+  \ != \"$_a\" ] || [ \"${_a#* -h}\" != \"$_a\" ] || [ \"${_a#* --help}\" != \"$_a\"\
+  \ ]; then\n command spack env activate \"$@\";\n else\n eval $(command spack $_sp_flags\
+  \ env activate --sh \"$@\");\n fi\n ;;\n deactivate)\n _a=\" $@\";\n if [ \"${_a#*\
+  \ --sh}\" != \"$_a\" ] || [ \"${_a#* --csh}\" != \"$_a\" ]; then\n command spack\
+  \ env deactivate \"$@\";\n else\n if [ -n \"$*\" ]; then\n command spack env deactivate\
+  \ -h;\n else\n eval $(command spack $_sp_flags env deactivate --sh);\n fi;\n fi\n\
+  \ ;;\n *)\n command spack env $_sp_arg \"$@\"\n ;;\n esac;\n fi;\n return\n ;;\n\
+  \ \"load\" | \"unload\")\n _a=\" $@\";\n if [ \"${_a#* --sh}\" != \"$_a\" ] || [\
+  \ \"${_a#* --csh}\" != \"$_a\" ] || [ \"${_a#* -h}\" != \"$_a\" ] || [ \"${_a#*\
+  \ --help}\" != \"$_a\" ]; then\n command spack $_sp_flags $_sp_subcommand \"$@\"\
+  ;\n else\n eval $(command spack $_sp_flags $_sp_subcommand --sh \"$@\" ||      \
+  \               echo \"return 1\");\n fi\n ;;\n *)\n command spack $_sp_flags $_sp_subcommand\
+  \ \"$@\"\n ;;\n esac\n}"
+BASH_FUNC_ml(): '() {  eval "$($LMOD_DIR/ml_cmd "$@")"
+
+  }'
+BASH_FUNC_module(): "() {  local __lmod_my_status;\n local __lmod_sh_dbg;\n if [ -z\
+  \ \"${LMOD_SH_DBG_ON+x}\" ]; then\n case \"$-\" in \n *v*x*)\n __lmod_sh_dbg='vx'\n\
+  \ ;;\n *v*)\n __lmod_sh_dbg='v'\n ;;\n *x*)\n __lmod_sh_dbg='x'\n ;;\n esac;\n fi;\n\
+  \ if [ -n \"${__lmod_sh_dbg:-}\" ]; then\n set +$__lmod_sh_dbg;\n echo \"Shell debugging\
+  \ temporarily silenced: export LMOD_SH_DBG_ON=1 for Lmod's output\" 1>&2;\n fi;\n\
+  \ eval \"$($LMOD_CMD bash \"$@\")\" && eval $(${LMOD_SETTARG_CMD:-:} -s sh);\n __lmod_my_status=$?;\n\
+  \ if [ -n \"${__lmod_sh_dbg:-}\" ]; then\n echo \"Shell debugging restarted\" 1>&2;\n\
+  \ set -$__lmod_sh_dbg;\n fi;\n return $__lmod_my_status\n}"
+BASH_FUNC_spack(): "() {  : this is a shell function from: /usr/WS1/jones289/spack/share/spack/setup-env.sh;\n\
+  \ : the real spack script is here: /usr/WS1/jones289/spack/bin/spack;\n _spack_shell_wrapper\
+  \ \"$@\";\n return $?\n}"
+BROWSER: /g/g13/jones289/.vscode-server/bin/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5/bin/helpers/browser.sh
+COLORTERM: truecolor
+CONDA_DEFAULT_ENV: HD_env
+CONDA_EXE: /usr/workspace/wsa/jones289/miniconda3/bin/conda
+CONDA_PREFIX: /usr/workspace/wsa/jones289/miniconda3/envs/HD_env
+CONDA_PROMPT_MODIFIER: '(HD_env) '
+CONDA_PYTHONBREAKPOINT: ''
+CONDA_PYTHON_EXE: /usr/workspace/wsa/jones289/miniconda3/bin/python
+CONDA_SHLVL: '1'
+CUDA_HOME: /usr/tce/packages/cuda/cuda-11.1.0
+CUDA_PATH: /usr/tce/packages/cuda/cuda-11.1.0
+CVS_RSH: ssh
+DARSHAN_LLNL_LOGDIR: /usr/sonar/ingestion/darshan/pascal/jones289
+DK_NODE: /usr/global/tools/dotkit
+DK_ROOT: /usr/tce/packages/dotkit/dotkit
+DK_SUBNODE: bash/toss_3_x86_64_ib:bash:toss_3_x86_64_ib:.
+DK_UEQRU: '1'
+EDITOR: /bin/vi
+ENV: /g/g13/jones289/.bashrc
+ENVIRONMENT: BATCH
+GIT_ASKPASS: /g/g13/jones289/.vscode-server/bin/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5/extensions/git/dist/askpass.sh
+GSETTINGS_SCHEMA_DIR: /usr/workspace/wsa/jones289/miniconda3/envs/HD_env/share/glib-2.0/schemas
+GSETTINGS_SCHEMA_DIR_CONDA_BACKUP: ''
+GUESTFISH_INIT: \e[1;34m
+GUESTFISH_OUTPUT: \e[0m
+GUESTFISH_PS1: '\[\e[1;32m\]><fs>\[\e[0;31m\] '
+GUESTFISH_RESTORE: \e[0m
+HISTCONTROL: ignoredups
+HISTFILE: /g/g13/jones289/.bash_history
+HISTSIZE: '1000'
+HOME: /g/g13/jones289
+HOSTNAME: pascal83
+HOST_GRP: linux
+INPUTRC: /etc/inputrc
+KDEDIRS: /usr
+KRB5CCNAME: FILE:/tmp/krb5cc_28220_f3Sa2u
+LANG: en_US.UTF-8
+LC_ALL: C
+LD_LIBRARY_PATH: /usr/workspace/wsa/jones289/miniconda3/envs/HD_env/lib:/usr/tce/packages/cuda/cuda-11.1.0/lib64:/usr/tce/packages/mvapich2/mvapich2-2.3-gcc-10.2.1/lib
+LESSOPEN: '||/usr/bin/lesspipe.sh %s'
+LMOD_CMD: /usr/share/lmod/lmod/libexec/lmod
+LMOD_COLORIZE: 'yes'
+LMOD_DIR: /usr/share/lmod/lmod/libexec
+LMOD_FAMILY_COMPILER: gcc
+LMOD_FAMILY_COMPILER_VERSION: 10.2.1
+LMOD_FAMILY_CUDA: cuda
+LMOD_FAMILY_CUDA_VERSION: 11.1.0
+LMOD_FAMILY_MPI: mvapich2
+LMOD_FAMILY_MPI_VERSION: '2.3'
+LMOD_FULL_SETTARG_SUPPORT: 'no'
+LMOD_PKG: /usr/share/lmod/lmod
+LMOD_PREPEND_BLOCK: normal
+LMOD_ROOT: /usr/share/lmod
+LMOD_SETTARG_CMD: ':'
+LMOD_SETTARG_FULL_SUPPORT: 'no'
+LMOD_SYSTEM_DEFAULT_MODULES: StdEnv
+LMOD_VERSION: 8.6.19
+LMOD_arch: x86_64
+LMOD_sys: Linux
+LOADEDMODULES: texlive/2016:StdEnv:gcc/10.2.1:mvapich2/2.3:cuda/11.1.0
+LOGNAME: jones289
+MAIL: /var/spool/mail/jones289
+MANPATH: /usr/tce/packages/cuda/cuda-11.1.0/doc/man:/usr/tce/packages/mvapich2/mvapich2-2.3-gcc-10.2.1/man:/usr/tce/packages/gcc/gcc-10.2.1/man:/usr/tce/man:/usr/share/lmod/lmod/share/man:/usr/tce/packages/dotkit/dotkit/man:/usr/man:/usr/share/man:/usr/local/man:/usr/X11R6/man:/usr/lib64/mvapich/default/man
+MODULEPATH: /usr/tce/modulefiles/MPI/mvapich2/2.3:/usr/tce/modulefiles/MPI/gcc/10.2.1/mvapich2/2.3:/usr/tce/modulefiles/Compiler/gcc/10.2.1:/usr/WS1/jones289/spack/share/spack/modules/linux-rhel7-x86_64:/usr/WS1/jones289/spack/share/spack/modules/linux-rhel7-broadwell:/collab/usr/global/tools/modulefiles/toss_3_x86_64_ib/Core:/usr/tce/modulefiles/Core:/usr/apps/modulefiles:/usr/share/modulefiles/Linux:/usr/share/modulefiles/Core:/usr/share/lmod/lmod/modulefiles/Core
+MODULEPATH_ROOT: /usr/share/modulefiles
+MODULESHOME: /usr/share/lmod/lmod
+PATH: /usr/workspace/wsa/jones289/miniconda3/envs/HD_env/bin:/usr/tce/packages/cuda/cuda-11.1.0/bin:/usr/tce/packages/mvapich2/mvapich2-2.3-gcc-10.2.1/bin:/usr/tce/packages/gcc/gcc-10.2.1/bin:/g/g13/jones289/workspace/spack/bin:/g/g13/jones289/.vscode-server/bin/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5/bin/remote-cli:/usr/WS1/jones289/spack/bin:/usr/tce/packages/texlive/texlive-2016/2016/bin/x86_64-linux:/usr/tce/bin:/usr/lib64/qt-3.3/bin:/usr/condabin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+PFTP_CONFIG_FILENAME: /etc/pftp_config
+PWD: /g/g13/jones289/workspace/hd-cuda-master/hdpy/hdpy/fsl/maestro
+PYTHONBREAKPOINT: ipdb.set_trace
+PYTHONPATH: '/g/g13/jones289/workspace/hd-cuda-master/hdpy:'
+QTDIR: /usr/lib64/qt-3.3
+QTINC: /usr/lib64/qt-3.3/include
+QTLIB: /usr/lib64/qt-3.3/lib
+QT_PLUGIN_PATH: /usr/lib64/kde4/plugins:/usr/lib/kde4/plugins
+REQUESTS_CA_BUNDLE: /etc/pki/tls/cert.pem
+SHELL: /bin/bash
+SHLVL: '5'
+SMS: '60'
+SPACK_PYTHON: /usr/tce/bin/python3
+SPACK_ROOT: /g/g13/jones289/workspace/spack
+SSH_ASKPASS: /usr/libexec/openssh/gnome-ssh-askpass
+SSH_AUTH_SOCK: /tmp/vscode-ssh-auth-sock-894306336
+SSH_CLIENT: 162.207.204.120 57920 22
+SSH_CONNECTION: 162.207.204.120 57920 134.9.54.78 22
+SYS_TYPE: toss_3_x86_64_ib
+TERM: xterm-256color
+TERM_PROGRAM: vscode
+TERM_PROGRAM_VERSION: 1.67.2
+TMP: /var/tmp/jones289
+TMPDIR: /var/tmp/jones289
+USER: jones289
+VSCODE_GIT_ASKPASS_EXTRA_ARGS: ''
+VSCODE_GIT_ASKPASS_MAIN: /g/g13/jones289/.vscode-server/bin/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5/extensions/git/dist/askpass-main.js
+VSCODE_GIT_ASKPASS_NODE: /g/g13/jones289/.vscode-server/bin/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5/node
+VSCODE_GIT_IPC_HANDLE: /var/tmp/jones289/vscode-git-f92a196443.sock
+VSCODE_IPC_HOOK_CLI: /var/tmp/jones289/vscode-ipc-b9c60326-ee1a-4b13-a4ec-5c6a4a1dfd49.sock
+WISECONFIGDIR: /usr/share/wise2/
+XDG_DATA_DIRS: /g/g13/jones289/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share
+_: /usr/bin/nohup
+_CE_CONDA: ''
+_CE_M: ''
+_LMFILES_: /usr/tce/modulefiles/Core/texlive/2016.lua:/usr/tce/modulefiles/Core/StdEnv.lua:/usr/tce/modulefiles/Core/gcc/10.2.1.lua:/usr/tce/modulefiles/Compiler/gcc/10.2.1/mvapich2/2.3.lua:/usr/tce/modulefiles/Core/cuda/11.1.0.lua
+_ModuleTable001_: X01vZHVsZVRhYmxlXyA9IHsKTVR2ZXJzaW9uID0gMywKY19yZWJ1aWxkVGltZSA9IGZhbHNlLApjX3Nob3J0VGltZSA9IGZhbHNlLApkZXB0aFQgPSB7fSwKZmFtaWx5ID0gewpjb21waWxlciA9ICJnY2MiLApjdWRhID0gImN1ZGEiLAptcGkgPSAibXZhcGljaDIiLAp9LAptVCA9IHsKU3RkRW52ID0gewpmbiA9ICIvdXNyL3RjZS9tb2R1bGVmaWxlcy9Db3JlL1N0ZEVudi5sdWEiLApmdWxsTmFtZSA9ICJTdGRFbnYiLApsb2FkT3JkZXIgPSAyLApwcm9wVCA9IHsKbG1vZCA9IHsKc3RpY2t5ID0gMSwKfSwKfSwKc3RhY2tEZXB0aCA9IDAsCnN0YXR1cyA9ICJhY3RpdmUiLAp1c2VyTmFtZSA9ICJTdGRFbnYiLAp3ViA9ICJNLip6ZmluYWwiLAp9LApjdWRhID0gewpmbiA9ICIv
+_ModuleTable002_: dXNyL3RjZS9tb2R1bGVmaWxlcy9Db3JlL2N1ZGEvMTEuMS4wLmx1YSIsCmZ1bGxOYW1lID0gImN1ZGEvMTEuMS4wIiwKbG9hZE9yZGVyID0gNSwKcHJvcFQgPSB7fSwKc3RhY2tEZXB0aCA9IDAsCnN0YXR1cyA9ICJhY3RpdmUiLAp1c2VyTmFtZSA9ICJjdWRhLzExLjEuMCIsCndWID0gIjAwMDAwMDAxMS4wMDAwMDAwMDEuKnpmaW5hbCIsCn0sCmdjYyA9IHsKZm4gPSAiL3Vzci90Y2UvbW9kdWxlZmlsZXMvQ29yZS9nY2MvMTAuMi4xLmx1YSIsCmZ1bGxOYW1lID0gImdjYy8xMC4yLjEiLApsb2FkT3JkZXIgPSAzLApwcm9wVCA9IHt9LApzdGFja0RlcHRoID0gMCwKc3RhdHVzID0gImFjdGl2ZSIsCnVzZXJOYW1lID0gImdjYy8xMC4yLjEiLAp3ViA9ICIwMDAwMDAwMTAuMDAw
+_ModuleTable003_: MDAwMDAyLjAwMDAwMDAwMS4qemZpbmFsIiwKfSwKbXZhcGljaDIgPSB7CmZuID0gIi91c3IvdGNlL21vZHVsZWZpbGVzL0NvbXBpbGVyL2djYy8xMC4yLjEvbXZhcGljaDIvMi4zLmx1YSIsCmZ1bGxOYW1lID0gIm12YXBpY2gyLzIuMyIsCmxvYWRPcmRlciA9IDQsCnByb3BUID0ge30sCnN0YWNrRGVwdGggPSAwLApzdGF0dXMgPSAiYWN0aXZlIiwKdXNlck5hbWUgPSAibXZhcGljaDIvMi4zIiwKd1YgPSAiMDAwMDAwMDAyLjAwMDAwMDAwMy4qemZpbmFsIiwKfSwKdGV4bGl2ZSA9IHsKZm4gPSAiL3Vzci90Y2UvbW9kdWxlZmlsZXMvQ29yZS90ZXhsaXZlLzIwMTYubHVhIiwKZnVsbE5hbWUgPSAidGV4bGl2ZS8yMDE2IiwKbG9hZE9yZGVyID0gMSwKcHJvcFQgPSB7fSwKc3Rh
+_ModuleTable004_: Y2tEZXB0aCA9IDEsCnN0YXR1cyA9ICJhY3RpdmUiLAp1c2VyTmFtZSA9ICJ0ZXhsaXZlLzIwMTYiLAp3ViA9ICIwMDAwMDIwMTYuKnpmaW5hbCIsCn0sCn0sCm1wYXRoQSA9IHsKIi91c3IvdGNlL21vZHVsZWZpbGVzL01QSS9tdmFwaWNoMi8yLjMiLCAiL3Vzci90Y2UvbW9kdWxlZmlsZXMvTVBJL2djYy8xMC4yLjEvbXZhcGljaDIvMi4zIiwgIi91c3IvdGNlL21vZHVsZWZpbGVzL0NvbXBpbGVyL2djYy8xMC4yLjEiCiwgIi91c3IvV1MxL2pvbmVzMjg5L3NwYWNrL3NoYXJlL3NwYWNrL21vZHVsZXMvbGludXgtcmhlbDcteDg2XzY0IiwgIi91c3IvV1MxL2pvbmVzMjg5L3NwYWNrL3NoYXJlL3NwYWNrL21vZHVsZXMvbGludXgtcmhlbDctYnJvYWR3ZWxsIiwgIi9jb2xsYWIv
+_ModuleTable005_: dXNyL2dsb2JhbC90b29scy9tb2R1bGVmaWxlcy90b3NzXzNfeDg2XzY0X2liL0NvcmUiCiwgIi91c3IvdGNlL21vZHVsZWZpbGVzL0NvcmUiLCAiL3Vzci9hcHBzL21vZHVsZWZpbGVzIiwgIi91c3Ivc2hhcmUvbW9kdWxlZmlsZXMvTGludXgiLCAiL3Vzci9zaGFyZS9tb2R1bGVmaWxlcy9Db3JlIiwgIi91c3Ivc2hhcmUvbG1vZC9sbW9kL21vZHVsZWZpbGVzL0NvcmUiLAp9LApzeXN0ZW1CYXNlTVBBVEggPSAiL3Vzci90Y2UvbW9kdWxlZmlsZXMvQ29yZTovdXNyL2FwcHMvbW9kdWxlZmlsZXM6L3Vzci9zaGFyZS9tb2R1bGVmaWxlcy9MaW51eDovdXNyL3NoYXJlL21vZHVsZWZpbGVzL0NvcmU6L3Vzci9zaGFyZS9sbW9kL2xtb2QvbW9kdWxlZmlsZXMvQ29yZSIsCn0K
+_ModuleTable_Sz_: '5'
+__LMOD_REF_COUNT_LD_LIBRARY_PATH: /usr/tce/packages/cuda/cuda-11.1.0/lib64:1;/usr/tce/packages/mvapich2/mvapich2-2.3-gcc-10.2.1/lib:1
+__LMOD_REF_COUNT_MANPATH: /usr/tce/packages/cuda/cuda-11.1.0/doc/man:1;/usr/tce/packages/mvapich2/mvapich2-2.3-gcc-10.2.1/man:1;/usr/tce/packages/gcc/gcc-10.2.1/man:1;/usr/tce/man:1;/usr/share/lmod/lmod/share/man:1;/usr/tce/packages/dotkit/dotkit/man:1;/usr/man:1;/usr/share/man:1;/usr/local/man:1;/usr/X11R6/man:1;/usr/lib64/mvapich/default/man:1
+__LMOD_REF_COUNT_MODULEPATH: /usr/tce/modulefiles/MPI/mvapich2/2.3:1;/usr/tce/modulefiles/MPI/gcc/10.2.1/mvapich2/2.3:1;/usr/tce/modulefiles/Compiler/gcc/10.2.1:1;/usr/WS1/jones289/spack/share/spack/modules/linux-rhel7-x86_64:1;/usr/WS1/jones289/spack/share/spack/modules/linux-rhel7-broadwell:1;/collab/usr/global/tools/modulefiles/toss_3_x86_64_ib/Core:1;/usr/tce/modulefiles/Core:1;/usr/apps/modulefiles:1;/usr/share/modulefiles/Linux:1;/usr/share/modulefiles/Core:1;/usr/share/lmod/lmod/modulefiles/Core:1
+__LMOD_REF_COUNT_PATH: /usr/tce/packages/cuda/cuda-11.1.0/bin:1;/usr/tce/packages/mvapich2/mvapich2-2.3-gcc-10.2.1/bin:1;/usr/tce/packages/gcc/gcc-10.2.1/bin:1;/g/g13/jones289/workspace/spack/bin:2;/g/g13/jones289/.vscode-server/bin/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5/bin/remote-cli:1;/usr/WS1/jones289/spack/bin:1;/usr/tce/packages/texlive/texlive-2016/2016/bin/x86_64-linux:1;/usr/tce/bin:1;/usr/lib64/qt-3.3/bin:1;/usr/condabin:1;/usr/local/bin:1;/usr/bin:1;/usr/local/sbin:1;/usr/sbin:1
+_dk_inuse: lcinit.0 dkcomplete.1 reuse.1
+_dk_isatty: '0'
+_dk_rl: '-1'
+_dk_shell: bash

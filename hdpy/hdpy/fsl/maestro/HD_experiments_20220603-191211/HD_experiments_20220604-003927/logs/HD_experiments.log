@@ -1,0 +1,289 @@
+[2022-06-04 00:39:27,858: INFO] Loading custom parameter generator from '/usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_postera_study_pgen.py'
+[2022-06-04 00:39:29,457: INFO] INFO Logging Level -- Enabled
+[2022-06-04 00:39:29,457: WARNING] WARNING Logging Level -- Enabled
+[2022-06-04 00:39:29,457: CRITICAL] CRITICAL Logging Level -- Enabled
+[2022-06-04 00:39:29,459: INFO] 
+------------------------------------------
+Submission attempts =       1
+Submission throttle limit = 0
+Use temporary directory =   False
+Tmp Dir = 
+------------------------------------------
+[2022-06-04 00:39:29,460: INFO] 
+==================================================
+name: HD_experiments
+description: run HDC experiments on various configurations.
+==================================================
+
+[2022-06-04 00:39:29,460: INFO] 
+==================================================
+Constructing parameter study 'HD_experiments'
+==================================================
+
+[2022-06-04 00:39:29,460: INFO] 
+==================================================
+Processing step '_source'
+==================================================
+
+[2022-06-04 00:39:29,460: INFO] Encountered '_source'. Adding and continuing.
+[2022-06-04 00:39:29,460: INFO] 
+==================================================
+Processing step 'postera'
+==================================================
+
+[2022-06-04 00:39:29,460: INFO] 
+==================================================
+Expanding step 'postera'
+==================================================
+-------- Used Parameters --------
+{'FEAT'}
+---------------------------------
+[2022-06-04 00:39:29,460: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.ecfp]
+**********************************
+[2022-06-04 00:39:29,460: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/ecfp
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/ecfp_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,460: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/ecfp
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/ecfp_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,460: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.smiles_to_seq]
+**********************************
+[2022-06-04 00:39:29,460: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/smiles_to_seq
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/smiles_to_seq_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,460: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/smiles_to_seq
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/smiles_to_seq_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,461: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.smiles_to_image]
+**********************************
+[2022-06-04 00:39:29,461: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/smiles_to_image
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/smiles_to_image_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,461: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/smiles_to_image
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/smiles_to_image_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,461: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.mordred]
+**********************************
+[2022-06-04 00:39:29,461: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/mordred
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mordred_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,461: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/mordred
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/mordred_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,461: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.maacs]
+**********************************
+[2022-06-04 00:39:29,461: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/maacs
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/maacs_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,461: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/maacs
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/maacs_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,461: INFO] 
+**********************************
+Combo [TARGET.mpro.FEAT.rdkit]
+**********************************
+[2022-06-04 00:39:29,461: INFO] Searching for workspaces...
+cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/rdkit
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/rdkit_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,461: INFO] New cmd = 
+cd /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl
+
+DATA_DIR=datasets/postera/rdkit
+python experiment_single_classifier.py --dataset postera --out_csv results/postera/rdkit_test_results.csv --n_problems 30 --support_path ${DATA_DIR}/train.npy --query_path ${DATA_DIR}/test.npy 
+
+[2022-06-04 00:39:29,462: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/meta
+[2022-06-04 00:39:29,465: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/meta/study
+[2022-06-04 00:39:29,498: INFO] Checking DAG status at 2022-06-04 00:39:29.498139
+[2022-06-04 00:39:29,533: INFO] Jobs found for user 'jones289'.
+[2022-06-04 00:39:29,533: INFO] Launching all ready steps...
+[2022-06-04 00:39:29,533: INFO] Calling execute for StepRecord 'postera_FEAT.ecfp'
+[2022-06-04 00:39:29,534: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.ecfp
+[2022-06-04 00:39:29,537: INFO] Generating script for postera_FEAT.ecfp into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.ecfp
+[2022-06-04 00:39:29,537: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-04 00:39:29,537: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-04 00:39:29,537: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-04 00:39:29,537: WARNING] 'post' is not supported -- ommitted.
+[2022-06-04 00:39:29,537: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-04 00:39:29,537: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-04 00:39:29,537: INFO] Scheduling workflow step 'postera_FEAT.ecfp'.
+[2022-06-04 00:39:29,540: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.ecfp/postera_FEAT.ecfp.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-04 00:39:29,540: INFO] Attempting submission of 'postera_FEAT.ecfp' (attempt 1 of 1)...
+[2022-06-04 00:39:29,577: INFO] Submission returned status OK.
+[2022-06-04 00:39:29,577: INFO] Calling execute for StepRecord 'postera_FEAT.smiles_to_seq'
+[2022-06-04 00:39:29,577: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.smiles_to_seq
+[2022-06-04 00:39:29,579: INFO] Generating script for postera_FEAT.smiles_to_seq into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.smiles_to_seq
+[2022-06-04 00:39:29,579: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-04 00:39:29,579: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-04 00:39:29,579: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-04 00:39:29,579: WARNING] 'post' is not supported -- ommitted.
+[2022-06-04 00:39:29,579: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-04 00:39:29,579: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-04 00:39:29,579: INFO] Scheduling workflow step 'postera_FEAT.smiles_to_seq'.
+[2022-06-04 00:39:29,583: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.smiles_to_seq/postera_FEAT.smiles_to_seq.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-04 00:39:29,583: INFO] Attempting submission of 'postera_FEAT.smiles_to_seq' (attempt 1 of 1)...
+[2022-06-04 00:39:29,601: INFO] Submission returned status OK.
+[2022-06-04 00:39:29,602: INFO] Calling execute for StepRecord 'postera_FEAT.smiles_to_image'
+[2022-06-04 00:39:29,602: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.smiles_to_image
+[2022-06-04 00:39:29,604: INFO] Generating script for postera_FEAT.smiles_to_image into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.smiles_to_image
+[2022-06-04 00:39:29,604: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-04 00:39:29,604: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-04 00:39:29,604: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-04 00:39:29,604: WARNING] 'post' is not supported -- ommitted.
+[2022-06-04 00:39:29,604: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-04 00:39:29,604: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-04 00:39:29,604: INFO] Scheduling workflow step 'postera_FEAT.smiles_to_image'.
+[2022-06-04 00:39:29,607: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.smiles_to_image/postera_FEAT.smiles_to_image.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-04 00:39:29,607: INFO] Attempting submission of 'postera_FEAT.smiles_to_image' (attempt 1 of 1)...
+[2022-06-04 00:39:29,627: INFO] Submission returned status OK.
+[2022-06-04 00:39:29,627: INFO] Calling execute for StepRecord 'postera_FEAT.mordred'
+[2022-06-04 00:39:29,627: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.mordred
+[2022-06-04 00:39:29,629: INFO] Generating script for postera_FEAT.mordred into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.mordred
+[2022-06-04 00:39:29,629: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-04 00:39:29,629: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-04 00:39:29,629: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-04 00:39:29,629: WARNING] 'post' is not supported -- ommitted.
+[2022-06-04 00:39:29,629: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-04 00:39:29,629: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-04 00:39:29,629: INFO] Scheduling workflow step 'postera_FEAT.mordred'.
+[2022-06-04 00:39:29,632: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.mordred/postera_FEAT.mordred.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-04 00:39:29,632: INFO] Attempting submission of 'postera_FEAT.mordred' (attempt 1 of 1)...
+[2022-06-04 00:39:29,652: INFO] Submission returned status OK.
+[2022-06-04 00:39:29,652: INFO] Calling execute for StepRecord 'postera_FEAT.maacs'
+[2022-06-04 00:39:29,652: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.maacs
+[2022-06-04 00:39:29,654: INFO] Generating script for postera_FEAT.maacs into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.maacs
+[2022-06-04 00:39:29,654: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-04 00:39:29,654: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-04 00:39:29,654: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-04 00:39:29,654: WARNING] 'post' is not supported -- ommitted.
+[2022-06-04 00:39:29,654: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-04 00:39:29,654: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-04 00:39:29,654: INFO] Scheduling workflow step 'postera_FEAT.maacs'.
+[2022-06-04 00:39:29,657: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.maacs/postera_FEAT.maacs.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-04 00:39:29,657: INFO] Attempting submission of 'postera_FEAT.maacs' (attempt 1 of 1)...
+[2022-06-04 00:39:29,677: INFO] Submission returned status OK.
+[2022-06-04 00:39:29,678: INFO] Calling execute for StepRecord 'postera_FEAT.rdkit'
+[2022-06-04 00:39:29,678: INFO] Directory does not exist. Creating directories to /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.rdkit
+[2022-06-04 00:39:29,679: INFO] Generating script for postera_FEAT.rdkit into /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.rdkit
+[2022-06-04 00:39:29,680: WARNING] 'reservation' is not supported -- ommitted.
+[2022-06-04 00:39:29,680: WARNING] 'restart' is not supported -- ommitted.
+[2022-06-04 00:39:29,680: WARNING] 'pre' is not supported -- ommitted.
+[2022-06-04 00:39:29,680: WARNING] 'post' is not supported -- ommitted.
+[2022-06-04 00:39:29,680: WARNING] 'walltime' is not supported -- ommitted.
+[2022-06-04 00:39:29,680: WARNING] 'gpus' is not supported -- ommitted.
+[2022-06-04 00:39:29,680: INFO] Scheduling workflow step 'postera_FEAT.rdkit'.
+[2022-06-04 00:39:29,682: INFO] Script: /usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220603-191211/HD_experiments_20220604-003927/postera/FEAT.rdkit/postera_FEAT.rdkit.slurm.sh
+Restart: None
+Scheduled?: True
+[2022-06-04 00:39:29,682: INFO] Attempting submission of 'postera_FEAT.rdkit' (attempt 1 of 1)...
+[2022-06-04 00:39:29,702: INFO] Submission returned status OK.
+[2022-06-04 00:40:29,785: INFO] Checking DAG status at 2022-06-04 00:40:29.785129
+[2022-06-04 00:40:29,834: INFO] Jobs found for user 'jones289'.
+[2022-06-04 00:40:29,834: INFO] Step '%s' found to be running.
+[2022-06-04 00:40:29,834: INFO] Step '%s' found to be running.
+[2022-06-04 00:40:29,834: INFO] Step '%s' found to be running.
+[2022-06-04 00:40:29,834: INFO] Step '%s' found to be running.
+[2022-06-04 00:40:29,834: INFO] Step '%s' found to be running.
+[2022-06-04 00:40:29,835: INFO] Step '%s' found to be running.
+[2022-06-04 00:40:29,835: INFO] Launching all ready steps...
+[2022-06-04 00:41:29,908: INFO] Checking DAG status at 2022-06-04 00:41:29.908240
+[2022-06-04 00:41:29,952: INFO] Jobs found for user 'jones289'.
+[2022-06-04 00:41:29,952: INFO] Step '%s' found to be running.
+[2022-06-04 00:41:29,952: INFO] Step '%s' found to be running.
+[2022-06-04 00:41:29,953: INFO] Step '%s' found to be running.
+[2022-06-04 00:41:29,953: INFO] Step '%s' found to be running.
+[2022-06-04 00:41:29,953: INFO] Step '%s' found to be running.
+[2022-06-04 00:41:29,953: INFO] Step '%s' found to be running.
+[2022-06-04 00:41:29,953: INFO] Launching all ready steps...
+[2022-06-04 00:42:30,027: INFO] Checking DAG status at 2022-06-04 00:42:30.027517
+[2022-06-04 00:42:30,112: INFO] Jobs found for user 'jones289'.
+[2022-06-04 00:42:30,112: INFO] Step '%s' found to be running.
+[2022-06-04 00:42:30,112: INFO] Step '%s' found to be running.
+[2022-06-04 00:42:30,112: INFO] Step '%s' found to be running.
+[2022-06-04 00:42:30,112: INFO] Step '%s' found to be running.
+[2022-06-04 00:42:30,112: INFO] Step '%s' found to be running.
+[2022-06-04 00:42:30,112: INFO] Step '%s' found to be running.
+[2022-06-04 00:42:30,112: INFO] Launching all ready steps...
+[2022-06-04 00:43:30,189: INFO] Checking DAG status at 2022-06-04 00:43:30.189037
+[2022-06-04 00:43:30,538: INFO] Jobs found for user 'jones289'.
+[2022-06-04 00:43:30,538: INFO] Step '%s' found to be running.
+[2022-06-04 00:43:30,538: INFO] Step '%s' found to be running.
+[2022-06-04 00:43:30,538: INFO] Step '%s' found to be running.
+[2022-06-04 00:43:30,538: INFO] Step '%s' found to be running.
+[2022-06-04 00:43:30,538: INFO] Step '%s' found to be running.
+[2022-06-04 00:43:30,538: INFO] Launching all ready steps...
+[2022-06-04 00:44:30,612: INFO] Checking DAG status at 2022-06-04 00:44:30.612453
+[2022-06-04 00:44:30,674: INFO] Jobs found for user 'jones289'.
+[2022-06-04 00:44:30,674: INFO] Step 'postera_FEAT.smiles_to_seq' marked as finished. Adding to complete set.
+[2022-06-04 00:44:30,674: INFO] Step 'postera_FEAT.mordred' marked as finished. Adding to complete set.
+[2022-06-04 00:44:30,674: INFO] Step '%s' found to be running.
+[2022-06-04 00:44:30,674: INFO] Step 'postera_FEAT.ecfp' marked as finished. Adding to complete set.
+[2022-06-04 00:44:30,674: INFO] Step 'postera_FEAT.maacs' marked as finished. Adding to complete set.
+[2022-06-04 00:44:30,674: INFO] Launching all ready steps...
+[2022-06-04 00:45:30,747: INFO] Checking DAG status at 2022-06-04 00:45:30.747712
+[2022-06-04 00:45:30,801: INFO] Jobs found for user 'jones289'.
+[2022-06-04 00:45:30,801: INFO] Step 'postera_FEAT.smiles_to_image' marked as finished. Adding to complete set.
+[2022-06-04 00:45:30,801: INFO] Step 'postera_FEAT.rdkit' marked as finished. Adding to complete set.
+[2022-06-04 00:45:30,801: INFO] Launching all ready steps...
+[2022-06-04 00:45:30,802: INFO] 'HD_experiments' is complete. Returning.
+[2022-06-04 00:45:30,811: INFO] Study completed with state 'StudyStatus.FINISHED'.
+[2022-06-04 00:45:30,811: INFO] Study exiting, cleaning up...
+[2022-06-04 00:45:30,811: INFO] Squeaky clean!
