@@ -21,6 +21,7 @@ class timing_part:
 
 def convert_pdbbind_affinity_to_class_label(x, pos_thresh=8, neg_thresh=6):
 
+
     if x < neg_thresh:
         return 0
     elif x > pos_thresh:

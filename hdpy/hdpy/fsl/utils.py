@@ -39,74 +39,32 @@ def map_features_by_class(data, class_list, col_index=0, dataset=None):
     return class_dict
 
 
-def load_features(support_path_list:list, query_path_list:list, dataset:str):
+def load_features(path:str, dataset:str):
 
-    support_list = []
-
-    for support_path in support_path_list: 
-    # randomly sample the support
-        data = np.load(support_path)
-    
-        support_list.append(data)
-    
-    support = np.concatenate(support_list)
-
-    # divide the data into a dictionary indexed by class label
-    #support_class_dict = map_features_by_class(support_data,class_list=class_list, col_index=-1, dataset=dataset)
-    #support = []
-
-    # nb_shot=-1 is a case where we use the entire dataset for training, otherwise we stratify by class
-    #for class_idx in support_class_dict.keys(): 
-    
-    #    if nb_shot == -1:
-    #        support.append(np.asarray(support_class_dict[class_idx]))
-    #    elif class_idx in class_list:
-    #        support.append(random.sample(support_class_dict[class_idx], nb_shot))
-    
-    #support = np.concatenate(support)
- 
-
-    query_list = []
-
-    for query_path in query_path_list: 
-    # randomly sample the support
-        data = np.load(query_path)
-    
-        query_list.append(data)
-    
-    query = np.concatenate(query_list)
-
-
-
-    # divide the data into a dictionary indexed by class label
-    # query_class_dict = map_features_by_class(query_data, class_list=class_list, col_index=-1, dataset=dataset)
-    # query = []
-
-    # kquery=-1 is a case where we use the entire dataset for training, otherwise we stratify by class
-    # for class_idx in query_class_dict.keys():
-        # if kquery == -1:
-            # query.append(np.asarray(query_class_dict[class_idx]))
-        # elif class_idx in class_list:
-            # query.append(np.asarray(random.sample(query_class_dict[class_idx], kquery)))
-    # query = np.concatenate(query)
-
+    features, labels = None, None
+    data = np.load(path)
 
     if dataset == "pdbbind":
         # map the experimental -logki/kd value to a discrete category
-        features_support = support[:, :-1]
-        labels_support = support[:, -1]
-        labels_support = np.asarray([convert_pdbbind_affinity_to_class_label(x) for x in labels_support])
+        features = data[:, :-1]
+        labels = data[:, -1]
+        labels = np.asarray([convert_pdbbind_affinity_to_class_label(x) for x in labels])
 
-        features_query = query[:, :-1]
-        labels_query = query[:, -1]
-        labels_query = np.asarray([convert_pdbbind_affinity_to_class_label(x) for x in labels_query])
 
+        binary_label_mask = labels != 2
+
+        return features[binary_label_mask], labels[binary_label_mask]
+
+    elif dataset == "dude":
+
+        features = data[:, :-1]
+        labels = data[:, -1]
+              
+        labels = 1- labels
     else:
+        raise NotImplementedError("specify a valid supported dataset type")
 
-        features_support = support[:, :-1]
-        labels_support = support[:, -1]
 
-        features_query = query[:, :-1]
-        labels_query = query[:, -1]
- 
-    return features_support, labels_support, features_query, labels_query
+    # import ipdb 
+    # ipdb.set_trace()
+    return features, labels

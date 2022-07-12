@@ -2,12 +2,25 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm 
+import torchmetrics
+from torch.utils.data import Dataset, DataLoader
+
 
 def binarize(x):
     return torch.where(x>0, 1.0, -1.0)
 
 
+class CustomDataset(Dataset):
+    def __init__(self, features, labels):
 
+        self.features = features 
+        self.labels = labels 
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        return self.features[idx], self.labels[idx]
 
 
 class HDModel(nn.Module):
@@ -22,15 +35,25 @@ class HDModel(nn.Module):
     def encode(self, x):
         raise NotImplementedError("Please use a subclass of HDModel.") 
 
-    def predict(self, enc_hv):
-        if enc_hv is None:
+    def predict(self, x):
+        if x is None:
             raise NotImplementedError("Please use a subclass of HDModel.")
         else:
-            out = nn.CosineSimilarity()(self.am, enc_hv)
-            return out
+            enc_hvs = self.encode(x)
+            # out = nn.CosineSimilarity()(self.am, enc_hv)
+            # return out
+            # preds = torch.zeros(x.shape[0])
+            # for i in tqdm(range(enc_hvs.size()[0])):
+                # sims = nn.CosineSimilarity()(self.am, enc_hvs[i].unsqueeze(dim=0)).unsqueeze(dim=0)
+        
+                # preds[i] = torch.argmax(sims, dim=1)
+            preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs, self.am), dim=1)
+
+
+        return preds 
 
     def forward(self, x):
-        env_hv = self.encode(x)
+        enc_hv = self.encode(x)
         out = nn.CosineSimilarity()(self.am, enc_hv)      
         return out
 
@@ -40,17 +63,48 @@ class HDModel(nn.Module):
         train_features = train_features[shuffle_idx]
         train_labels = train_labels[shuffle_idx]
 
-        import ipdb
-        ipdb.set_trace()
+        # import ipdb
+        # ipdb.set_trace()
         enc_hvs = self.encode(train_features)
-        for i in tqdm(range(enc_hvs.size()[0])):
-            sims = nn.CosineSimilarity()(self.am, enc_hvs[i].unsqueeze(dim=0))
-            
-            predict = torch.argmax(sims, dim=1)
 
-            if predict != train_labels[i]:
-                self.am[predict] -= lr * enc_hvs[i]
-                self.am[train_labels[i]] += lr * enc_hvs[i] 
+        preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs, self.am), dim=1)
+
+        # import ipdb
+        # ipdb.set_trace()
+
+
+
+        misclass_mask = preds != train_labels
+
+        self.am[train_labels[misclass_mask].long()] -= enc_hvs[misclass_mask]
+
+        self.am[~train_labels[misclass_mask].long()] += lr * enc_hvs[misclass_mask]
+
+
+        import ipdb
+        # ipdb.set_trace()
+        # self.am = binarize(self.am) 
+
+        '''
+        for idx, predict in enumerate(preds):
+            if predict != train_labels[idx]:
+                self.am[predict] -= lr * enc_hvs[idx]
+                self.am[train_labels[idx].long()] += lr * enc_hvs[idx] 
+
+
+        '''
+
+        # for i in tqdm(range(enc_hvs.size()[0])):
+            # sims = nn.CosineSimilarity()(self.am, enc_hvs[i].unsqueeze(dim=0)).unsqueeze(dim=0)
+            
+
+
+
+    def fit(self, features, labels, num_epochs, lr=1.0):
+        for _ in tqdm(range(num_epochs), total=num_epochs, desc="training HD..."):
+            self.train_step(features, labels, lr)
+
+
 
 
 class HD_Classification(HDModel):
@@ -73,8 +127,16 @@ class HD_Classification(HDModel):
 
     def init_class(self, x_train, labels_train):
         out = self.RP_encoding(x_train)
-        for i in tqdm(range(x_train.size()[0]), desc="encoding.."):
-            self.init_class_hvs[labels_train[i]] += out[i]
+
+
+        # import ipdb
+        # ipdb.set_trace()
+
+        self.init_class_hvs[labels_train.long()] += out[labels_train.long()]
+
+        # for i in tqdm(range(x_train.size()[0]), desc="encoding.."):
+            # self.init_class_hvs[labels_train[i].long()] += out[i]
+
         self.am = self.init_class_hvs
         self.am = binarize(self.am)
 
@@ -193,65 +255,61 @@ class HD_Level_Classification(nn.Module):
 
 # Fully connected neural network with one hidden layer
 class ClassifierNetwork(nn.Module):
-    def __init__(self, input_size, hidden_size, num_classes, net_type):
+    def __init__(self, input_size, hidden_size, num_classes, lr):
         super(ClassifierNetwork, self).__init__()
-        self.net_type = net_type
-        if net_type=='MLP':
-            self.fc1 = nn.Linear(input_size, hidden_size)
-            self.tanh = nn.Tanh()
-            self.fc2 = nn.Linear(hidden_size, num_classes)
-        elif net_type=='Linear':
-            self.fc1 = nn.Linear(input_size, num_classes)
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.tanh = nn.Tanh()
+        self.fc2 = nn.Linear(hidden_size, num_classes)
+
+        self.criterion = nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
+
 
     def forward(self, x):
         out = self.fc1(x)
-        if self.net_type=='MLP':
-            out = self.tanh(out)
-            out = self.fc2(out)
+        out = self.tanh(out)
+        out = self.fc2(out).softmax(dim=1)
         return out
 
 
-class kNN(nn.Module):
-    def __init__(self, x_train, labels_train, num_classes:int, distance_type='L2', k=1):
-        super(kNN, self).__init__()
-        self.k = k
-        self.distance_type = distance_type
-        self.support_embeddings = x_train
-        self.support_labels = labels_train
-        # self.num_classes = max(labels_train)+1
-        self.num_classes = num_classes
+    def fit(self, features, labels, num_epochs):
 
-    '''
-    def cosine_similarity(self, class_hvs, enc_hv):
-        #class_hvs = torch.div(class_hvs, torch.norm(class_hvs, dim=1, keepdim=True))
-        #enc_hv = torch.div(enc_hv, torch.norm(enc_hv, dim=1, keepdim=True))
-        #return torch.matmul(enc_hv, class_hvs.t())
-        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-        return cos(class_hvs, enc_hv)
-    '''
+        # cross entropy likes the long tensor so just do this once before training instead of multiple times
+        labels = labels.long()
+
+        # Train the model
+
+        train_dataloader = DataLoader(CustomDataset(features, labels), batch_size=32)
+
+        for batch in tqdm(train_dataloader, desc="training MLP..."):
+            # Forward pass
+            features, labels = batch
+            self.optimizer.zero_grad()
+            outputs = self.forward(features)
+            loss = self.criterion(outputs, labels)
+            print(loss) 
+            # Backward and optimize
+            loss.backward()
+            self.optimizer.step()
+
+
+    def predict(self, features):
+        return self.forward(features)
+
+
+
+from sklearn.neighbors import KNeighborsClassifier
+class kNN(nn.Module):
+    def __init__(self, model_type):
+        self.model = KNeighborsClassifier(n_neighbors=1, metric=model_type.lower())
 
     def forward(self, x):
-        if self.distance_type in ['L1', 'L2']:
-            #  [num_query, 1, embed_dims]
-            query = torch.unsqueeze(x, 1)
-            #  [1, num_support, embed_dims]
-            support = torch.unsqueeze(self.support_embeddings, 0)
+        return self.model.predict(x)
 
-            if self.distance_type == 'L1':
-                #  [num_query, num_support]
-                distance = torch.linalg.norm(query-support, dim=2, ord=1)
-            else:
-                distance = torch.linalg.norm(query-support, dim=2, ord=2)
-        elif self.distance_type == 'cosine':
-            distance = -1.0 * nn.CosineSimilarity()(self.support_embeddings, x)
-        else:
-            raise ValueError('Distance must be one of L1, L2 or cosine.')        
-             
-        _, idx = torch.topk(-distance, k=self.k)
-        idx = torch.squeeze(idx, dim=1)
-        idx = torch.gather(self.support_labels, 0, idx)
+    def fit(self, features, labels, num_epochs):
+        
+        self.model.fit(features.cpu(), labels.cpu())
 
-        one_hot_classification = F.one_hot(idx.long(), num_classes=self.num_classes)
-        return one_hot_classification
+    def predict(self, features):
 
-
+        return self.model.predict(features.cpu())
