@@ -6,8 +6,9 @@ SMILES_COL=rdkit_smiles
 LABEL_COL=active
 
 
-for feat_type in "ecfp" "smiles_to_seq" "smiles_to_image" "mordred" "maacs" "rdkit";
+#for feat_type in "ecfp" "smiles_to_seq" "smiles_to_image" "mordred" "maacs" "rdkit";
 # for feat_type in "coul_matrix";
+for feat_type in "mol2vec";
 do
 	echo $feat_type
 	python feat.py --input-path $INPUT_PATH --smiles-col $SMILES_COL --label-col $LABEL_COL --feat-type $feat_type --output-dir "${OUTPUT_DIR}/${feat_type}"

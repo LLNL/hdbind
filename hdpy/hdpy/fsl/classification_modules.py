@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from tqdm import tqdm 
 import torchmetrics
 from torch.utils.data import Dataset, DataLoader
-
+import ipdb 
 
 def binarize(x):
     return torch.where(x>0, 1.0, -1.0)
@@ -29,7 +29,7 @@ class HDModel(nn.Module):
         super(HDModel, self).__init__()
         self.am = None
 
-    def init_class(self, x_train, labels_train):
+    def init_class(self, x_train, train_labels):
         raise NotImplementedError("Please use a subclass of HDModel.")
 
     def encode(self, x):
@@ -53,8 +53,9 @@ class HDModel(nn.Module):
         return preds 
 
     def forward(self, x):
-        enc_hv = self.encode(x)
-        out = nn.CosineSimilarity()(self.am, enc_hv)      
+        # enc_hv = self.encode(x)
+        # out = nn.CosineSimilarity()(self.am, enc_hv)     
+        out = self.predict(x) 
         return out
 
 
@@ -69,40 +70,45 @@ class HDModel(nn.Module):
 
         preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs, self.am), dim=1)
 
-        # import ipdb
-        # ipdb.set_trace()
 
-
-
+        #parallelized version below but has some bugs/open areas for improvement
         misclass_mask = preds != train_labels
 
-        self.am[train_labels[misclass_mask].long()] -= enc_hvs[misclass_mask]
+        # find the misclassified examples and subtract from the associative memory, leverage associative (abuse of words) property of addition/subtraction 
+        am_array = torch.index_select(self.am, 0, preds[misclass_mask]) - enc_hvs[misclass_mask]
 
-        self.am[~train_labels[misclass_mask].long()] += lr * enc_hvs[misclass_mask]
-
-
-        import ipdb
         # ipdb.set_trace()
-        # self.am = binarize(self.am) 
+        for label in train_labels.int().unique():
+
+            # train_labels[misclass_mask] gives the true value for a misclassified training example, we select the examples corresponding to a
+            # particular class, then sum their values in from am_array to produce a 1 by D array/vector, we multiply this by the learning 
+            # rate to dampen the values of the update and add the result to the corresponding entry in the associative memory
+            self.am[int(label)] += lr * am_array[train_labels[misclass_mask] == label].sum(dim=0)
+
+
+
+        # self.am[train_labels[misclass_mask].int()] -= lr * enc_hvs[misclass_mask]
+
+        # train_labels[misclass_mask].int() -= lr * enc_hvs[misclass_mask]
+
+        # self.am[~train_labels[misclass_mask].int()] += lr * enc_hvs[misclass_mask]
+
+
 
         '''
+        # serial training loop 
         for idx, predict in enumerate(preds):
             if predict != train_labels[idx]:
                 self.am[predict] -= lr * enc_hvs[idx]
-                self.am[train_labels[idx].long()] += lr * enc_hvs[idx] 
-
-
+                self.am[train_labels[idx].int()] += lr * enc_hvs[idx] 
+            
         '''
 
-        # for i in tqdm(range(enc_hvs.size()[0])):
-            # sims = nn.CosineSimilarity()(self.am, enc_hvs[i].unsqueeze(dim=0)).unsqueeze(dim=0)
-            
-
-
+        self.am = binarize(self.am) 
 
     def fit(self, features, labels, num_epochs, lr=1.0):
         for _ in tqdm(range(num_epochs), total=num_epochs, desc="training HD..."):
-            self.train_step(features, labels, lr)
+            self.train_step(train_features=features, train_labels=labels, lr=lr)
 
 
 
@@ -118,6 +124,8 @@ class HD_Classification(HDModel):
         self.init_class_hvs = torch.zeros(num_classes, D).float().cuda()
 
     def RP_encoding(self, x):
+
+        # ipdb.set_trace()
         out = self.rp_layer(x)
         out = torch.where(out>0, 1.0, -1.0)
         return out
@@ -125,17 +133,18 @@ class HD_Classification(HDModel):
     def encode(self, x):
         return self.RP_encoding(x)
 
-    def init_class(self, x_train, labels_train):
+    def init_class(self, x_train, train_labels):
+        self.am = self.init_class_hvs
         out = self.RP_encoding(x_train)
 
-
-        # import ipdb
-        # ipdb.set_trace()
-
-        self.init_class_hvs[labels_train.long()] += out[labels_train.long()]
-
         # for i in tqdm(range(x_train.size()[0]), desc="encoding.."):
-            # self.init_class_hvs[labels_train[i].long()] += out[i]
+        #   self.init_class_hvs[train_labels[i].int()] += out[i]
+
+        am_array = torch.index_select(self.init_class_hvs, 0, train_labels.int())
+        am_array += out
+
+        for label in train_labels.int().unique():
+            self.am[int(label)] = am_array[train_labels == label].sum(dim=0)
 
         self.am = self.init_class_hvs
         self.am = binarize(self.am)
@@ -162,20 +171,12 @@ class HD_Sparse_Classification(HDModel):
     def encode(self, x):
         return self.RP_encoding(x)
 
-    def init_class(self, x_train, labels_train):
+    def init_class(self, x_train, train_labels):
         out = self.RP_encoding(x_train)
         for i in range(x_train.size()[0]):
-            self.init_class_hvs[labels_train[i]] += out[i]
+            self.init_class_hvs[train_labels[i]] += out[i]
         # self.am = nn.parameter.Parameter(self.init_class_hvs, requires_grad=True)
         self.am = self.init_class_hvs 
-
-
-
-
-
-
-
-
 
 
 class HD_Kron_Classification(HDModel):
@@ -206,10 +207,10 @@ class HD_Kron_Classification(HDModel):
             out = torch.where(out>0, 1.0, -1.0)
         return out
 
-    def init_class(self, x_train, labels_train):
+    def init_class(self, x_train, train_labels):
         out = self.RP_encoding(x_train)
         for i in range(x_train.size()[0]):
-            self.init_class_hvs[labels_train[i]] += out[i]
+            self.init_class_hvs[train_labels[i]] += out[i]
         self.am = self.init_class_hvs
 
         self.am = binarize(self.am)
@@ -236,10 +237,10 @@ class HD_Level_Classification(nn.Module):
         # out = torch.where(out>0, 1.0, -1.0)
     #    return out
 
-    def init_class(self, x_train, labels_train):
+    def init_class(self, x_train, train_labels):
         out = self.RP_encoding(x_train)
         for i in range(x_train.size()[0]):
-            self.init_class_hvs[labels_train[i]] += out[i]
+            self.init_class_hvs[train_labels[i]] += out[i]
         # self.am = nn.parameter.Parameter(self.init_class_hvs, requires_grad=True)
         self.am = self.init_class_hvs
 
@@ -275,7 +276,7 @@ class ClassifierNetwork(nn.Module):
     def fit(self, features, labels, num_epochs):
 
         # cross entropy likes the long tensor so just do this once before training instead of multiple times
-        labels = labels.long()
+        labels = labels.int()
 
         # Train the model
 

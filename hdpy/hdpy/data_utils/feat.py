@@ -9,20 +9,23 @@ from pathlib import Path
 import deepchem as dc
 from rdkit.Chem import DataStructs
 from rdkit.rdBase import BlockLogs
-
+from sklearn.model_selection import train_test_split
 block = BlockLogs()
 
 def get_args():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input-path', required=True)
+    parser.add_argument('--input-path')
+    parser.add_argument('--input-path-list', nargs='+')
     parser.add_argument('--smiles-col', required=True)
     parser.add_argument('--label-col', required=True)
     parser.add_argument('--output-dir', required=True)
     parser.add_argument('--feat-type', choices=["ecfp", "smiles_to_seq", "smiles_to_image",
-                                    "coul_matrix", "mordred", "maacs", "rdkit"])
+                                    "coul_matrix", "mordred", "maacs", "rdkit", "mol2vec"])
     parser.add_argument('--no-subset', action='store_true', help="flag that indicates no train/val/test splits are used")
     parser.add_argument('--dry-run', action="store_true")
+    parser.add_argument('--invert-labels', action="store_true", help="pass this flag to flip the polarity of bind/no-bind labels")
+    parser.add_argument('--num-workers', type=int, help="number of workers to use to featurize the data", default=int(mp.cpu_count()/2))
     args = parser.parse_args()
 
     return args 
@@ -101,6 +104,15 @@ def compute_smiles_to_rdkit(smiles_row):
     return feat.reshape(-1)
 
 
+def compute_smiles_to_mol2vec(smiles_row):
+    _, smiles_row = smiles_row
+    smiles = smiles_row[args.smiles_col]
+    feat = dc.feat.Mol2VecFingerprint().featurize(smiles)
+
+    return feat.reshape(-1)
+
+
+
 def compute_char_to_idx(smiles_list):
     _char_to_idx = {}
     _char_idx = 0
@@ -120,31 +132,43 @@ def compute_char_to_idx(smiles_list):
 
 
 
-def main():
+def main(df, pool, target):
 
-    labels = df[args.label_col].values.reshape(-1, 1) 
+    labels = df[args.label_col].values.reshape(-1, 1)
+
+
+    if args.invert_labels: 
+
+        labels = 1 - labels 
 
     # import pdb
     # pdb.set_trace()    
-    with mp.Pool(mp.cpu_count() - 1) as pool:
+    # with mp.Pool(args.num_workers) as pool:
 
     #    result_list = list(tqdm(pool.imap(job_func, smiles_list), total=len(smiles_list)))
-
-        result_list = list(tqdm(pool.imap(job_func, df.iterrows()), total=len(df)))
+    result_list = list(tqdm(pool.imap(job_func, df.iterrows()), total=len(df)))
 
     data = np.asarray(result_list)
     data = data.squeeze()
 
     if not args.dry_run:
-        output_path =  Path(f"{args.output_dir}")
+        output_path =  Path(f"{args.output_dir}/{target}/{args.feat_type}")
         output_path.mkdir(exist_ok=True, parents=True)
 
 
         if not args.no_subset:
 
-            train_data = np.concatenate([data[train_mask, :], labels[train_mask]], axis=1)
-            val_data = np.concatenate([data[val_mask, :], labels[val_mask]], axis=1)
-            test_data = np.concatenate([data[test_mask, :], labels[test_mask]], axis=1)
+
+            #TODO: use precomputed splits or stratify the split
+
+
+            x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, stratify=labels, random_state=0)
+
+            x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, stratify=y_train, random_state=0)
+
+            train_data = np.concatenate([x_train, y_train], axis=1)
+            val_data = np.concatenate([x_val, y_val], axis=1)
+            test_data = np.concatenate([x_test, y_test], axis=1)
 
             np.save(output_path / "train.npy", train_data)
             np.save(output_path / "val.npy", val_data)
@@ -161,34 +185,52 @@ if __name__ == "__main__":
     args = get_args()
     print(args)
 
-    df = pd.read_csv(args.input_path)
-    smiles_list = df[args.smiles_col].values.tolist()
 
 
-    char_to_idx = None
-    job_func = None
-    if args.feat_type.lower() == "ecfp":
-        job_func = compute_fingerprint
-
-    elif args.feat_type.lower() == "smiles_to_seq":
-        char_to_idx = compute_char_to_idx(smiles_list)
-        job_func = compute_smiles_seq_vector
-    
-    elif args.feat_type.lower() == "smiles_to_image":
-        job_func = compute_smiles_to_image
-
-    elif args.feat_type.lower() == "coul_matrix":
-        job_func = compute_smiles_to_coulmatrix
-    
-    elif args.feat_type.lower() == "mordred":
-        job_func = compute_smiles_to_mordred
-
-    elif args.feat_type.lower() == "maacs":
-        job_func = compute_smiles_to_maccs
-    
-    elif args.feat_type.lower() == "rdkit":
-        job_func = compute_smiles_to_rdkit
+    # this is specific for dude...could generalize this with an argument for dataset type then use a series of if/else
 
 
-    main()
+
+    pool = mp.Pool(args.num_workers)
+    for path in tqdm(args.input_path_list):
+
+        tqdm.write(path)
+        input_path = Path(path)
+        target = input_path.stem.split("_")[0]
+
+
+        path_df = pd.read_csv(input_path)
+
+
+        smiles_list = path_df[args.smiles_col].values.tolist()
+
+        char_to_idx = None
+        job_func = None
+        if args.feat_type.lower() == "ecfp":
+            job_func = compute_fingerprint
+
+        elif args.feat_type.lower() == "smiles_to_seq":
+            char_to_idx = compute_char_to_idx(smiles_list)
+            job_func = compute_smiles_seq_vector
+        
+        elif args.feat_type.lower() == "smiles_to_image":
+            job_func = compute_smiles_to_image
+
+        elif args.feat_type.lower() == "coul_matrix":
+            job_func = compute_smiles_to_coulmatrix
+        
+        elif args.feat_type.lower() == "mordred":
+            job_func = compute_smiles_to_mordred
+
+        elif args.feat_type.lower() == "maacs":
+            job_func = compute_smiles_to_maccs
+        
+        elif args.feat_type.lower() == "rdkit":
+            job_func = compute_smiles_to_rdkit
+        
+        elif args.feat_type.lower() == "mol2vec":
+            job_func = compute_smiles_to_mol2vec
+
+
+        main(df=path_df, pool=pool, target=target)
 

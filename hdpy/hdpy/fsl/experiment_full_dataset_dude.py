@@ -26,7 +26,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Single Library Classifier')
 
     parser.add_argument('--dataset', help='evaluated dataset (pdbbind, postera, dude) that determines how measurements are loaded into classes', required=True)
-    # parser.add_argument('--out-csv', required=True, help='path to output CSV file')
+    parser.add_argument('--out-csv', required=True, help='path to output CSV file')
 
     parser.add_argument('--model-list', nargs='+', required=True, help="Please select from ['HD', 'HD-Sparse', 'L1', 'L2', 'cosine', 'MLP', 'Uniform', 'Majority']")
     parser.add_argument('--train-path-list', required=True, nargs='+', help='path to train data files')
@@ -123,7 +123,7 @@ def init_model(model_type, args, features, labels):
                     D=args.hidden_size, num_classes=2).to(device)
         
         with timing_part("ENCODING") as timer:
-            model.init_class(x_train=features, labels_train=labels)
+            model.init_class(x_train=features, train_labels=labels)
 
         encode_time = timer.total_time
 
@@ -158,12 +158,12 @@ def init_model(model_type, args, features, labels):
     return model, encode_time
 
 
-def train_model(model, features, labels, num_epochs):
+def train_model(model, features, labels, num_epochs, lr=1):
 
     train_time = -1
 
     with timing_part("MODEL-TRAIN") as timer:
-        model.fit(features=features, labels=labels, num_epochs=num_epochs)
+        model.fit(features=features, labels=labels, num_epochs=num_epochs, lr=lr)
 
     train_time = timer.total_time
 
@@ -195,17 +195,17 @@ def compute_metrics(y_pred, y_true):
 
     if not isinstance(y_true, torch.Tensor):
         y_true = torch.tensor(y_true)
-    y_pred = y_pred.to(device).float()
-    y_true = y_true.to(device)
+    y_pred = y_pred.cpu().float()
+    y_true = y_true.cpu()
 
 
 
     return {"acc": torchmetrics.functional.accuracy(y_pred, y_true),
         #  "auc": torchmetrics.functional.auc(y_pred, y_true, reorder=True),
-         "recall (macro)": torchmetrics.functional.recall(y_pred, y_true, average="macro", num_classes=2, multiclass=True),
-         "recall (micro)": torchmetrics.functional.recall(y_pred, y_true, average="micro", num_classes=2, multiclass=True),
-         "precision (macro)": torchmetrics.functional.precision(y_pred, y_true, average="macro", num_classes=2, multiclass=True),
-         "precision (micro)": torchmetrics.functional.precision(y_pred, y_true, average="micro", num_classes=2, multiclass=True)
+         "recall-macro": torchmetrics.functional.recall(y_pred, y_true, average="macro", num_classes=2, multiclass=True),
+         "recall-micro": torchmetrics.functional.recall(y_pred, y_true, average="micro", num_classes=2, multiclass=True),
+         "precision-macro": torchmetrics.functional.precision(y_pred, y_true, average="macro", num_classes=2, multiclass=True),
+         "precision-micro": torchmetrics.functional.precision(y_pred, y_true, average="micro", num_classes=2, multiclass=True)
         }
 
 
@@ -223,75 +223,139 @@ def main():
     x_train, x_test, y_train, y_test = load_data(args)
 
 
-    '''
-    print(set(y_train.cpu().numpy()), set(y_test.cpu().numpy()))
+    from sklearn.preprocessing import MinMaxScaler
+
+    scaler = MinMaxScaler()
+    x_train_scaled = scaler.fit_transform(x_train.cpu())
+    x_test_scaled = scaler.transform(x_test.cpu())
 
 
+    x_train_scaled = torch.from_numpy(x_train_scaled).to(device).float()
 
-    data_train = np.load(args.train_path_list[0])
-    data_test = np.load(args.test_path_list[0])
-    
-    x_train = data_train[:, :-1]
-    y_train = data_train[:, -1]
-    x_test = data_test[:, :-1]
-    y_test = data_test[:, -1]
+    x_test_scaled = torch.from_numpy(x_test_scaled).to(device).float()
 
+    from collections import defaultdict
 
-
-    print(set(y_train), set(y_test))
-
-
-    return 0
-
-    '''
+    result_dict = defaultdict(list)
     for model_type in args.model_list:
 
 
-        # initialize model
-        
-        model, encode_time = init_model(model_type, args, x_train, y_train)
+        for trial in range(args.n_problems):
+            result_dict["model"].append(model_type)
 
-        model, train_time = train_model(model=model, features=x_train, labels=y_train,
-                    num_epochs=args.num_epochs)
+            # initialize model
+            
+            model, encode_time = init_model(model_type, args, x_train_scaled, y_train)
 
-
-        # import ipdb 
-        # ipdb.set_trace()
-        preds, test_time = test_model(model=model, features=x_test)
+            result_dict["encode_time"].append(encode_time)
 
 
-        metrics = compute_metrics(y_true=y_test.long(), y_pred=preds)
+            model, train_time = train_model(model=model, features=x_train_scaled, labels=y_train,
+                        num_epochs=args.num_epochs, lr=args.lr)
 
-        print(model_type)
-        print(model)
-        print_metrics(metrics)
+            result_dict["train_time"].append(train_time)
+
+            # import ipdb 
+            # ipdb.set_trace()
+            preds, test_time = test_model(model=model, features=x_test_scaled)
+
+            result_dict["test_time"].append(test_time)
+
+
+            metrics = compute_metrics(y_true=y_test.long(), y_pred=preds)
+
+
+            result_dict["acc"].append(metrics["acc"])
+            result_dict["recall-micro"].append(metrics["recall-micro"])
+            result_dict["recall-macro"].append(metrics["recall-macro"])
+            result_dict["precision-micro"].append(metrics["precision-micro"])
+            result_dict["precision-macro"].append(metrics["precision-macro"])
+            result_dict["trial"].append(trial)
+            print(model_type)
+            print_metrics(metrics)
 
     
     from sklearn.ensemble import RandomForestClassifier
 
+    import time
 
-    # import ipdb
-    # ipdb.set_trace()
     model = RandomForestClassifier()
-    model.fit(x_train, y_train)
+    rf_train_start_time = time.time()
+    model.fit(x_train_scaled.cpu(), y_train.cpu())
+    rf_train_end_time = time.time()
 
-    rf_preds = model.predict(x_test)
-
+    rf_test_start_time = time.time()
+    rf_preds = model.predict(x_test_scaled.cpu())
+    rf_test_end_time = time.time()
 
 
     metrics = compute_metrics(y_true=torch.tensor(y_test).int(), y_pred=torch.tensor(rf_preds))
 
 
-    print("RF")
+    print(f"RF")
     print(model)
     print_metrics(metrics)
 
 
-    ''' 
+
+
+    result_dict["model"].append("RF") 
+    result_dict["encode_time"].append(-1)
+    result_dict["train_time"].append(rf_train_end_time - rf_train_start_time)
+    result_dict["test_time"].append(rf_test_end_time - rf_test_start_time)
+
+
+    metrics = compute_metrics(y_true=y_test.long(), y_pred=rf_preds)
+
+
+    result_dict["acc"].append(metrics["acc"])
+    result_dict["recall-micro"].append(metrics["recall-micro"])
+    result_dict["recall-macro"].append(metrics["recall-macro"])
+    result_dict["precision-micro"].append(metrics["precision-micro"])
+    result_dict["precision-macro"].append(metrics["precision-macro"])
+    result_dict["trial"].append(0)
+
+
+
+
+
+    model = DummyClassifier(strategy="uniform")
+    model.fit(x_train_scaled.cpu(), y_train.cpu())
+
+
+    random_preds = model.predict(x_test_scaled.cpu())
+
+    metrics = compute_metrics(y_true=torch.tensor(y_test).int(), y_pred=torch.tensor(random_preds))
+
+
+    print("RANDOM")
+    print(model)
+    print_metrics(metrics)
+
+
+
+
+    result_dict["model"].append("RANDOM") 
+    result_dict["encode_time"].append(-1)
+    result_dict["train_time"].append(-1)
+    result_dict["test_time"].append(-1)
+
+
+    metrics = compute_metrics(y_true=y_test.long(), y_pred=random_preds)
+
+
+    result_dict["acc"].append(metrics["acc"])
+    result_dict["recall-micro"].append(metrics["recall-micro"])
+    result_dict["recall-macro"].append(metrics["recall-macro"])
+    result_dict["precision-micro"].append(metrics["precision-micro"])
+    result_dict["precision-macro"].append(metrics["precision-macro"])
+
+    result_dict["trial"].append(0)
+
+
     output_path = Path(f"{args.out_csv}")
     output_path.parent.mkdir(exist_ok=True, parents=True)
-    pd.DataFrame(results).to_csv(args.out_csv, index=False, sep='\t')
-    '''
+    pd.DataFrame(result_dict).to_csv(args.out_csv, index=False, sep='\t')
 
 
 
@@ -300,10 +364,6 @@ if __name__=='__main__':
     # Device configuration
     device = torch.device("cuda:"+str(0) if torch.cuda.is_available() else "cpu")
     args = get_args() 
-
-    # results = defaultdict(list)
-
-    # n_classes = 2
 
     main()
 
