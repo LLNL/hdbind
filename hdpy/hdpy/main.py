@@ -1,22 +1,18 @@
-import sys
 from tkinter import W
 import numpy as np
-from sklearn import multiclass
-from utils import load_features 
-from classification_modules import *
+from hdpy.fsl.utils import load_features
+# TODO: replace the catch-all import 
+from hdpy.fsl.classification_modules import *
+from hdpy.rff_hdc.model import BModel, GModel
+from hdpy.rff_hdc.utils import encode_and_save
 from sklearn.dummy import DummyClassifier
-from sklearn.metrics import recall_score, precision_score
-import os, random
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from pathlib import Path
 import argparse
-from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 import torchmetrics
 import pandas as pd
-from collections import defaultdict
 
 from hdpy.utils import timing_part
 
@@ -28,7 +24,7 @@ def get_args():
     parser.add_argument('--dataset', help='evaluated dataset (pdbbind, postera, dude) that determines how measurements are loaded into classes', required=True)
     parser.add_argument('--out-csv', required=True, help='path to output CSV file')
 
-    parser.add_argument('--model-list', nargs='+', required=True, help="Please select from ['HD', 'HD-Sparse', 'L1', 'L2', 'cosine', 'MLP', 'Uniform', 'Majority']")
+    parser.add_argument('--model-list', nargs='+', required=True, help="Please select from ['rff-hdc', 'rff-gvsa', 'HD', 'HD-Sparse', 'L1', 'L2', 'cosine', 'MLP', 'Uniform', 'Majority']")
     parser.add_argument('--train-path-list', required=True, nargs='+', help='path to train data files')
     parser.add_argument('--test-path-list', nargs='+', help='path to test data files')
     parser.add_argument('--n-problems', default=600, type=int,
@@ -46,7 +42,7 @@ def get_args():
     parser.add_argument('--gpu', default=0, type=int,
         help='GPU id to use.')
     parser.add_argument('--datapath', help='path to dataset')
-
+    parser.add_argument('--gorder', type=int, default=8, help="order of the cyclic group required for G-VSA")
     args = parser.parse_args()
 
     return args
@@ -56,8 +52,6 @@ def get_args():
 
 def load_data_list(data_path_list, dataset):
 
-    # import ipdb
-    # ipdb.set_trace()
     features_list = []
     labels_list = []
 
@@ -72,7 +66,6 @@ def load_data_list(data_path_list, dataset):
     labels = np.concatenate(labels_list, dtype=np.float32)
     return features, labels
 
-import sklearn
 from sklearn.preprocessing import StandardScaler
 
 
@@ -108,33 +101,73 @@ def load_data(args):
 
     return x_train, x_test, y_train, y_test
 
-def init_model(model_type, args, features, labels):
+def init_model(model_type, args, x_train, y_train, x_test, y_test):
 
 
     encode_time = -1
 
     if model_type == 'MLP':
-        model = ClassifierNetwork(input_size=features.shape[1], 
+        model = ClassifierNetwork(input_size=x_train.shape[1], 
                         hidden_size=512, num_classes=2, lr=args.lr).to(device)
-    
+
+
+
+
+    elif model_type == "rff-hdc":
+        # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        # criterion = torch.nn.NLLLoss()
+        # channels = 3 if args.dataset == 'cifar' else 1
+        channels = 1 
+        if args.dataset == 'dude':
+            classes = 2
+        else:
+            raise NotImplementedError 
         
+        model = BModel(in_dim=channels * args.hidden_size, classes=classes, data_dir=args.datapath, device=device).to(device)
+
+        #trainloader, testloader = prepare_data(args)
+        #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+
+        with timing_part("ENCODING") as timer:
+            encode_and_save(data_dir=args.datapath, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, dataset=args.dataset, model=model_type, dim=args.hidden_size, gamma=args.gamma, gorder=args.gorder)
+
+        encode_time = timer.total_time 
+
+
+    elif model_type == "rff-gvsa":
+
+        channels = 1
+        if args.dataset == "dude":
+            classes = 2
+        else:
+            raise NotImplementedError 
+        model = GModel(args.gorder, in_dim=channels * args.hidden_size, classes=classes, data_dir=args.datapath, device=device).to(device)
+
+
+        with timing_part("ENCODING") as timer:
+            encode_and_save(data_dir=args.datapath, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, dataset=args.dataset, model=model_type, dim=args.hidden_size, gamma=args.gamma, gorder=args.gorder)
+
+        encode_time = timer.total_time 
+
+
+
     elif model_type == 'HD':
-        model = HD_Classification(input_size=features.shape[1], 
-                    D=args.hidden_size, num_classes=2).to(device)
+        model = HD_Classification(input_size=x_train.shape[1], D=args.hidden_size, num_classes=2).to(device)
         
         with timing_part("ENCODING") as timer:
-            model.init_class(x_train=features, train_labels=labels)
+            model.init_class(x_train=x_train, train_labels=y_train)
 
         encode_time = timer.total_time
 
 
     elif model_type == 'HD-Sparse':
-        model = HD_Sparse_Classification(input_size=features.shape[1],
+        model = HD_Sparse_Classification(input_size=x_train.shape[1],
                              D=args.hidden_size, density=0.02, 
                             num_classes=2).to(device)
 
         with timing_part("ENCODING") as timer:
-            model.init_class(features=features, labels=labels)
+            model.init_class(features=x_train, labels=y_train)
 
         encode_time = timer.total_time
 
@@ -155,6 +188,9 @@ def init_model(model_type, args, features, labels):
         model = DummyClassifier(strategy="most_frequent")
 
 
+
+    else:
+        raise NotImplementedError("please specify valid model type")
     return model, encode_time
 
 
@@ -162,6 +198,8 @@ def train_model(model, features, labels, num_epochs, lr=1):
 
     train_time = -1
 
+    # import ipdb 
+    # ipdb.set_trace()
     with timing_part("MODEL-TRAIN") as timer:
         model.fit(features=features, labels=labels, num_epochs=num_epochs, lr=lr)
 
@@ -174,7 +212,8 @@ def test_model(model, features):
 
     pred_test_time = 0
 
-
+    # import ipdb 
+    # ipdb.set_trace()
     with torch.no_grad():
 
         with timing_part('TEST-STEP') as timer:
@@ -245,7 +284,7 @@ def main():
 
             # initialize model
             
-            model, encode_time = init_model(model_type, args, x_train_scaled, y_train)
+            model, encode_time = init_model(model_type, args, x_train_scaled, y_train, x_test_scaled, y_test)
 
             result_dict["encode_time"].append(encode_time)
 
@@ -364,6 +403,8 @@ if __name__=='__main__':
     # Device configuration
     device = torch.device("cuda:"+str(0) if torch.cuda.is_available() else "cpu")
     args = get_args() 
+
+
 
     main()
 
