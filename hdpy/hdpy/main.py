@@ -13,10 +13,14 @@ import argparse
 from sklearn.model_selection import train_test_split
 import torchmetrics
 import pandas as pd
-
+import time
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from hdpy.utils import timing_part
 
 
+from collections import defaultdict
 def get_args():
 
     parser = argparse.ArgumentParser(description='Single Library Classifier')
@@ -41,7 +45,7 @@ def get_args():
         help='set for No L2 regularization, otherwise use L2')
     parser.add_argument('--gpu', default=0, type=int,
         help='GPU id to use.')
-    parser.add_argument('--datapath', help='path to dataset')
+    parser.add_argument('--out-data-dir', help='not sure what this is doing actually')
     parser.add_argument('--gorder', type=int, default=8, help="order of the cyclic group required for G-VSA")
     args = parser.parse_args()
 
@@ -66,7 +70,6 @@ def load_data_list(data_path_list, dataset):
     labels = np.concatenate(labels_list, dtype=np.float32)
     return features, labels
 
-from sklearn.preprocessing import StandardScaler
 
 
 def load_data(args):    
@@ -103,6 +106,8 @@ def load_data(args):
 
 def init_model(model_type, args, x_train, y_train, x_test, y_test):
 
+    # import ipdb
+    # ipdb.set_trace()
 
     encode_time = -1
 
@@ -123,31 +128,45 @@ def init_model(model_type, args, x_train, y_train, x_test, y_test):
         else:
             raise NotImplementedError 
         
-        model = BModel(in_dim=channels * args.hidden_size, classes=classes, data_dir=args.datapath, device=device).to(device)
+        model = BModel(in_dim=channels * args.hidden_size, classes=classes, data_dir=args.out_data_dir, device=device).to(device)
 
         #trainloader, testloader = prepare_data(args)
         #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 
         with timing_part("ENCODING") as timer:
-            encode_and_save(data_dir=args.datapath, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, dataset=args.dataset, model=model_type, dim=args.hidden_size, gamma=args.gamma, gorder=args.gorder)
-
+            # encode_and_save(model_type=model_type, data_dir=args.out_data_dir, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, dataset=args.dataset, dim=args.hidden_size, gamma=args.gamma, gorder=args.gorder)
+            pass
         encode_time = timer.total_time 
 
 
     elif model_type == "rff-gvsa":
+
+
 
         channels = 1
         if args.dataset == "dude":
             classes = 2
         else:
             raise NotImplementedError 
-        model = GModel(args.gorder, in_dim=channels * args.hidden_size, classes=classes, data_dir=args.datapath, device=device).to(device)
+
+        from hdpy.rff_hdc.encoder import RandomFourierEncoder
+        encoder = RandomFourierEncoder(
+            input_dim=x_train.shape[1], gamma=args.gamma, gorder=args.gorder, output_dim=args.hidden_size)
+        
+        model = GModel(encoder=encoder, enc_dim=args.hidden_size, gorder=args.gorder, in_dim=channels * args.hidden_size, classes=classes, data_dir=args.out_data_dir, device=device).to(device)
+        model.to('cuda')
+
+
+
+
+
+
 
 
         with timing_part("ENCODING") as timer:
-            encode_and_save(data_dir=args.datapath, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, dataset=args.dataset, model=model_type, dim=args.hidden_size, gamma=args.gamma, gorder=args.gorder)
-
+            # encode_and_save(model_type=model_type, data_dir=args.out_data_dir, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, dataset=args.dataset, dim=args.hidden_size, gamma=args.gamma, gorder=args.gorder)
+            pass
         encode_time = timer.total_time 
 
 
@@ -173,11 +192,6 @@ def init_model(model_type, args, x_train, y_train, x_test, y_test):
 
     elif model_type in ['L1', 'L2', 'cosine']:
 
-        # from sklearn.neighbors import KNeighborsClassifier
-
-        # model = KNeighborsClassifier(n_neighbors=1, metric=model_type.lower())
-        # model = kNN(features=features, labels=labels, num_classes=2, distance_type=model_type, k=1)
-
         model = kNN(model_type=model_type)
 
     elif model_type == "Uniform":
@@ -187,8 +201,6 @@ def init_model(model_type, args, x_train, y_train, x_test, y_test):
     elif model_type == "Majority": 
         model = DummyClassifier(strategy="most_frequent")
 
-
-
     else:
         raise NotImplementedError("please specify valid model type")
     return model, encode_time
@@ -196,12 +208,16 @@ def init_model(model_type, args, x_train, y_train, x_test, y_test):
 
 def train_model(model, features, labels, num_epochs, lr=1):
 
+
+    # import ipdb
+    # ipdb.set_trace()
+
+
+
     train_time = -1
 
-    # import ipdb 
-    # ipdb.set_trace()
     with timing_part("MODEL-TRAIN") as timer:
-        model.fit(features=features, labels=labels, num_epochs=num_epochs, lr=lr)
+        model.fit(x_train=features, y_train=labels, num_epochs=num_epochs, lr=lr)
 
     train_time = timer.total_time
 
@@ -212,8 +228,6 @@ def test_model(model, features):
 
     pred_test_time = 0
 
-    # import ipdb 
-    # ipdb.set_trace()
     with torch.no_grad():
 
         with timing_part('TEST-STEP') as timer:
@@ -262,7 +276,6 @@ def main():
     x_train, x_test, y_train, y_test = load_data(args)
 
 
-    from sklearn.preprocessing import MinMaxScaler
 
     scaler = MinMaxScaler()
     x_train_scaled = scaler.fit_transform(x_train.cpu())
@@ -273,7 +286,10 @@ def main():
 
     x_test_scaled = torch.from_numpy(x_test_scaled).to(device).float()
 
-    from collections import defaultdict
+
+    # import ipdb 
+    # ipdb.set_trace()
+
 
     result_dict = defaultdict(list)
     for model_type in args.model_list:
@@ -314,9 +330,7 @@ def main():
             print_metrics(metrics)
 
     
-    from sklearn.ensemble import RandomForestClassifier
 
-    import time
 
     model = RandomForestClassifier()
     rf_train_start_time = time.time()
