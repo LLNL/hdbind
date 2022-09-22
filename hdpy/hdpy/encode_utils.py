@@ -1,6 +1,8 @@
+from symbol import import_from
 import numpy as np
 import tensorflow as tf
 
+import multiprocessing as mp
 from hdpy.utils import timing_part
 
 # Base hypervectors
@@ -260,3 +262,6 @@ def encode_single(x, D, Q, batch_size, tf_device_str:str, return_time:bool, verb
         return x_h, encode_time
     else:
         return x_h
+
+
+

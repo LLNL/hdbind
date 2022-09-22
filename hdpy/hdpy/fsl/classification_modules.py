@@ -106,9 +106,9 @@ class HDModel(nn.Module):
 
         self.am = binarize(self.am) 
 
-    def fit(self, features, labels, num_epochs, lr=1.0):
+    def fit(self, x_train, y_train, num_epochs, lr=1.0):
         for _ in tqdm(range(num_epochs), total=num_epochs, desc="training HD..."):
-            self.train_step(train_features=features, train_labels=labels, lr=lr)
+            self.train_step(train_features=x_train, train_labels=y_train, lr=lr)
 
 
 
@@ -216,7 +216,7 @@ class HD_Kron_Classification(HDModel):
         self.am = binarize(self.am)
 
 
-class HD_Level_Classification(nn.Module):
+class HD_Level_Classification(HDModel):
     def __init__(self, input_size, D, num_classes, quan_level=8):
         super(HD_Level_Classification, self).__init__()
         self.rp_layer = nn.Linear(input_size, D, bias=False)
@@ -224,18 +224,31 @@ class HD_Level_Classification(nn.Module):
         # self.
         self.quantize_scale = 1./quan_level
 
+        density = 0.5
+
         init_rp_mat = torch.bernoulli(torch.tensor([[density] * input_size] * D)).float()
         self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False)
         
         self.init_class_hvs = torch.zeros(num_classes, D).float().cuda()
 
     def quantize(self, x):
-        return torch.fake_quantize_per_tensor_affine(features_support, scale=self.quantize_scale, zero_point=0, quant_min=0, quant_max=3)
+        return torch.fake_quantize_per_tensor_affine(x, scale=self.quantize_scale, zero_point=0, quant_min=0, quant_max=3)
 
     #def encoding(self, x):
     #    out = self.rp_layer(x)
         # out = torch.where(out>0, 1.0, -1.0)
     #    return out
+
+    def encode(self, x):
+        return self.RP_encoding(x)
+
+    def RP_encoding(self, x):
+
+        # ipdb.set_trace()
+        out = self.rp_layer(x)
+        out = torch.where(out>0, 1.0, -1.0)
+        return out
+
 
     def init_class(self, x_train, train_labels):
         out = self.RP_encoding(x_train)
@@ -273,14 +286,14 @@ class ClassifierNetwork(nn.Module):
         return out
 
 
-    def fit(self, features, labels, num_epochs):
+    def fit(self, x_train, y_train, num_epochs):
 
         # cross entropy likes the long tensor so just do this once before training instead of multiple times
-        labels = labels.int()
+        y_train = y_train.long()
 
         # Train the model
 
-        train_dataloader = DataLoader(CustomDataset(features, labels), batch_size=32)
+        train_dataloader = DataLoader(CustomDataset(x_train, y_train), batch_size=32)
 
         for batch in tqdm(train_dataloader, desc="training MLP..."):
             # Forward pass

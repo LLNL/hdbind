@@ -28,7 +28,7 @@ def get_args():
     parser.add_argument('--dataset', help='evaluated dataset (pdbbind, postera, dude) that determines how measurements are loaded into classes', required=True)
     parser.add_argument('--out-csv', required=True, help='path to output CSV file')
 
-    parser.add_argument('--model-list', nargs='+', required=True, help="Please select from ['rff-hdc', 'rff-gvsa', 'HD', 'HD-Sparse', 'L1', 'L2', 'cosine', 'MLP', 'Uniform', 'Majority']")
+    parser.add_argument('--model-list', nargs='+', required=True, help="Please select from ['rff-hdc', 'rff-gvsa', 'HD', 'HD-Sparse', 'HD-Level', 'L1', 'L2', 'cosine', 'MLP', 'Uniform', 'Majority']")
     parser.add_argument('--train-path-list', required=True, nargs='+', help='path to train data files')
     parser.add_argument('--test-path-list', nargs='+', help='path to test data files')
     parser.add_argument('--n-problems', default=600, type=int,
@@ -173,6 +173,14 @@ def init_model(model_type, args, x_train, y_train, x_test, y_test):
 
     elif model_type == 'HD':
         model = HD_Classification(input_size=x_train.shape[1], D=args.hidden_size, num_classes=2).to(device)
+        
+        with timing_part("ENCODING") as timer:
+            model.init_class(x_train=x_train, train_labels=y_train)
+
+        encode_time = timer.total_time
+
+    elif model_type == 'HD-Level':
+        model = HD_Level_Classification(input_size=x_train.shape[1], D=args.hidden_size, num_classes=2).to(device)
         
         with timing_part("ENCODING") as timer:
             model.init_class(x_train=x_train, train_labels=y_train)
