@@ -111,8 +111,6 @@ class HDModel(nn.Module):
             self.train_step(train_features=x_train, train_labels=y_train, lr=lr)
 
 
-
-
 class HD_Classification(HDModel):
     def __init__(self, input_size, D, num_classes):
         super(HD_Classification, self).__init__()
@@ -266,7 +264,6 @@ class HD_Level_Classification(HDModel):
 
 # BENCHMARK MODELS
 
-
 # Fully connected neural network with one hidden layer
 class ClassifierNetwork(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes, lr):
@@ -310,9 +307,8 @@ class ClassifierNetwork(nn.Module):
     def predict(self, features):
         return self.forward(features)
 
-
-
 from sklearn.neighbors import KNeighborsClassifier
+
 class kNN(nn.Module):
     def __init__(self, model_type):
         self.model = KNeighborsClassifier(n_neighbors=1, metric=model_type.lower())
