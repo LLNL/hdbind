@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from utils import get_features_fewshot_single
-from classification_modules import kNN, ClassifierNetwork, HD_Classification
+from hdpy.hdpy.baseline_hd.classification_modules import kNN, ClassifierNetwork, HD_Classification
 
 import os, random
 import torch

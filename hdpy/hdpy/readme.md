@@ -1,6 +1,12 @@
 # this is the root directory for hdpy
 
 
+Use `main.py` as the main driver program
+
+`fsl` contains general code for HDC
+
+`rff-hdc` contains code for VSA variants
+
 in order to install, please use 
 >
 ...

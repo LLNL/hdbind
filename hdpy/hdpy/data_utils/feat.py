@@ -18,7 +18,7 @@ def get_args():
     parser.add_argument('--input-path')
     parser.add_argument('--input-path-list', nargs='+')
     parser.add_argument('--smiles-col', required=True)
-    parser.add_argument('--label-col', required=True)
+    parser.add_argument('--label-col')
     parser.add_argument('--output-dir', required=True)
     parser.add_argument('--feat-type', choices=["ecfp", "smiles_to_seq", "smiles_to_image",
                                     "coul_matrix", "mordred", "maacs", "rdkit", "mol2vec"])
@@ -31,9 +31,9 @@ def get_args():
     return args 
 
 
-def compute_fingerprint(smiles_row):
-    _, smiles_row = smiles_row
-    smiles = smiles_row[args.smiles_col]
+def compute_fingerprint(smiles):
+    # _, smiles_row = smiles_row
+    # smiles = smiles_row[args.smiles_col]
     try:
         mol = rdmolfiles.MolFromSmiles(smiles, sanitize=True)
 
@@ -45,6 +45,22 @@ def compute_fingerprint(smiles_row):
     except Exception as e:
         print(e)
         return None
+
+def compute_fingerprint_from_smiles(smiles):
+    try:
+        mol = rdmolfiles.MolFromSmiles(smiles, sanitize=True)
+
+        fp_vec = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=1024)
+
+
+        fp = np.unpackbits(np.frombuffer(DataStructs.BitVectToBinaryText(fp_vec), dtype=np.uint8), bitorder='little')
+        return fp
+    except Exception as e:
+        print(e)
+        return None
+
+
+
 
 
 def compute_smiles_seq_vector(smiles_row):
@@ -134,7 +150,9 @@ def compute_char_to_idx(smiles_list):
 
 def main(df, pool, target):
 
-    labels = df[args.label_col].values.reshape(-1, 1)
+    labels = None
+    if args.label_col:
+        labels = df[args.label_col].values.reshape(-1, 1)
 
 
     if args.invert_labels: 
@@ -146,7 +164,7 @@ def main(df, pool, target):
     # with mp.Pool(args.num_workers) as pool:
 
     #    result_list = list(tqdm(pool.imap(job_func, smiles_list), total=len(smiles_list)))
-    result_list = list(tqdm(pool.imap(job_func, df.iterrows()), total=len(df)))
+    result_list = list(tqdm(pool.imap(job_func, df[0].values.tolist()), total=len(df)))
 
     data = np.asarray(result_list)
     data = data.squeeze()
@@ -174,11 +192,14 @@ def main(df, pool, target):
             np.save(output_path / "val.npy", val_data)
             np.save(output_path / "test.npy", test_data)
         
-        else:
+        elif args.label_col:
 
             data = np.concatenate([data,labels], axis=1)
             np.save(output_path / "data.npy", data)
         
+        else:
+            np.save(output_path / "data.npy", data)
+
 
 if __name__ == "__main__":
 
@@ -199,11 +220,12 @@ if __name__ == "__main__":
         target = input_path.stem.split("_")[0]
 
 
-        path_df = pd.read_csv(input_path)
+        path_df = pd.read_csv(input_path, header=None, delim_whitespace=True)
 
 
-        smiles_list = path_df[args.smiles_col].values.tolist()
+        # smiles_list = path_df[args.smiles_col].values.tolist()
 
+        smiles_list = path_df[0].values.tolist()
         char_to_idx = None
         job_func = None
         if args.feat_type.lower() == "ecfp":

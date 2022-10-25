@@ -2,7 +2,7 @@ from tkinter import W
 import numpy as np
 from hdpy.fsl.utils import load_features
 # TODO: replace the catch-all import 
-from hdpy.fsl.classification_modules import *
+from hdpy.hdpy.baseline_hd.classification_modules import *
 from hdpy.rff_hdc.model import BModel, GModel
 from hdpy.rff_hdc.utils import encode_and_save
 from sklearn.dummy import DummyClassifier
