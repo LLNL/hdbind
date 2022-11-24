@@ -1,6 +1,8 @@
 from cProfile import run
 import pickle    
 import time
+
+from sklearn.ensemble import RandomForestClassifier
 import torch
 from tqdm import tqdm
 import numpy as np
@@ -32,7 +34,7 @@ parser.add_argument('--D', type=int, help="size of encoding dimension", default=
 parser.add_argument('--dataset', choices=["bbbp", "sider", "clintox", "dude", "lit-pcba"], required=True)
 parser.add_argument('--split-type', choices=["random", "scaffold"], required=True)
 parser.add_argument('--input-feat-size', type=int, help="size of input feature dim. ", default=1024)
-parser.add_argument('--model', choices=["smiles-pe", "ecfp", "rp"])
+parser.add_argument('--model', choices=["smiles-pe", "ecfp", "rp", "rf"])
 parser.add_argument('--n-trials', type=int, default=1, help="number of trials to perform")
 parser.add_argument('--random-state', type=int, default=0)
 args = parser.parse_args()
@@ -51,7 +53,12 @@ def train(model, hv_train, y_train, epochs=10):
 def test(model, hv_test, y_test): 
 
     pred_list = model.predict(hv_test)
+
+    # import ipdb 
+    # ipdb.set_trace()
     eta_list = model.compute_confidence(hv_test)
+
+
 
     return {"y_pred": pred_list, "y_true": y_test, "eta": eta_list}
 
@@ -90,7 +97,7 @@ def collate_ecfp(batch):
 
 
 
-def run_trial(smiles, labels, train_idxs, test_idxs):
+def run_hd_trial(smiles, labels, train_idxs, test_idxs):
 
 
     if args.model == "smiles-pe":
@@ -295,10 +302,87 @@ def run_trial(smiles, labels, train_idxs, test_idxs):
     return result_dict
 
 
+
+def run_sklearn_trial(smiles, labels, train_idxs, test_idxs):
+    model = RandomForestClassifier() 
+
+    dataset_fp_path = None
+
+    if args.dataset in ["dude", "lit-pcba"]:
+        dataset_fp_path = Path(f".hd_cache/{args.model}/{args.dataset}/{target_name}/dataset_fps.pth")
+    else:
+        dataset_fp_path = Path(f".hd_cache/{args.model}/{args.dataset}/dataset_fps.pth")
+    
+    data = None
+    if not dataset_fp_path.exists():
+        dataset_fp_path.parent.mkdir(exist_ok=True, parents=True)
+        fps = [compute_fingerprint_from_smiles(x).reshape(1,-1) for x in tqdm(smiles, desc="computing fingerprints")]
+        fps = np.concatenate(fps)
+        data = torch.from_numpy(fps).cuda()
+        torch.save(data, dataset_fp_path)
+    else:
+        data = torch.load(dataset_fp_path)
+
+    encode_time = 0
+
+    data = data.cpu()
+    # dataset_labels = torch.from_numpy(labels)
+    
+    x_train, y_train = data[train_idxs], labels[train_idxs]
+    x_test, y_test = data[test_idxs], labels[test_idxs]
+
+    train_start = time.time()
+    model.fit(x_train, y_train.ravel())
+    train_time = time.time() - train_start 
+
+
+    test_start = time.time()
+    # result_dict = test(hd_model, dataset_hvs_test, dataset_labels_test)
+    y_pred = model.predict(x_test)
+    test_time = time.time() - test_start
+
+    result_dict = {}
+    # task_pred_array = np.array(result_dict["y_pred"][task_idx]).squeeze()
+    result_dict["y_pred"] = y_pred
+    result_dict["eta"] = model.predict_proba(x_test).reshape(-1,2)
+    result_dict["y_true"] = y_test
+    result_dict["train_time"] = train_time
+    result_dict["test_time"] = test_time
+    result_dict["encode_time"] = encode_time
+    result_dict["train_size"] = x_train.shape[0]
+    result_dict["test_size"] = x_test.shape[0]
+
+
+
+    result_dict["class_report"] = classification_report(y_pred=result_dict["y_pred"], y_true=result_dict["y_true"])
+
+    # import pdb 
+    # pdb.set_trace()
+    try:
+        result_dict["roc-auc"] = roc_auc_score(y_score=result_dict['eta'][:, 1], y_true=y_test)
+
+    except ValueError as e:
+        result_dict["roc-auc"] = None
+        print(e)
+    # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
+
+
+    print(result_dict["class_report"])
+    print(f"roc-auc {result_dict['roc-auc']}")
+    return result_dict
+
+
+
+
+
+
 def main(smiles, labels, train_idxs, test_idxs):
     trial_dict = {}
     for trial in range(args.n_trials):
-        result_dict = run_trial(smiles=smiles, labels=labels, train_idxs=train_idxs, test_idxs=test_idxs)
+        if args.model in ["smiles-pe", "ecfp", "rp"]:
+            result_dict = run_hd_trial(smiles=smiles, labels=labels, train_idxs=train_idxs, test_idxs=test_idxs)
+        else:
+            result_dict = run_sklearn_trial(smiles=smiles, labels=labels, train_idxs=train_idxs, test_idxs=test_idxs)
         trial_dict[trial] = result_dict
 
 
