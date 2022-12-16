@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset", choices=["dude", "lit-pcba"])
+    parser.add_argument("--dataset", choices=["dude", "lit-pcba", "lit-pcba-ave"])
 
 
     args = parser.parse_args()
@@ -90,12 +90,43 @@ if __name__ == "__main__":
 
 
             print(train_choir_p, test_choir_p)
-            # '''
-            # print(len(x_train))
-            # print(len(y_train))
-            # print(len(x_test))
-            # print(len(y_test))
+
 
             writeDataSetForChoirSIM((x_train, y_train), train_choir_p)
             writeDataSetForChoirSIM((x_test, y_test), test_choir_p)
-            # '''
+
+
+
+    elif args.dataset == "lit-pcba-ave":
+
+
+        lit_pcba_root_p = Path("/g/g13/jones289/workspace/hd-cuda-master/datasets/lit_pcba/AVE_unbiased")
+
+
+        for path in lit_pcba_root_p.glob("*"):
+            print(path)
+
+
+            train_p = path / Path("ecfp_train.npy")
+            test_p = path / Path("ecfp_test.npy")
+
+            x_train = np.load(train_p)
+            x_test = np.load(test_p)
+
+            x_train, y_train = x_train[:, :-1], x_train[:, -1]
+            x_test, y_test = x_test[:, :-1], x_test[:, -1]
+
+
+            y_train = y_train.astype(int)
+            y_test = y_test.astype(int)
+
+
+            train_choir_p = train_p.with_name("ecfp_train.choir_dat")
+            test_choir_p = test_p.with_name("ecfp_test.choir_dat")
+
+
+            print(train_choir_p, test_choir_p)
+
+
+            writeDataSetForChoirSIM((x_train, y_train), train_choir_p)
+            writeDataSetForChoirSIM((x_test, y_test), test_choir_p)

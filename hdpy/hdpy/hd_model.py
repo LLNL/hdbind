@@ -114,7 +114,6 @@ class HDModel(nn.Module):
         am_array = torch.concat([self.am[key].reshape(1,-1) for key in sorted(self.am.keys())], dim=0)
 
         for hv, label in tqdm(zip(dataset_hvs, labels), desc=f"retraining...", total=len(dataset_hvs)):
-
             
             out = int(torch.argmax(torch.nn.CosineSimilarity()(am_array, hv)))
 
