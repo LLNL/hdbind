@@ -34,7 +34,9 @@
 ################################################################################
 
 # Location of the CUDA Toolkit
-CUDA_PATH ?= "/usr/local/cuda"
+#CUDA_PATH ?= "/usr/local/cuda"
+CUDA_PATH ?= "/usr/tce/packages/cuda/cuda-10.2.89"
+
 
 ##############################
 # start deprecated interface #
