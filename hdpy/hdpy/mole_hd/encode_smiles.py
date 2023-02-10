@@ -18,6 +18,9 @@ class SMILESHDEncoder(HDModel):
     def build_item_memory(self, dataset_tokens):
         self.item_mem = {}
 
+        if not isinstance(dataset_tokens[0], list):
+            dataset_tokens = [dataset_tokens]
+
         print("building item memory")
         for tokens in tqdm(dataset_tokens):
 
