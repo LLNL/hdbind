@@ -9,7 +9,8 @@ import torch
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-
+import selfies as sf
+constrain_dict = sf.get_semantic_constraints()
 # import multiprocessing as mp
 import torch.multiprocessing as mp
 
@@ -26,18 +27,17 @@ from hdpy.ecfp_hd.encode_ecfp import ECFPEncoder
 from hdpy.baseline_hd.classification_modules import RPEncoder
 from hdpy.rff_hdc.encoder import RandomFourierEncoder
 from hdpy.mole_hd.encode_smiles import SMILESHDEncoder, tokenize_smiles
+from hdpy.selfies.encode_selfies import SELFIESHDEncoder, tokenize_selfies_from_smiles
 from hdpy.ecfp_hd.encode_ecfp import compute_fingerprint_from_smiles
 from hdpy.metrics import validate
 
-import random
 
-random.seed(0)
 import argparse
 
 parser = argparse.ArgumentParser()
 # parser.add_argument('--smiles', nargs='*', default=['CC[N+](C)(C)Cc1ccccc1Br'])
 parser.add_argument("--ngram-order", type=int, default=0, help="specify the ngram order, 1-unigram, 2-bigram, so on. 0 is default to trigger an error in case ngram is specified as the tokenizer, we don't use this arg for atomwise or bpe")
-parser.add_argument("--tokenizer", choices=["atomwise", "ngram", "bpe"])
+parser.add_argument("--tokenizer", choices=["atomwise", "ngram", "bpe", "selfies-charwise"])
 parser.add_argument("--D", type=int, help="size of encoding dimension", default=10000)
 parser.add_argument(
     "--dataset",
@@ -56,7 +56,7 @@ parser.add_argument("--split-type", choices=["random", "scaffold"], required=Tru
 parser.add_argument(
     "--input-feat-size", type=int, help="size of input feature dim. ", default=1024
 )
-parser.add_argument("--model", choices=["smiles-pe", "ecfp", "rp", "rf", "mlp"])
+parser.add_argument("--model", choices=["smiles-pe", "selfies", "ecfp", "rp", "rf", "mlp"])
 parser.add_argument(
     "--n-trials", type=int, default=1, help="number of trials to perform"
 )
@@ -64,7 +64,8 @@ parser.add_argument("--random-state", type=int, default=0)
 parser.add_argument("--hd-retrain-epochs", type=int, default=1)
 args = parser.parse_args()
 
-
+import random
+random.seed(args.random_state)
 def train(model, hv_train, y_train, epochs=10):
 
     # import pdb 
@@ -184,6 +185,64 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
 
             train_dataset_hvs = torch.load(train_hv_p)
             test_dataset_hvs = torch.load(test_hv_p)
+
+    elif args.model == "selfies":
+
+        # smiles-pe is a special case because it tokenizes the string based on use specified parameters
+        train_hv_p = root_data_p / Path(
+            f"{args.tokenizer}-{args.ngram_order}-train_dataset_hv.pth"
+        )
+        test_hv_p = root_data_p / Path(
+            f"{args.tokenizer}-{args.ngram_order}-test_dataset_hv.pth"
+        )
+        im_p = root_data_p / Path(f"{args.tokenizer}-{args.ngram_order}-item_mem.pth")
+
+        charwise = False
+        if args.tokenizer == "selfies_charwise":
+            charwise = True
+
+        train_encode_time = 0
+        if not im_p.exists():
+
+            train_toks = []
+            
+            for smiles in smiles_train:
+                train_toks.append(tokenize_selfies_from_smiles(
+                    smiles, charwise=charwise
+                ))
+
+            test_toks = []
+            for smiles in smiles_test:
+                test_toks.append(tokenize_selfies_from_smiles(
+                    smiles, charwise=charwise
+                ))
+
+            im_p.parent.mkdir(parents=True, exist_ok=True)
+
+            toks = train_toks + test_toks
+
+            hd_model.build_item_memory(toks)
+            train_encode_start = time.time()
+            train_dataset_hvs = hd_model.encode_dataset(train_toks)
+            train_encode_time = time.time() - train_encode_start
+
+            test_encode_start = time.time()
+            test_dataset_hvs = hd_model.encode_dataset(test_toks)
+            test_encode_time = time.time() - test_encode_start
+
+            train_dataset_hvs = torch.vstack(train_dataset_hvs).int()
+            test_dataset_hvs = torch.vstack(test_dataset_hvs).int()
+
+            torch.save(train_dataset_hvs, train_hv_p)
+            torch.save(test_dataset_hvs, test_hv_p)
+            torch.save(hd_model.item_mem, im_p)
+        else:
+            item_mem = torch.load(im_p)
+            hd_model.item_mem = item_mem
+
+            train_dataset_hvs = torch.load(train_hv_p)
+            test_dataset_hvs = torch.load(test_hv_p)
+
 
     elif args.model == "ecfp":
 
@@ -480,7 +539,7 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
 def main(x_train, y_train, x_test, y_test, smiles_train=None, smiles_test=None):
     trial_dict = {}
     for trial in range(args.n_trials):
-        if args.model in ["smiles-pe", "ecfp", "rp"]:
+        if args.model in ["smiles-pe","selfies", "ecfp", "rp"]:
             # result_dict = run_hd_trial(smiles=smiles, labels=labels, train_idxs=train_idxs, test_idxs=test_idxs)
             result_dict = run_hd_trial(
                 x_train=x_train,
@@ -509,6 +568,10 @@ if __name__ == "__main__":
     if args.model == "smiles-pe":
 
         hd_model = SMILESHDEncoder(D=args.D)
+
+
+    elif args.model == "selfies":
+        hd_model = SELFIESHDEncoder(D=args.D)
 
     elif args.model == "ecfp":
 
@@ -639,11 +702,11 @@ if __name__ == "__main__":
                                     smiles_test=smiles_test)
 
 
-            with open(
-                output_file,
-                "wb",
-            ) as handle:
-                pickle.dump(result_dict, handle)
+                with open(
+                    output_file,
+                    "wb",
+                ) as handle:
+                    pickle.dump(result_dict, handle)
 
     elif args.dataset == "clintox":
 
@@ -654,6 +717,14 @@ if __name__ == "__main__":
 
 
         # some of the smiles (6) for clintox dataset are not able to be converted to fingerprints, so skip them for all cases
+
+
+
+        from hdpy.selfies.encode_selfies import encode_smiles_as_selfie
+
+        # df = df[df.apply(lambda x: sf.encoder(x['smiles']) != None, axis=1)]
+        df = df[df.apply(lambda x: encode_smiles_as_selfie(x['smiles']) != None, axis=1)]
+
 
         fps = [compute_fingerprint_from_smiles(x) for x in tqdm(df["smiles"].values.tolist())]
         valid_idxs = np.array([idx for idx, x in enumerate(fps) if x is not None])
