@@ -62,10 +62,20 @@ parser.add_argument(
 )
 parser.add_argument("--random-state", type=int, default=0)
 parser.add_argument("--hd-retrain-epochs", type=int, default=1)
+parser.add_argument("--dry-run", action="store_true")
 args = parser.parse_args()
 
+# seed the RNGs
 import random
-random.seed(args.random_state)
+
+def seed_rngs(seed:int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+seed_rngs(args.random_state)
+
+
 def train(model, hv_train, y_train, epochs=10):
 
     # import pdb 
@@ -123,13 +133,13 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
 
 
     if args.dataset in ["dude", "lit-pcba", "lit-pcba-ave", "dockstring"]:
-        root_data_p = Path(f".hd_cache/{args.model}/{args.dataset}/{args.split_type}/{target_name}")
+        root_data_p = Path(f".hd_cache/{args.random_state}/{args.model}/{args.dataset}/{args.split_type}/{target_name}")
 
     elif args.dataset in ["sider", "clintox"]:
-        root_data_p = Path(f".hd_cache/{args.model}/{args.dataset}/{args.split_type}/{task_idx}")
+        root_data_p = Path(f".hd_cache/{args.random_state}/{args.model}/{args.dataset}/{args.split_type}/{task_idx}")
 
     else:
-        root_data_p = Path(f".hd_cache/{args.model}/{args.dataset}/{args.split_type}")
+        root_data_p = Path(f".hd_cache/{args.random_state}/{args.model}/{args.dataset}/{args.split_type}")
 
     train_hv_p = root_data_p / Path("train_dataset_hv.pth")
     test_hv_p = root_data_p / Path("test_dataset_hv.pth")
@@ -352,53 +362,57 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
     train_dataset_labels = torch.from_numpy(y_train)
     test_dataset_labels = torch.from_numpy(y_test)
 
+    result_dict = {}
+    for i in range(args.n_trials):
 
-    train_start = time.time()
-    train(
-        hd_model, train_dataset_hvs, train_dataset_labels, epochs=args.hd_retrain_epochs
-    )
-    train_time = time.time() - train_start
-    # import ipdb
-    # ipdb.set_trace()
+        # this should force each call of .fit to be different...I think..
+        seed_rngs(args.random_state + i)
 
+        result_dict[i] = {}
 
-    test_start = time.time()
-    result_dict = test(hd_model, test_dataset_hvs, test_dataset_labels)
-    test_time = time.time() - test_start
+        train_start = time.time()
+        train(
+            hd_model, train_dataset_hvs, train_dataset_labels, epochs=args.hd_retrain_epochs
+        )
+        train_time = time.time() - train_start
 
-    result_dict["y_pred"] = result_dict["y_pred"].cpu().numpy()
-    result_dict["eta"] = result_dict["eta"].cpu().numpy().reshape(-1, 1)
-    result_dict["y_true"] = result_dict["y_true"].cpu().numpy()
-    result_dict["train_time"] = train_time
-    result_dict["test_time"] = test_time
-    result_dict["train_encode_time"] = train_encode_time
-    result_dict["test_encode_time"] = test_encode_time
-    result_dict["encode_time"] = train_encode_time + test_encode_time
-    result_dict["train_size"] = train_dataset_hvs.shape[0]
-    result_dict["test_size"] = test_dataset_hvs.shape[0]
+        test_start = time.time()
+        trial_dict = test(hd_model, test_dataset_hvs, test_dataset_labels)
+        test_time = time.time() - test_start
 
-    result_dict["class_report"] = classification_report(
-        y_pred=result_dict["y_pred"], y_true=result_dict["y_true"]
-    )
+        result_dict[i]["y_pred"] = trial_dict["y_pred"].cpu().numpy()
+        result_dict[i]["eta"] = result_dict[i]["eta"].cpu().numpy().reshape(-1, 1)
+        result_dict[i]["y_true"] = result_dict["y_true"].cpu().numpy()
+        result_dict[i]["train_time"] = train_time
+        result_dict[i]["test_time"] = test_time
+        result_dict[i]["train_encode_time"] = train_encode_time
+        result_dict[i]["test_encode_time"] = test_encode_time
+        result_dict[i]["encode_time"] = train_encode_time + test_encode_time
+        result_dict[i]["train_size"] = train_dataset_hvs.shape[0]
+        result_dict[i]["test_size"] = test_dataset_hvs.shape[0]
 
-    try:
-        result_dict["roc-auc"] = roc_auc_score(
-            y_score=result_dict["eta"], y_true=test_dataset_labels.cpu().numpy()
+        result_dict[i]["class_report"] = classification_report(
+            y_pred=result_dict[i]["y_pred"], y_true=result_dict[i]["y_true"]
         )
 
-    except ValueError as e:
-        result_dict["roc-auc"] = None
-        print(e)
-    # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
+        try:
+            result_dict[i]["roc-auc"] = roc_auc_score(
+                y_score=result_dict[i]["eta"], y_true=test_dataset_labels.cpu().numpy()
+            )
 
-    print(result_dict["class_report"])
-    print(f"roc-auc {result_dict['roc-auc']}")
+        except ValueError as e:
+            result_dict[i]["roc-auc"] = None
+            print(e)
+        # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
 
-    validate(
-        labels=test_dataset_labels.cpu().numpy(),
-        pred_labels=result_dict["y_pred"],
-        pred_scores=result_dict["eta"],
-    )
+        print(result_dict[i]["class_report"])
+        print(f"roc-auc {result_dict[i]['roc-auc']}")
+
+        validate(
+            labels=test_dataset_labels.cpu().numpy(),
+            pred_labels=result_dict[i]["y_pred"],
+            pred_scores=result_dict[i]["eta"],
+        )
 
     return result_dict
 
@@ -486,78 +500,84 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
     elif args.model == "mlp":
         model = MLPClassifier(**search.best_params_)
 
+    # TODO: implement RNG, can use the first level of the dictionary for seed
 
-    train_start = time.time()
-    model.fit(x_train, y_train.ravel())
-    train_time = time.time() - train_start
-
-    test_start = time.time()
-    y_pred = model.predict(x_test)
-    test_time = time.time() - test_start
 
     result_dict = {}
-    result_dict["y_pred"] = y_pred
-    result_dict["eta"] = model.predict_proba(x_test).reshape(-1, 2)
-    result_dict["y_true"] = y_test
-    result_dict["train_time"] = train_time
-    result_dict["test_time"] = test_time
-    result_dict["train_encode_time"] = 0
-    result_dict["test_encode_time"] = 0
-    result_dict["encode_time"] = 0
-    result_dict["train_size"] = x_train.shape[0]
-    result_dict["test_size"] = x_test.shape[0]
+    for i in range(args.n_trials):
 
-    result_dict["class_report"] = classification_report(
-        y_pred=result_dict["y_pred"], y_true=result_dict["y_true"]
-    )
+        # this should force each call of .fit to be different...I think..
+        seed_rngs(args.random_state + i)
 
-    try:
-        result_dict["roc-auc"] = roc_auc_score(
-            y_score=result_dict["eta"][:, 1], y_true=y_test
+
+        result_dict[i] = {}
+
+        train_start = time.time()
+        model.fit(x_train, y_train.ravel())
+        train_time = time.time() - train_start
+
+        test_start = time.time()
+        y_pred = model.predict(x_test)
+        test_time = time.time() - test_start
+
+        result_dict[i]["y_pred"] = y_pred
+        result_dict[i]["eta"] = model.predict_proba(x_test).reshape(-1, 2)
+        result_dict[i]["y_true"] = y_test
+        result_dict[i]["train_time"] = train_time
+        result_dict[i]["test_time"] = test_time
+        result_dict[i]["train_encode_time"] = 0
+        result_dict[i]["test_encode_time"] = 0
+        result_dict[i]["encode_time"] = 0
+        result_dict[i]["train_size"] = x_train.shape[0]
+        result_dict[i]["test_size"] = x_test.shape[0]
+
+        result_dict[i]["class_report"] = classification_report(
+            y_pred=result_dict[i]["y_pred"], y_true=result_dict[i]["y_true"]
         )
 
-    except ValueError as e:
-        result_dict["roc-auc"] = None
-        print(e)
-    # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
+        try:
+            result_dict[i]["roc-auc"] = roc_auc_score(
+                y_score=result_dict[i]["eta"][:, 1], y_true=y_test
+            )
 
-    print(result_dict["class_report"])
-    print(f"roc-auc {result_dict['roc-auc']}")
+        except ValueError as e:
+            result_dict[i]["roc-auc"] = None
+            print(e)
+        # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
 
-    # enrichment metrics
+        print(result_dict[i]["class_report"])
+        print(f"roc-auc {result_dict[i]['roc-auc']}")
 
-    validate(
-        labels=y_test,
-        pred_labels=result_dict["y_pred"],
-        pred_scores=result_dict["eta"][:, 1],
-    )
+        # enrichment metrics
+        validate(
+            labels=y_test,
+            pred_labels=result_dict[i]["y_pred"],
+            pred_scores=result_dict[i]["eta"][:, 1],
+        )
 
     return result_dict
 
 
 # def main(smiles, labels, train_idxs, test_idxs):
 def main(x_train, y_train, x_test, y_test, smiles_train=None, smiles_test=None):
-    trial_dict = {}
-    for trial in range(args.n_trials):
-        if args.model in ["smiles-pe","selfies", "ecfp", "rp"]:
-            # result_dict = run_hd_trial(smiles=smiles, labels=labels, train_idxs=train_idxs, test_idxs=test_idxs)
-            result_dict = run_hd_trial(
-                x_train=x_train,
-                y_train=y_train,
-                x_test=x_test,
-                y_test=y_test,
-                smiles_train=smiles_train,
-                smiles_test=smiles_test,
-            )
-        else:
-            # result_dict = run_sklearn_trial(smiles=smiles, labels=labels, train_idxs=train_idxs, test_idxs=test_idxs)
-            result_dict = run_sklearn_trial(
-                x_train=x_train, y_train=y_train, x_test=x_test, y_test=y_test
-            )
-        trial_dict[trial] = result_dict
+    
+    if args.model in ["smiles-pe","selfies", "ecfp", "rp"]:
+        # result_dict = run_hd_trial(smiles=smiles, labels=labels, train_idxs=train_idxs, test_idxs=test_idxs)
+        result_dict = run_hd_trial(
+            x_train=x_train,
+            y_train=y_train,
+            x_test=x_test,
+            y_test=y_test,
+            smiles_train=smiles_train,
+            smiles_test=smiles_test,
+        )
+    else:
+        # result_dict = run_sklearn_trial(smiles=smiles, labels=labels, train_idxs=train_idxs, test_idxs=test_idxs)
+        result_dict = run_sklearn_trial(
+            x_train=x_train, y_train=y_train, x_test=x_test, y_test=y_test
+        )
 
-    return trial_dict
-
+    return result_dict
 
 if __name__ == "__main__":
 
@@ -583,7 +603,7 @@ if __name__ == "__main__":
         assert args.D is not None
         hd_model = RPEncoder(input_size=args.input_feat_size, D=args.D, num_classes=2)
 
-    output_result_dir = Path("results")
+    output_result_dir = Path(f"results/{args.random_state}")
     if not output_result_dir.exists():
         output_result_dir.mkdir(parents=True)
 
@@ -865,14 +885,28 @@ if __name__ == "__main__":
                 smiles_train = df["smiles"].iloc[train_idxs].values.tolist()
                 smiles_test = df["smiles"].iloc[test_idxs].values.tolist()
 
-                result_dict = main(
-                    x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, smiles_train=smiles_train, smiles_test=smiles_test
-                )
 
-                with open(
-                    output_file, "wb"
-                ) as handle:
-                    pickle.dump(result_dict, handle)
+
+                np.save(output_file.with_name(f"{args.dataset}_{args.split_type}_{target_name}_labels_train.npy"), y_train)
+                np.save(output_file.with_name(f"{args.dataset}_{args.split_type}_{target_name}_labels_test.npy"), y_test)
+
+
+                if not args.dry_run:
+                    result_dict = main(
+                        x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, smiles_train=smiles_train, smiles_test=smiles_test
+                    )
+
+
+                    result_dict["x_train"] = x_train
+                    result_dict["x_test"] = x_test
+                    result_dict["y_train"] = y_train
+                    result_dict["y_test"] = y_test
+
+
+                    with open(
+                        output_file, "wb"
+                    ) as handle:
+                        pickle.dump(result_dict, handle)
 
     elif args.dataset == "lit-pcba":
 
@@ -940,15 +974,24 @@ if __name__ == "__main__":
                 smiles_train = df[0].iloc[train_idxs].values.tolist()
                 smiles_test = df[0].iloc[test_idxs].values.tolist()
 
+                np.save(output_file.with_name(f"{args.dataset}_{args.split_type}_{target_name}_labels_train.npy"), y_train)
+                np.save(output_file.with_name(f"{args.dataset}_{args.split_type}_{target_name}_labels_test.npy"), y_test)
 
-                result_dict = main(
-                    x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, smiles_train=smiles_train, smiles_test=smiles_test
-                )
+                if not args.dry_run:
+                    result_dict = main(
+                        x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, smiles_train=smiles_train, smiles_test=smiles_test
+                    )
 
-                with open(
-                    output_file, "wb"
-                ) as handle:
-                    pickle.dump(result_dict, handle)
+                    result_dict["x_train"] = x_train
+                    result_dict["x_test"] = x_test
+                    result_dict["y_train"] = y_train
+                    result_dict["y_test"] = y_test
+
+
+                    with open(
+                        output_file, "wb"
+                    ) as handle:
+                        pickle.dump(result_dict, handle)
 
     elif args.dataset == "lit-pcba-ave":
 
