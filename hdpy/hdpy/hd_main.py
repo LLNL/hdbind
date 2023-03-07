@@ -35,10 +35,8 @@ from hdpy.metrics import validate
 import argparse
 
 parser = argparse.ArgumentParser()
-# parser.add_argument('--smiles', nargs='*', default=['CC[N+](C)(C)Cc1ccccc1Br'])
-parser.add_argument("--ngram-order", type=int, default=0, help="specify the ngram order, 1-unigram, 2-bigram, so on. 0 is default to trigger an error in case ngram is specified as the tokenizer, we don't use this arg for atomwise or bpe")
-parser.add_argument("--tokenizer", choices=["atomwise", "ngram", "bpe", "selfies-charwise"])
-parser.add_argument("--D", type=int, help="size of encoding dimension", default=10000)
+parser.add_argument("--model", choices=["smiles-pe", "selfies", "ecfp", "rp", "rf", "mlp"])
+parser.add_argument("--split-type", choices=["random", "scaffold"], required=True)
 parser.add_argument(
     "--dataset",
     choices=[
@@ -52,11 +50,12 @@ parser.add_argument(
     ],
     required=True,
 )
-parser.add_argument("--split-type", choices=["random", "scaffold"], required=True)
+parser.add_argument("--ngram-order", type=int, default=0, help="specify the ngram order, 1-unigram, 2-bigram, so on. 0 is default to trigger an error in case ngram is specified as the tokenizer, we don't use this arg for atomwise or bpe")
+parser.add_argument("--tokenizer", choices=["atomwise", "ngram", "bpe", "selfies-charwise"])
+parser.add_argument("--D", type=int, help="size of encoding dimension", default=10000)
 parser.add_argument(
     "--input-feat-size", type=int, help="size of input feature dim. ", default=1024
 )
-parser.add_argument("--model", choices=["smiles-pe", "selfies", "ecfp", "rp", "rf", "mlp"])
 parser.add_argument(
     "--n-trials", type=int, default=1, help="number of trials to perform"
 )
@@ -73,18 +72,21 @@ def seed_rngs(seed:int):
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-seed_rngs(args.random_state)
+# seed_rngs(args.random_state)
 
 
 def train(model, hv_train, y_train, epochs=10):
 
-    # import pdb 
-    # pdb.set_trace()
     model.build_am(hv_train, y_train)
 
+    learning_curve_list = []
     for _ in range(epochs):
 
-        model.retrain(hv_train, y_train)
+        mistake_ct = model.retrain(hv_train, y_train, return_mistake_count=True)
+        learning_curve_list.append(mistake_ct)
+
+    return learning_curve_list
+
 
 
 def test(model, hv_test, y_test):
@@ -371,9 +373,11 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
         result_dict[i] = {}
 
         train_start = time.time()
-        train(
+        learning_curve = train(
             hd_model, train_dataset_hvs, train_dataset_labels, epochs=args.hd_retrain_epochs
         )
+        result_dict[i]["hd_learning_curve"] = learning_curve
+
         train_time = time.time() - train_start
 
         test_start = time.time()
@@ -381,8 +385,8 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
         test_time = time.time() - test_start
 
         result_dict[i]["y_pred"] = trial_dict["y_pred"].cpu().numpy()
-        result_dict[i]["eta"] = result_dict[i]["eta"].cpu().numpy().reshape(-1, 1)
-        result_dict[i]["y_true"] = result_dict["y_true"].cpu().numpy()
+        result_dict[i]["eta"] = trial_dict["eta"].cpu().numpy().reshape(-1, 1)
+        result_dict[i]["y_true"] = trial_dict["y_true"].cpu().numpy()
         result_dict[i]["train_time"] = train_time
         result_dict[i]["test_time"] = test_time
         result_dict[i]["train_encode_time"] = train_encode_time
@@ -430,7 +434,7 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
 
         param_dist_dict = {"criterion": ["gini", "entropy"],
                     "max_depth": [x for x in np.linspace(2,np.log2(y_train.shape[0]), 10, dtype=int)],
-                    # "min_samples_leaf": [x for x in np.linspace(5, int(y_train.shape[0]/10), 10, dtype=int)],
+                    "min_samples_leaf": [1, 5, 10],
                     # "max_features": ["sqrt", "log2", None],
                     "bootstrap": [True],
                     "oob_score": [True],
@@ -461,7 +465,7 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
             "batch_size": np.linspace(8, 128, dtype=int),
             # "learning_rate": ['constant', 'invscaling', 'adaptive'],
             "activation": ['tanh', 'relu'],
-            "random_state": [args.random_state], 
+            # "random_state": [args.random_state], 
             "hidden_layer_sizes": [(512, 256, 128), (256, 128, 64), (128, 64, 32)],
             "verbose": [True]
         }
