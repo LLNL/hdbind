@@ -35,8 +35,6 @@ from hdpy.metrics import validate
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model", choices=["smiles-pe", "selfies", "ecfp", "rp", "rf", "mlp"])
-parser.add_argument("--split-type", choices=["random", "scaffold"], required=True)
 parser.add_argument(
     "--dataset",
     choices=[
@@ -50,8 +48,10 @@ parser.add_argument(
     ],
     required=True,
 )
+parser.add_argument("--split-type", choices=["random", "scaffold"], required=True)
+parser.add_argument("--model", choices=["smiles-pe", "selfies", "ecfp", "rp", "rf", "mlp"])
+parser.add_argument("--tokenizer", choices=["atomwise", "ngram", "bpe", "selfies-charwise", "None"], default="None") #TODO: have None as an option since e.g. sklearn models don't use this option
 parser.add_argument("--ngram-order", type=int, default=0, help="specify the ngram order, 1-unigram, 2-bigram, so on. 0 is default to trigger an error in case ngram is specified as the tokenizer, we don't use this arg for atomwise or bpe")
-parser.add_argument("--tokenizer", choices=["atomwise", "ngram", "bpe", "selfies-charwise"])
 parser.add_argument("--D", type=int, help="size of encoding dimension", default=10000)
 parser.add_argument(
     "--input-feat-size", type=int, help="size of input feature dim. ", default=1024
@@ -59,8 +59,8 @@ parser.add_argument(
 parser.add_argument(
     "--n-trials", type=int, default=1, help="number of trials to perform"
 )
-parser.add_argument("--random-state", type=int, default=0)
 parser.add_argument("--hd-retrain-epochs", type=int, default=1)
+parser.add_argument("--random-state", type=int, default=0)
 parser.add_argument("--dry-run", action="store_true")
 args = parser.parse_args()
 
@@ -434,7 +434,7 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
 
         param_dist_dict = {"criterion": ["gini", "entropy"],
                     "max_depth": [x for x in np.linspace(2,np.log2(y_train.shape[0]), 10, dtype=int)],
-                    "min_samples_leaf": [1, 5, 10],
+                    "min_samples_leaf": [1, 2, 5, 10],
                     # "max_features": ["sqrt", "log2", None],
                     "bootstrap": [True],
                     "oob_score": [True],
@@ -664,6 +664,7 @@ if __name__ == "__main__":
                                 x_test=x_test, y_test=y_test,
                                 smiles_train=smiles_train, smiles_test=smiles_test)
 
+            result_dict["args"] = args
             with open(output_file, "wb") as handle:
                 pickle.dump(result_dict, handle)
 
@@ -726,6 +727,7 @@ if __name__ == "__main__":
                                     smiles_test=smiles_test)
 
 
+                result_dict["args"] = args
                 with open(
                     output_file,
                     "wb",
@@ -821,6 +823,9 @@ if __name__ == "__main__":
                 result_dict = main(
                     x_train=x_train, x_test=x_test, y_train=y_train[:, task_idx], y_test=y_test[:, task_idx], smiles_train=smiles_train, smiles_test=smiles_test
                 )
+
+
+                result_dict["args"] = args
                 with open( 
                     output_file, "wb"
                 ) as handle:
@@ -907,6 +912,7 @@ if __name__ == "__main__":
                     result_dict["y_test"] = y_test
 
 
+                    result_dict["args"] = args
                     with open(
                         output_file, "wb"
                     ) as handle:
@@ -991,98 +997,8 @@ if __name__ == "__main__":
                     result_dict["y_train"] = y_train
                     result_dict["y_test"] = y_test
 
-
+                    result_dict["args"] = args
                     with open(
                         output_file, "wb"
                     ) as handle:
                         pickle.dump(result_dict, handle)
-
-    elif args.dataset == "lit-pcba-ave":
-
-        lit_pcba_data_p = Path(
-            "/usr/WS1/jones289/hd-cuda-master/datasets/lit_pcba/AVE_unbiased/"
-        )
-        for lit_pcba_path in lit_pcba_data_p.glob("*"):
-
-            target_name = lit_pcba_path.name
-
-            train_path = lit_pcba_path / Path("ecfp_train.npy")
-
-            test_path = lit_pcba_path / Path("ecfp_test.npy")
-
-            train_data = np.load(train_path)
-            test_data = np.load(test_path)
-
-            x_train = train_data[:, :-1]
-            y_train = train_data[:, -1]
-
-            x_test = test_data[:, :-1]
-            y_test = test_data[:, -1]
-
-            smiles_train = pd.read_csv(
-                lit_pcba_path / Path("smiles_train.csv"), header=None
-            )[0].values.tolist()
-
-            smiles_test = pd.read_csv(
-                lit_pcba_path / Path("smiles_test.csv"), header=None
-            )[0].values.tolist()
-
-            print(target_name, x_train.shape, y_train.shape, x_test.shape, y_test.shape)
-
-            n_tasks = 1
-
-            result_dict = main(
-                x_train=x_train,
-                y_train=y_train,
-                x_test=x_test,
-                y_test=y_test,
-                smiles_train=smiles_train,
-                smiles_test=smiles_test,
-            )
-
-            with open(
-                f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl", "wb"
-            ) as handle:
-                pickle.dump(result_dict, handle)
-
-    elif args.dataset == "dockstring":
-
-        dockstring_p = Path(
-            "/g/g13/jones289/workspace/hd-cuda-master/datasets/dockstring"
-        )
-
-        # for split in ["scaffold", "random"]:
-
-        for path in (dockstring_p / Path(args.split_type)).glob("*"):
-            print(dockstring_p)
-            train_p = path / Path("train.npy")
-            test_p = path / Path("test.npy")
-            train_smiles_p = path / Path("train_smiles.npy")
-            test_smiles_p = path / Path("test_smiles.npy")
-
-            train_data = np.load(train_p)
-            test_data = np.load(test_p)
-
-            train_smiles = np.load(train_smiles_p, allow_pickle=True).flatten().tolist()
-            test_smiles = np.load(test_smiles_p, allow_pickle=True).flatten().tolist()
-
-
-            x_train = train_data[:, :-1]
-            x_test = test_data[:, :-1]
-
-            y_train = train_data[:, -1]
-            y_test = test_data[:, -1]
-
-            print(path)
-
-            target_name = path.name
-
-            result_dict = main(
-                x_train=x_train, y_train=y_train, x_test=x_test, y_test=y_test, smiles_train=train_smiles, smiles_test=test_smiles
-            )
-
-            with open(
-                f"{output_result_dir}/{args.dataset.replace('-', '_')}.{args.split_type}.{target_name}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl",
-                "wb",
-            ) as handle:
-                pickle.dump(result_dict, handle)
