@@ -1,13 +1,13 @@
 #!/bin/bash
 
-DATASET="bbbp"
+DATASET="sider"
 D=10000
 N_TRIALS=10
 HD_RETRAIN_EPOCHS=10
 RANDOM_STATE=4
 
 # ECFP encoding and Random Projection of ECFP feature
-for model in "ecfp" "rp" "selfies"; 
+for model in "ecfp"; 
 do
     for split in "random" "scaffold"; 
     do

@@ -10,9 +10,8 @@ RANDOM_STATE=4
 
 
 # sklearn models
-for model in "rf" "mlp";
+for model in "mlp"; 
 do
     python hd_main.py --dataset $DATASET --split-type random --model $model --n-trials $N_TRIALS --random-state $RANDOM_STATE
-
 done
 

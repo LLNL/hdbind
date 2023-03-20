@@ -8,10 +8,10 @@ RANDOM_STATE=4
 
 
 # smiles-pe models with byte-pair-encoding, smiles-pe atomwise tokenizer
-for tokenizer in "bpe" "atomwise";
+for tokenizer in "bpe" "atomwise"; 
 do
-    for fold in "random" "scaffold";
+    for split in "random" "scaffold"; 
     do
-        python hd_main.py --dataset $DATASET --split-type $fold --model smiles-pe --tokenizer $tokenizer --random-state $RANDOM_STATE --hd-retrain-epochs $HD_RETRAIN_EPOCHS --n-trials $N_TRIALS
+        python hd_main.py --dataset $DATASET --split-type $split --model smiles-pe --tokenizer $tokenizer --random-state $RANDOM_STATE --hd-retrain-epochs $HD_RETRAIN_EPOCHS --n-trials $N_TRIALS
     done
 done

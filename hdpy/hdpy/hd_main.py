@@ -435,12 +435,9 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
         param_dist_dict = {"criterion": ["gini", "entropy"],
                     "max_depth": [x for x in np.linspace(2,np.log2(y_train.shape[0]), 10, dtype=int)],
                     "min_samples_leaf": [1, 2, 5, 10],
-                    # "max_features": ["sqrt", "log2", None],
                     "bootstrap": [True],
                     "oob_score": [True],
                     "max_samples": [x for x in np.linspace(10, y_train.shape[0], 10, dtype=int)],
-                    "random_state": [args.random_state],
-                    # "ccp_alpha": [x for x in np.linspace(0,1, 10, dtype=np.float32)],
                     }
 
         search = RandomizedSearchCV(
@@ -463,9 +460,7 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
             "alpha": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2],
             "solver": ["adam"],
             "batch_size": np.linspace(8, 128, dtype=int),
-            # "learning_rate": ['constant', 'invscaling', 'adaptive'],
             "activation": ['tanh', 'relu'],
-            # "random_state": [args.random_state], 
             "hidden_layer_sizes": [(512, 256, 128), (256, 128, 64), (128, 64, 32)],
             "verbose": [True]
         }
@@ -815,7 +810,7 @@ if __name__ == "__main__":
 
         for task_idx in range(n_tasks):
             
-            output_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.task_{task_idx}.{args.split_type}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")
+            output_file = Path(f"{output_result_dir}/{args.dataset}.task_{task_idx}.{args.split_type}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")
 
             if output_file.exists():
                 pass 
@@ -834,7 +829,7 @@ if __name__ == "__main__":
 
     elif args.dataset == "dude":
 
-        if args.split_type == "scaffold":
+        if args.split_type.lower() != "random": #i.e. scaffold
             raise NotImplementedError(f"DUD-E does not support {args.split_type}")
 
         dude_data_p = Path("/usr/workspace/atom/gbsa_modeling/dude_smiles/")
@@ -842,14 +837,15 @@ if __name__ == "__main__":
 
             target_name = dude_smiles_path.name.split("_")[0]
 
+            output_file = Path(f"{output_result_dir}/{args.dataset}.{args.split_type}.{target_name}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")
 
-
-            output_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.{args.split_type}.{target_name}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")
-
-            print(dude_smiles_path)
             if output_file.exists():
+
+                print(f"output file: {output_file} for input file {dude_smiles_path} already exists. moving on to next target..")
                 pass 
             else:
+
+                print(f"processing {dude_smiles_path}...")
 
                 smiles_df = pd.read_csv(dude_smiles_path)
 
@@ -918,6 +914,8 @@ if __name__ == "__main__":
                     ) as handle:
                         pickle.dump(result_dict, handle)
 
+                print(f"done. output file: {output_file}")
+
     elif args.dataset == "lit-pcba":
 
         lit_pcba_data_p = Path(
@@ -926,16 +924,15 @@ if __name__ == "__main__":
         for lit_pcba_path in lit_pcba_data_p.glob("*"):
 
             target_name = lit_pcba_path.name
-
-            print(lit_pcba_path)
-
             output_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")
 
             if output_file.exists():
                 # don't recompute if it's already been calculated
+                print(f"output file: {output_file} for input file {lit_pcba_path} already exists. moving on to next target..")
                 pass  
 
             else:
+                print(f"processing {lit_pcba_path}...")   
 
                 actives_df = pd.read_csv(
                     list(lit_pcba_path.glob("actives.smi"))[0],
@@ -1002,3 +999,5 @@ if __name__ == "__main__":
                         output_file, "wb"
                     ) as handle:
                         pickle.dump(result_dict, handle)
+                
+                print(f"done. output file: {output_file}")

@@ -7,7 +7,7 @@ HD_RETRAIN_EPOCHS=10
 RANDOM_STATE=4
 
 # smiles-pe models with byte-pair-encoding, smiles-pe atomwise tokenizer
-for tokenizer in "bpe"; 
+for tokenizer in "atomwise"; 
 do
     for fold in "random" "scaffold"; 
     do

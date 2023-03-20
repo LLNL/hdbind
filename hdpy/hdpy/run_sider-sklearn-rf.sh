@@ -7,9 +7,9 @@ HD_RETRAIN_EPOCHS=10
 RANDOM_STATE=4
 
 # sklearn models
-for model in "rf" "mlp";
+for model in "rf"; 
 do
-    for fold in "random" "scaffold";
+    for fold in "random" "scaffold"; 
     do
         python hd_main.py --dataset $DATASET --split-type $fold --model $model --random-state $RANDOM_STATE --n-trials $N_TRIALS
     done
