@@ -32,6 +32,10 @@ from hdpy.ecfp_hd.encode_ecfp import compute_fingerprint_from_smiles
 from hdpy.metrics import validate
 
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(f"using device {device}")
+
+
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -77,25 +81,36 @@ def seed_rngs(seed:int):
 
 def train(model, hv_train, y_train, epochs=10):
 
+    single_pass_train_start = time.time()
     model.build_am(hv_train, y_train)
+    single_pass_train_time = time.time() - single_pass_train_start
+
 
     learning_curve_list = []
+
+    retrain_start = time.time()
     for _ in range(epochs):
 
         mistake_ct = model.retrain(hv_train, y_train, return_mistake_count=True)
         learning_curve_list.append(mistake_ct)
 
-    return learning_curve_list
+    retrain_time = time.time() - retrain_start
+    return learning_curve_list, single_pass_train_time, retrain_time
 
 
 
 def test(model, hv_test, y_test):
 
+    test_start = time.time()
     pred_list = model.predict(hv_test)
+    test_time = time.time() - test_start
 
+    conf_test_start = time.time()
     eta_list = model.compute_confidence(hv_test)
+    conf_test_time = time.time() - conf_test_start
 
-    return {"y_pred": pred_list, "y_true": y_test, "eta": eta_list}
+
+    return {"y_pred": pred_list, "y_true": y_test, "eta": eta_list, "test_time": test_time, "conf_test_time": conf_test_time}
 
 
 def functional_encode(datapoint):
@@ -146,6 +161,7 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
     train_hv_p = root_data_p / Path("train_dataset_hv.pth")
     test_hv_p = root_data_p / Path("test_dataset_hv.pth")
     im_p = root_data_p / Path("item_mem.pth")
+    # am_p = root_data_p / Path("assoc_mem.pth")
 
     train_encode_time = 0
     test_encode_time = 0
@@ -276,14 +292,14 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
 
             # ENCODE TRAINING
             train_hv_p.parent.mkdir(parents=True, exist_ok=True)
-            train_encode_start = (
-                time.time()
-            )  # im putting this inside of the context manager to avoid overhead potentially
             train_dataloader = DataLoader(
                 # x_train, num_workers=70, batch_size=1000, collate_fn=collate_ecfp
                 x_train, num_workers=int(mp.cpu_count()-1/2), batch_size=1000, collate_fn=collate_ecfp
             )
             train_dataset_hvs = []
+            train_encode_start = (
+                time.time()
+            )  # im putting this inside of the context manager to avoid overhead potentially
             for train_batch_hvs in tqdm(train_dataloader, total=len(train_dataloader)):
                 train_dataset_hvs.append(train_batch_hvs)
             train_encode_time = time.time() - train_encode_start
@@ -297,15 +313,15 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
 
             # ENCODE TESTING
             test_hv_p.parent.mkdir(parents=True, exist_ok=True)
-            # with mp.Pool(mp.cpu_count() -1) as p:
-            test_encode_start = (
-                time.time()
-            )  # im putting this inside of the context manager to avoid overhead potentially
+            # with mp.Pool(mp.cpu_count() -1) as p: 
             test_dataloader = DataLoader(
                 # x_test, num_workers=70, batch_size=1000, collate_fn=collate_ecfp
                 x_test, num_workers=int(mp.cpu_count()-1/2), batch_size=1000, collate_fn=collate_ecfp
             )
             test_dataset_hvs = []
+            test_encode_start = (
+                time.time()
+            )  # im putting this inside of the context manager to avoid overhead potentially
             for test_batch_hvs in tqdm(test_dataloader, total=len(test_dataloader)):
                 # batch_hvs = list(tqdm(p.imap(functional_encode, batch), total=len(batch), desc=f"encoding ECFPs with {mp.cpu_count() -1} workers.."))
                 test_dataset_hvs.append(test_batch_hvs)
@@ -317,7 +333,7 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
             test_dataset_hvs = torch.load(test_hv_p)
 
     elif args.model == "rp":
-        hd_model.cuda()
+        # hd_model.cuda()
         # todo: cache the actual model projection matrix too
 
         # encode training data
@@ -359,10 +375,17 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
         else:
             test_dataset_hvs = torch.load(test_hv_p)
 
-    hd_model.cuda()
 
-    train_dataset_labels = torch.from_numpy(y_train)
-    test_dataset_labels = torch.from_numpy(y_test)
+    # create label tensors and transfer all tensors to the GPU
+    train_dataset_labels = torch.from_numpy(y_train).to(device)
+    test_dataset_labels = torch.from_numpy(y_test).to(device)
+
+    train_dataset_hvs = train_dataset_hvs.to(device)
+    test_dataset_hvs = test_dataset_hvs.to(device)
+
+
+
+
 
     result_dict = {}
     for i in range(args.n_trials):
@@ -372,23 +395,24 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
 
         result_dict[i] = {}
 
-        train_start = time.time()
-        learning_curve = train(
+        # time train inside of the funciton
+        learning_curve, single_pass_train_time, retrain_time = train(
             hd_model, train_dataset_hvs, train_dataset_labels, epochs=args.hd_retrain_epochs
         )
+
         result_dict[i]["hd_learning_curve"] = learning_curve
-
-        train_time = time.time() - train_start
-
-        test_start = time.time()
+        
+        # time test inside of the funcion
         trial_dict = test(hd_model, test_dataset_hvs, test_dataset_labels)
-        test_time = time.time() - test_start
 
+        result_dict[i]["am"] = hd_model.am # store the associative memory so it can be loaded up later on 
         result_dict[i]["y_pred"] = trial_dict["y_pred"].cpu().numpy()
         result_dict[i]["eta"] = trial_dict["eta"].cpu().numpy().reshape(-1, 1)
         result_dict[i]["y_true"] = trial_dict["y_true"].cpu().numpy()
-        result_dict[i]["train_time"] = train_time
-        result_dict[i]["test_time"] = test_time
+        result_dict[i]["single_pass_train_time"] = single_pass_train_time
+        result_dict[i]["retrain_time"] = retrain_time
+        result_dict[i]["test_time"] = trial_dict["test_time"]
+        result_dict[i]["conf_test_time"] = trial_dict["conf_test_time"]
         result_dict[i]["train_encode_time"] = train_encode_time
         result_dict[i]["test_encode_time"] = test_encode_time
         result_dict[i]["encode_time"] = train_encode_time + test_encode_time
@@ -433,11 +457,14 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
     if args.model == "rf":
 
         param_dist_dict = {"criterion": ["gini", "entropy"],
-                    "max_depth": [x for x in np.linspace(2,np.log2(y_train.shape[0]), 10, dtype=int)],
+                    "n_estimators": [x for x in np.linspace(10, 100, 10, dtype=int)],
+                    "max_depth": [x for x in np.linspace(2,x_train.shape[1], 10, dtype=int)],
+                    "max_features": ["sqrt", "log2"],
                     "min_samples_leaf": [1, 2, 5, 10],
-                    "bootstrap": [True],
-                    "oob_score": [True],
+                    "bootstrap": [True, False],
+                    "oob_score": [True, False],
                     "max_samples": [x for x in np.linspace(10, y_train.shape[0], 10, dtype=int)],
+                    "n_jobs": [-1]
                     }
 
         search = RandomizedSearchCV(
@@ -498,9 +525,6 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
 
     elif args.model == "mlp":
         model = MLPClassifier(**search.best_params_)
-
-    # TODO: implement RNG, can use the first level of the dictionary for seed
-
 
     result_dict = {}
     for i in range(args.n_trials):
@@ -601,6 +625,13 @@ if __name__ == "__main__":
         assert args.input_feat_size is not None
         assert args.D is not None
         hd_model = RPEncoder(input_size=args.input_feat_size, D=args.D, num_classes=2)
+
+
+    if args.model in ["smiles-pe", "selfies", "ecfp", "rp"]:
+
+        hd_model = hd_model.to(device)
+
+
 
     output_result_dir = Path(f"results/{args.random_state}")
     if not output_result_dir.exists():
@@ -756,7 +787,8 @@ if __name__ == "__main__":
 
         smiles = df["smiles"].values.tolist()
         labels = df[label_cols].values
-        n_tasks = len(label_cols)
+        # n_tasks = len(label_cols)
+        n_tasks = 1 #clintox only has one meaningful task
 
         fps = [compute_fingerprint_from_smiles(x) for x in tqdm(smiles)]
 
