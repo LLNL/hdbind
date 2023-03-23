@@ -31,21 +31,37 @@ def compute_top_n_enrichment(scores, labels, n, n_samples=10):
     return np.mean(score_list), np.std(score_list)
 
 
-def compute_enrichment_factor(scores, labels, n):
+# def compute_enrichment_factor(scores, labels, n):
 
-    sorted_scores = sorted(zip(scores, labels), key=lambda x: x[0], reverse=True)
+    # sorted_scores = sorted(zip(scores, labels), key=lambda x: x[0], reverse=True)
 
-    top_n_sorted_scores = sorted_scores[:n]
+    # top_n_sorted_scores = sorted_scores[:n]
 
     # counting number of true positives
-    score_tp = sum([y for x, y in top_n_sorted_scores])
+    # score_tp = sum([y for x, y in top_n_sorted_scores])
+    # labels are binary, sum to count number of actives
+    # actives_database = sum(labels)
+
+    # norm_factor = (n/len(labels))
+
+    # return score_tp / (norm_factor * actives_database)
+def compute_enrichment_factor(scores, labels, n_percent):
+    # this variant implements the equation from Xiaohua's paper
+    
+    sample_n = int(np.ceil(n_percent * labels.shape[0]))
+    
+    sorted_scores = sorted(zip(scores, labels), key=lambda x: x[0], reverse=True)
+
+    top_n_sorted_scores = sorted_scores[:sample_n]
+
+    # counting number of true positives in top x% of sorted compounds
+    actives_sampled = sum([y for x, y in top_n_sorted_scores])
     # labels are binary, sum to count number of actives
     actives_database = sum(labels)
 
-    norm_factor = (n/len(labels))
+    norm_factor = (sample_n/len(labels))
 
-    return score_tp / (norm_factor * actives_database)
-
+    return (actives_sampled / actives_database) * (labels.shape[0]/sample_n)
 
 
 def validate(labels, pred_labels, pred_scores):

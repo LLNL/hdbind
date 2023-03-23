@@ -1,10 +1,10 @@
 #!/bin/bash
 
 DATASET="lit-pcba"
-D=10000
-N_TRIALS=3
+D=1000
+N_TRIALS=1
 HD_RETRAIN_EPOCHS=10
-RANDOM_STATE=3
+RANDOM_STATE=123
 
 # ECFP encoding and Random Projection of ECFP feature
 for model in "rp"; 

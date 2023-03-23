@@ -3,10 +3,10 @@
 # DUD-E only has a random split defined 
 
 DATASET="lit-pcba"
-D=10000
-N_TRIALS=3
+D=1000
+N_TRIALS=1
 HD_RETRAIN_EPOCHS=10
-RANDOM_STATE=3
+RANDOM_STATE=123
 
 
 # sklearn models

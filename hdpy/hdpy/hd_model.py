@@ -66,10 +66,8 @@ class HDModel(nn.Module):
 
     def predict(self, enc_hvs):
 
-        # aparently pairwise_cosine_similarity is actually giveing distances......
-        # preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.float(), torch.cat([x.reshape(1,-1) for x in self.am.values()]).float()), dim=1)
+        preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.float(), torch.cat([x.reshape(1,-1) for x in self.am.values()]).float()), dim=1)
 
-        preds = torch.argmin(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.float(), torch.cat([x.reshape(1,-1) for x in self.am.values()]).float()), dim=1)
         return preds 
 
     def forward(self, x):

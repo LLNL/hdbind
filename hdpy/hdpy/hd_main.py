@@ -377,11 +377,11 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
 
 
     # create label tensors and transfer all tensors to the GPU
-    train_dataset_labels = torch.from_numpy(y_train).to(device)
-    test_dataset_labels = torch.from_numpy(y_test).to(device)
+    train_dataset_labels = torch.from_numpy(y_train).to(device).float()
+    test_dataset_labels = torch.from_numpy(y_test).to(device).float()
 
-    train_dataset_hvs = train_dataset_hvs.to(device)
-    test_dataset_hvs = test_dataset_hvs.to(device)
+    train_dataset_hvs = train_dataset_hvs.to(device).float()
+    test_dataset_hvs = test_dataset_hvs.to(device).float()
 
 
 
@@ -405,12 +405,14 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
         # time test inside of the funcion
         trial_dict = test(hd_model, test_dataset_hvs, test_dataset_labels)
 
-        result_dict[i]["am"] = hd_model.am # store the associative memory so it can be loaded up later on 
+        result_dict[i]["am"] = {0: hd_model.am[0].cpu().numpy(), 1: hd_model.am[1].cpu().numpy()} # store the associative memory so it can be loaded up later on
+        result_dict[i]["model"] = hd_model.to("cpu")
         result_dict[i]["y_pred"] = trial_dict["y_pred"].cpu().numpy()
         result_dict[i]["eta"] = trial_dict["eta"].cpu().numpy().reshape(-1, 1)
         result_dict[i]["y_true"] = trial_dict["y_true"].cpu().numpy()
         result_dict[i]["single_pass_train_time"] = single_pass_train_time
         result_dict[i]["retrain_time"] = retrain_time
+        result_dict[i]["train_time"] = single_pass_train_time + retrain_time
         result_dict[i]["test_time"] = trial_dict["test_time"]
         result_dict[i]["conf_test_time"] = trial_dict["conf_test_time"]
         result_dict[i]["train_encode_time"] = train_encode_time
@@ -481,7 +483,7 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
     elif args.model == "mlp":
 
         param_dist_dict = {
-            "early_stopping": [True],
+            "early_stopping": [False, True],
             "validation_fraction": [0.1, 0.2],
             "n_iter_no_change": [2],
             "alpha": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2],
@@ -543,6 +545,8 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
         y_pred = model.predict(x_test)
         test_time = time.time() - test_start
 
+        result_dict[i]["model"] = model
+        result_dict[i]["search"] = search
         result_dict[i]["y_pred"] = y_pred
         result_dict[i]["eta"] = model.predict_proba(x_test).reshape(-1, 2)
         result_dict[i]["y_true"] = y_test
@@ -628,14 +632,14 @@ if __name__ == "__main__":
 
 
     if args.model in ["smiles-pe", "selfies", "ecfp", "rp"]:
-
-        hd_model = hd_model.to(device)
+        # transfer the model to GPU memory
+        hd_model = hd_model.to(device).float()
 
 
 
     output_result_dir = Path(f"results/{args.random_state}")
     if not output_result_dir.exists():
-        output_result_dir.mkdir(parents=True)
+        output_result_dir.mkdir(parents=True, exist_ok=True)
 
     print(args)
 
@@ -689,6 +693,14 @@ if __name__ == "__main__":
             result_dict = main(x_train=x_train, y_train=y_train, 
                                 x_test=x_test, y_test=y_test,
                                 smiles_train=smiles_train, smiles_test=smiles_test)
+
+            result_dict["smiles_train"] = smiles_train
+            result_dict["smiles_test"] = smiles_test
+            result_dict["x_train"] = x_train
+            result_dict["x_test"] = x_test
+            result_dict["y_train"] = y_train
+            result_dict["y_test"] = y_test
+
 
             result_dict["args"] = args
             with open(output_file, "wb") as handle:
@@ -752,6 +764,12 @@ if __name__ == "__main__":
                                     y_train=y_train, y_test=y_test, smiles_train=smiles_train,
                                     smiles_test=smiles_test)
 
+                result_dict["smiles_train"] = smiles_train
+                result_dict["smiles_test"] = smiles_test
+                result_dict["x_train"] = x_train
+                result_dict["x_test"] = x_test
+                result_dict["y_train"] = y_train
+                result_dict["y_test"] = y_test
 
                 result_dict["args"] = args
                 with open(
@@ -852,6 +870,13 @@ if __name__ == "__main__":
                 )
 
 
+                result_dict["smiles_train"] = smiles_train
+                result_dict["smiles_test"] = smiles_test
+                result_dict["x_train"] = x_train
+                result_dict["x_test"] = x_test
+                result_dict["y_train"] = y_train
+                result_dict["y_test"] = y_test
+
                 result_dict["args"] = args
                 with open( 
                     output_file, "wb"
@@ -934,6 +959,8 @@ if __name__ == "__main__":
                     )
 
 
+                    result_dict["smiles_train"] = smiles_train
+                    result_dict["smiles_test"] = smiles_test
                     result_dict["x_train"] = x_train
                     result_dict["x_test"] = x_test
                     result_dict["y_train"] = y_train
@@ -1021,6 +1048,8 @@ if __name__ == "__main__":
                         x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, smiles_train=smiles_train, smiles_test=smiles_test
                     )
 
+                    result_dict["smiles_train"] = smiles_train
+                    result_dict["smiles_test"] = smiles_test
                     result_dict["x_train"] = x_train
                     result_dict["x_test"] = x_test
                     result_dict["y_train"] = y_train

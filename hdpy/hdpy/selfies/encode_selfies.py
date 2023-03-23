@@ -6,6 +6,7 @@ import functools
 import selfies as sf
 constrain_dict = sf.get_semantic_constraints()
 constrain_dict['N'] = 5
+constrain_dict['Cl'] = 7
 
 sf.set_semantic_constraints(constrain_dict)
 
