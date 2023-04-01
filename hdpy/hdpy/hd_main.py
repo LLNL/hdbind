@@ -32,8 +32,7 @@ from hdpy.ecfp_hd.encode_ecfp import compute_fingerprint_from_smiles
 from hdpy.metrics import validate
 
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(f"using device {device}")
+
 
 
 import argparse
@@ -66,7 +65,16 @@ parser.add_argument(
 parser.add_argument("--hd-retrain-epochs", type=int, default=1)
 parser.add_argument("--random-state", type=int, default=0)
 parser.add_argument("--dry-run", action="store_true")
+parser.add_argument("--cpu-only", action="store_true")
 args = parser.parse_args()
+
+device = None
+if not args.cpu_only:
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+else:
+    device = "cpu"
+print(f"using device {device}")
+
 
 # seed the RNGs
 import random
@@ -463,8 +471,8 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
                     "max_depth": [x for x in np.linspace(2,x_train.shape[1], 10, dtype=int)],
                     "max_features": ["sqrt", "log2"],
                     "min_samples_leaf": [1, 2, 5, 10],
-                    "bootstrap": [True, False],
-                    "oob_score": [True, False],
+                    "bootstrap": [True],
+                    "oob_score": [True],
                     "max_samples": [x for x in np.linspace(10, y_train.shape[0], 10, dtype=int)],
                     "n_jobs": [-1]
                     }
@@ -483,7 +491,7 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
     elif args.model == "mlp":
 
         param_dist_dict = {
-            "early_stopping": [False, True],
+            "early_stopping": [True],
             "validation_fraction": [0.1, 0.2],
             "n_iter_no_change": [2],
             "alpha": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2],
@@ -522,18 +530,25 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
     search.fit(x_train, y_train)
 
     # collect the best parameters and train on full training set, we capture timings wrt to the optimal configuration
-    if args.model == "rf":
-        model = RandomForestClassifier(**search.best_params_)
+    # if args.model == "rf":
+        # model = RandomForestClassifier(**search.best_params_)
 
-    elif args.model == "mlp":
-        model = MLPClassifier(**search.best_params_)
+    # elif args.model == "mlp":
+        # model = MLPClassifier(**search.best_params_)
 
     result_dict = {}
     for i in range(args.n_trials):
 
+        seed = args.random_state + i 
         # this should force each call of .fit to be different...I think..
-        seed_rngs(args.random_state + i)
+        seed_rngs(seed)
+        # collect the best parameters and train on full training set, we capture timings wrt to the optimal configuration
+        # construct after seeding the rng
+        if args.model == "rf":
+            model = RandomForestClassifier(random_state=seed, **search.best_params_)
 
+        elif args.model == "mlp":
+            model = MLPClassifier(random_state=seed, **search.best_params_)
 
         result_dict[i] = {}
 

@@ -81,18 +81,16 @@ def validate(labels, pred_labels, pred_scores):
 
     # import pdb 
     # pdb.set_trace()
-    top_10_enrichment = compute_top_n_enrichment(scores=pred_scores, labels=labels, n=10)
-    print(f"top-10 enrichment: {top_10_enrichment[0]} +/- ({top_10_enrichment[1]})")
-    top_100_enrichment = compute_top_n_enrichment(scores=pred_scores, labels=labels, n=100)
-    print(f"top-100 enrichment: {top_100_enrichment[0]} +/- ({top_100_enrichment[1]})")
-    top_1000_enrichment = compute_top_n_enrichment(scores=pred_scores, labels=labels, n=1000)
-    print(f"top-1000 enrichment: {top_1000_enrichment[0]} +/- ({top_1000_enrichment[1]})")
+    # top_10_enrichment = compute_top_n_enrichment(scores=pred_scores, labels=labels, n=10)
+    # print(f"top-10 enrichment: {top_10_enrichment[0]} +/- ({top_10_enrichment[1]})")
+    # top_100_enrichment = compute_top_n_enrichment(scores=pred_scores, labels=labels, n=100)
+    # print(f"top-100 enrichment: {top_100_enrichment[0]} +/- ({top_100_enrichment[1]})")
+    # top_1000_enrichment = compute_top_n_enrichment(scores=pred_scores, labels=labels, n=1000)
+    # print(f"top-1000 enrichment: {top_1000_enrichment[0]} +/- ({top_1000_enrichment[1]})")
 
 
 
-    enrich_fact_10 = compute_enrichment_factor(scores=pred_scores, labels=labels, n=10)
-    print(f"enrichment-factor (EF) (10): {enrich_fact_10}")
-    enrich_fact_100 = compute_enrichment_factor(scores=pred_scores, labels=labels, n=100)
-    print(f"enrichment-factor (EF) (100) enrichment: {enrich_fact_100}")
-    enrich_fact_1000 = compute_enrichment_factor(scores=pred_scores, labels=labels, n=1000)
-    print(f"enrichment-factor (EF) (1000): {enrich_fact_1000}")
+    enrich_fact_1 = compute_enrichment_factor(scores=pred_scores, labels=labels, n_percent=.01)
+    print(f"enrichment-factor (EF) (1%): {enrich_fact_1}")
+    enrich_fact_10 = compute_enrichment_factor(scores=pred_scores, labels=labels, n_percent=.1)
+    print(f"enrichment-factor (EF) (10%) enrichment: {enrich_fact_10}")
