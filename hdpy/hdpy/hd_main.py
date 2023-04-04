@@ -872,8 +872,11 @@ if __name__ == "__main__":
         y_test = labels[test_idxs]
         smiles_train = df["smiles"].iloc[train_idxs].values.tolist()
         smiles_test = df["smiles"].iloc[test_idxs].values.tolist()
+        
 
-        for task_idx in range(n_tasks):
+        clintox_task_list = list(range(n_tasks))
+        random.shuffle(clintox_task_list)
+        for task_idx in clintox_task_list:
             
             output_file = Path(f"{output_result_dir}/{args.dataset}.task_{task_idx}.{args.split_type}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")
 
@@ -905,7 +908,9 @@ if __name__ == "__main__":
             raise NotImplementedError(f"DUD-E does not support {args.split_type}")
 
         dude_data_p = Path("/usr/workspace/atom/gbsa_modeling/dude_smiles/")
-        for dude_smiles_path in dude_data_p.glob("*_gbsa_smiles.csv"):
+        dude_path_list = list(dude_data_p.glob("*_gbsa_smiles.csv"))
+        random.shuffle(dude_path_list)
+        for dude_smiles_path in dude_path_list:
 
             target_name = dude_smiles_path.name.split("_")[0]
 
@@ -995,7 +1000,11 @@ if __name__ == "__main__":
         lit_pcba_data_p = Path(
             "/usr/WS1/jones289/hd-cuda-master/datasets/lit_pcba/lit_pcba_full_data/"
         )
-        for lit_pcba_path in lit_pcba_data_p.glob("*"):
+
+        # using random.shuffle so when submitting multiple jobs, chances are good that script can skip over previous work that has been done, increasing parallelism
+        lit_pcba_path_list = list(lit_pcba_data_p.glob("*"))
+        random.shuffle(lit_pcba_path_list)
+        for lit_pcba_path in lit_pcba_path_list:
 
             target_name = lit_pcba_path.name
             output_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")

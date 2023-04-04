@@ -45,6 +45,7 @@ parser.add_argument("--random-state", type=int, default=0)
 parser.add_argument("--initial-p", type=float, default=0.1)
 parser.add_argument("--dry-run", action="store_true")
 parser.add_argument("--plist", nargs="+",type=float, default=[.1, .01])
+parser.add_argument("--sklearn-model", help="sklearn model to use for secondary filter step")
 args = parser.parse_args()
 
 # seed the RNGs
@@ -81,14 +82,14 @@ def main(x_train, y_train, x_test, y_test, smiles_train=None, smiles_test=None):
     # get top 10% of predicted molecules
 
 
-    # run inference on top 1% of predicted molecules using MLP
+    # run inference on top 1% of predicted molecules using sklearn model
 
-    # run inference on top 10% of predicted molecules using MLP
+    # run inference on top 10% of predicted molecules using sklearn model 
 
 
-    # tqdm.write enrichment for top 1% using only HD and top 1% using HD->MLP
+    # tqdm.write enrichment for top 1% using only HD and top 1% using HD->sklearn_model
 
-    # tqdm.write enrichment for top 10% using only HD and top 10% using HD-> MLP
+    # tqdm.write enrichment for top 10% using only HD and top 10% using HD-> sklearn_model 
 
     pass
 
@@ -136,16 +137,16 @@ if __name__ == "__main__":
 
 
             result_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")
-            mlp_result_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.mlp.None.{args.ngram_order}.pkl")
+            sklearn_result_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.{args.sklearn_model}.None.{args.ngram_order}.pkl")
 
 
 
             for trial in range(10):
-                print(trial, result_file, mlp_result_file)
+                print(trial, result_file, sklearn_result_file)
 
-                with open(mlp_result_file, "rb") as handle:
-                    mlp_result_dict = pickle.load(handle)
-                    mlp_model = mlp_result_dict[trial]["model"]
+                with open(sklearn_result_file, "rb") as handle:
+                    sklearn_result_dict = pickle.load(handle)
+                    sklearn_model = sklearn_result_dict[trial]["model"]
 
 
                 if result_file.exists():
@@ -160,7 +161,7 @@ if __name__ == "__main__":
                     
                     conf_scores = model.compute_confidence(hv_test.cpu())
 
-                    hd_enrich = compute_enrichment_factor(scores=conf_scores, labels=y_test, n_percent=args.initial_p)
+                    hd_enrich = compute_enrichment_factor(sample_scores=conf_scores, sample_labels=y_test, n_percent=args.initial_p)
 
                     values, idxs = torch.sort(conf_scores.squeeze().cpu(), descending=True)
 
@@ -168,9 +169,11 @@ if __name__ == "__main__":
 
                     hd_actives = sum(y_test[idxs[:sample_n]])
 
-
                     actives_database = sum(y_test)
 
+
+                    # import pdb 
+                    # pdb.set_trace()
                     for p in p_list:
 
                         # get the indexes of the top initial-p% of compounds ranked by HDC
@@ -181,19 +184,26 @@ if __name__ == "__main__":
                         x_test_samp = result_dict["x_test"][samp_idxs]
                         y_test_samp = y_test[samp_idxs]
 
-                        sorted_mlp_scores = sorted(zip(mlp_model.predict_proba(x_test_samp)[:, 1], y_test_samp), reverse=True)
+                        # class probability should be the 0th element of the tuple and we use that to rank with
+                        #todo: double check that this matches what is being done in the notebooks
+                        # sorted_sklearn_scores = sorted(zip(sklearn_model.predict_proba(x_test_samp)[:, 1], y_test_samp), key=lambda x: x[0], reverse=True)
+                        sklearn_scores = sklearn_model.predict_proba(x_test_samp)[:, 1]
 
                         # now we're going to take the top p% from the top 1% of compounds ranked by HDC, p*1% of library
-                        samp_n = int(np.ceil(p * sample_n))
+                        # samp_n = int(np.ceil(p * sample_n))
 
-                        top_n_mlp_sorted_scores = sorted_mlp_scores[:samp_n]
+                        # top_n_sklearn_sorted_scores = sorted_sklearn_scores[:samp_n]
 
-                        actives_sampled = sum([y for x,y in top_n_mlp_sorted_scores])
+                        # actives_sampled = sum([y for x,y in top_n_sklearn_sorted_scores])
 
-                        enrich = (actives_sampled/actives_database) * (y_test.shape[0]/samp_n)
+                        # enrich = (actives_sampled/actives_database) * (y_test.shape[0]/samp_n)
 
-                        tqdm.write(f"target: {target_name}, data_size: {hv_test.shape[0]}, initial_p: {args.initial_p}, samp_n_10: {sample_n}, x_test_samp: {x_test_samp.shape},p: {p}, samp_n: {samp_n}, hd_enrich: {hd_enrich},mlp_enrich_{int(p*10)}: {enrich}, hdc_actives_sampled: {hd_actives} ,mlp_actives_sampled: {actives_sampled}, actives_database: {actives_database}")
+                        # tqdm.write(f"target: {target_name}, data_size: {hv_test.shape[0]}, initial_p: {args.initial_p}, samp_n_10: {sample_n}, x_test_samp: {x_test_samp.shape},p: {p}, samp_n: {samp_n}, hd_enrich: {hd_enrich}, {args.sklearn_model}_enrich_{int(p*10)}: {enrich}, hd_actives_sampled: {hd_actives}, {args.sklearn_model}_actives_sampled: {actives_sampled}, actives_database: {actives_database}")
 
+                        enrich = compute_enrichment_factor(sample_scores=sklearn_scores, 
+                                                sample_labels=y_test_samp,
+                                                n_percent=p, actives_database=sum(y_test), database_size=y_test.shape[0])
+                        print(enrich)
 
                         output_dict["target"].append(target_name)
                         output_dict["enrich"].append(enrich)
@@ -212,6 +222,6 @@ if __name__ == "__main__":
 
 
     full_df = pd.concat(enrich_list)
-    full_df.to_csv(f"{args.random_state}_{args.dataset}_{args.initial_p}_multistep_enrich.csv")
+    full_df.to_csv(f"{args.random_state}_{args.dataset}_{args.sklearn_model}_{args.initial_p}_multistep_enrich.csv")
 
 

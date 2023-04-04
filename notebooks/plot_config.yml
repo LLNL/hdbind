@@ -1,0 +1,14 @@
+color_dict = {
+    "smiles-pe.atomwise.0": rocket_color_pal[2],
+    "smiles-pe.bpe.0": rocket_color_pal[4],   
+#     "smiles-pe.ngram.1": color_pal[0],
+#     "selfies.None": "purple",
+"selfies.None": green_color_pal[4],
+#     "selfies.selfies-charwise": color_pal[2],
+    "ecfp": green_color_pal[6],
+    "rp": green_color_pal[8],
+    "rf": blue_color_pal[4],
+#     "openhd": "green",
+    "mlp": blue_color_pal[7],
+#     "Vina": color_pal[2]
+}
