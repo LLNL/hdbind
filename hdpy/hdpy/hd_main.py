@@ -109,6 +109,8 @@ def train(model, hv_train, y_train, epochs=10):
 
 def test(model, hv_test, y_test):
 
+    # import pdb
+    # pdb.set_trace()
     test_start = time.time()
     pred_list = model.predict(hv_test)
     test_time = time.time() - test_start
@@ -377,6 +379,8 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
             test_dataset_hvs = torch.cat(test_dataset_hvs, dim=0)
             test_encode_time = time.time() - test_encode_start
 
+            # import pdb
+            # pdb.set_trace()
             torch.save(test_dataset_hvs, test_hv_p)
             print(f"encode test: {test_encode_time}")
 
@@ -410,6 +414,8 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
 
         result_dict[i]["hd_learning_curve"] = learning_curve
         
+        import pdb 
+        pdb.set_trace()
         # time test inside of the funcion
         trial_dict = test(hd_model, test_dataset_hvs, test_dataset_labels)
 
@@ -528,13 +534,6 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
     # run the hyperparameter search (without refitting to full training set)
 
     search.fit(x_train, y_train)
-
-    # collect the best parameters and train on full training set, we capture timings wrt to the optimal configuration
-    # if args.model == "rf":
-        # model = RandomForestClassifier(**search.best_params_)
-
-    # elif args.model == "mlp":
-        # model = MLPClassifier(**search.best_params_)
 
     result_dict = {}
     for i in range(args.n_trials):
@@ -1009,13 +1008,17 @@ if __name__ == "__main__":
             target_name = lit_pcba_path.name
             output_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")
 
-            if output_file.exists():
+            # if output_file.exists():
+            if False:
                 # don't recompute if it's already been calculated
                 print(f"output file: {output_file} for input file {lit_pcba_path} already exists. moving on to next target..")
                 pass  
 
             else:
                 print(f"processing {lit_pcba_path}...")   
+
+                # import pdb
+                # pdb.set_trace()
 
                 actives_df = pd.read_csv(
                     list(lit_pcba_path.glob("actives.smi"))[0],

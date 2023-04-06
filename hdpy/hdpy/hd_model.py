@@ -66,7 +66,9 @@ class HDModel(nn.Module):
 
     def predict(self, enc_hvs):
 
-        preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.float(), torch.cat([x.reshape(1,-1) for x in self.am.values()]).float()), dim=1)
+        import pdb 
+        pdb.set_trace()
+        preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().float(), torch.cat([x.reshape(1,-1) for x in self.am.values()]).float()), dim=1)
 
         return preds 
 
@@ -83,11 +85,14 @@ class HDModel(nn.Module):
         # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order 
         am_array = torch.concat([self.am[key].reshape(1,-1) for key in sorted(self.am.keys())], dim=0)
 
+        sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone(), am_array)
 
-        eta_list = []
+        # eta_list = []
 
-        for hv in dataset_hvs:
-            out = torch.nn.CosineSimilarity()(am_array, hv.float())
+        '''
+        for idx, hv in enumerate(dataset_hvs):
+            # out = torch.nn.CosineSimilarity()(am_array, hv.float())
+            out = sims[idx,:]
             eta = 0
             try:
                 eta = (1/2) + (1/4) * (out[1] - out[0])
@@ -96,9 +101,13 @@ class HDModel(nn.Module):
                 eta = 0
             eta_list.append(eta)
 
-        return torch.cat([x.reshape(1, -1) for x in eta_list]).cuda()
+        # return torch.cat([x.reshape(1, -1) for x in eta_list]).cuda()
+        return torch.cat([x.reshape(1, -1) for x in eta_list])
+        '''
 
-
+        eta = (sims[:, 1] - sims[:, 0]) * (1/4)
+        eta = torch.add(eta, (1/2))
+        return eta.reshape(-1)
 
     def retrain(self, dataset_hvs, labels, return_mistake_count=False, lr=1.0):
 

@@ -66,7 +66,7 @@ def compute_enrichment_factor(sample_scores, sample_labels, n_percent, actives_d
         database_size = sample_labels.shape[0]
     enrich = (actives_sampled / actives_database) * (database_size/sample_n)
     
-    print(actives_sampled, actives_database, database_size, sample_n, enrich)
+    # print(actives_sampled, actives_database, database_size, sample_n, enrich)
     return enrich
 
 def validate(labels, pred_labels, pred_scores):

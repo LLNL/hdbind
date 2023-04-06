@@ -100,7 +100,6 @@ if __name__ == "__main__":
     """
 
 
-    output_dict = {"target": [], "enrich": [], "p": [], "actives_database": [], "hdc_actives_sampled": [], "trial": []}
 
 
     output_result_dir = Path(f"results/{args.random_state}")
@@ -125,8 +124,12 @@ if __name__ == "__main__":
 
         enrich_list = []
 
-        for lit_pcba_path in lit_pcba_data_p.glob("*"):
 
+        # import pdb 
+        # pdb.set_trace()
+        for lit_pcba_path in lit_pcba_data_p.glob("*"):
+            # print(lit_pcba_path)
+            # '''
             target_name = lit_pcba_path.name
             result_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.{args.model}.{args.tokenizer}.{args.ngram_order}.pkl")
 
@@ -140,30 +143,32 @@ if __name__ == "__main__":
             sklearn_result_file = Path(f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.{args.sklearn_model}.None.{args.ngram_order}.pkl")
 
 
+            with open(result_file, "rb") as handle:
+                hdc_result_dict = pickle.load(handle)
 
-            for trial in range(10):
-                print(trial, result_file, sklearn_result_file)
-
-                with open(sklearn_result_file, "rb") as handle:
-                    sklearn_result_dict = pickle.load(handle)
-                    sklearn_model = sklearn_result_dict[trial]["model"]
+            with open(sklearn_result_file, "rb") as handle:
+                sklearn_result_dict = pickle.load(handle)
 
 
-                if result_file.exists():
-                    model = None 
-                    with open(result_file, "rb") as handle:
-                        result_dict = pickle.load(handle)
-                        model = result_dict[trial]["model"]
-                        model = model.to(device)
-                        y_test = result_dict['y_test']
+            y_test = hdc_result_dict['y_test']
 
-                    hv_test = torch.load(target_test_hv_path).to(device)
+            hv_test = torch.load(target_test_hv_path).to(device)
+            
+            if result_file.exists():
+                
+
+                # '''
+                for trial in range(10):
+
+                    hdc_model = hdc_result_dict[trial]["model"]
+                    hdc_model = hdc_model.to(device)
                     
-                    conf_scores = model.compute_confidence(hv_test.cpu())
+                    hdc_conf_scores = hdc_model.compute_confidence(hv_test.cpu())
 
-                    hd_enrich = compute_enrichment_factor(sample_scores=conf_scores, sample_labels=y_test, n_percent=args.initial_p)
+                    hd_enrich = compute_enrichment_factor(sample_scores=hdc_conf_scores, sample_labels=y_test, n_percent=args.initial_p,
+                                    actives_database=sum(y_test), database_size=y_test.shape[0])
 
-                    values, idxs = torch.sort(conf_scores.squeeze().cpu(), descending=True)
+                    values, idxs = torch.sort(hdc_conf_scores.squeeze().cpu(), descending=True)
 
                     sample_n = int(np.ceil(args.initial_p * y_test.shape[0]))
 
@@ -172,38 +177,21 @@ if __name__ == "__main__":
                     actives_database = sum(y_test)
 
 
-                    # import pdb 
-                    # pdb.set_trace()
+                    output_dict = {"target": [], "enrich": [], "p": [], "actives_database": [], "hdc_actives_sampled": [], "trial": []}
                     for p in p_list:
 
+                        sklearn_model = sklearn_result_dict[trial]["model"]
                         # get the indexes of the top initial-p% of compounds ranked by HDC
                         samp_idxs = (idxs[:sample_n]).numpy()
 
-
                         # take result of filtering from HDC
-                        x_test_samp = result_dict["x_test"][samp_idxs]
+                        x_test_samp = hdc_result_dict["x_test"][samp_idxs]
                         y_test_samp = y_test[samp_idxs]
 
-                        # class probability should be the 0th element of the tuple and we use that to rank with
-                        #todo: double check that this matches what is being done in the notebooks
-                        # sorted_sklearn_scores = sorted(zip(sklearn_model.predict_proba(x_test_samp)[:, 1], y_test_samp), key=lambda x: x[0], reverse=True)
                         sklearn_scores = sklearn_model.predict_proba(x_test_samp)[:, 1]
-
-                        # now we're going to take the top p% from the top 1% of compounds ranked by HDC, p*1% of library
-                        # samp_n = int(np.ceil(p * sample_n))
-
-                        # top_n_sklearn_sorted_scores = sorted_sklearn_scores[:samp_n]
-
-                        # actives_sampled = sum([y for x,y in top_n_sklearn_sorted_scores])
-
-                        # enrich = (actives_sampled/actives_database) * (y_test.shape[0]/samp_n)
-
-                        # tqdm.write(f"target: {target_name}, data_size: {hv_test.shape[0]}, initial_p: {args.initial_p}, samp_n_10: {sample_n}, x_test_samp: {x_test_samp.shape},p: {p}, samp_n: {samp_n}, hd_enrich: {hd_enrich}, {args.sklearn_model}_enrich_{int(p*10)}: {enrich}, hd_actives_sampled: {hd_actives}, {args.sklearn_model}_actives_sampled: {actives_sampled}, actives_database: {actives_database}")
-
                         enrich = compute_enrichment_factor(sample_scores=sklearn_scores, 
                                                 sample_labels=y_test_samp,
                                                 n_percent=p, actives_database=sum(y_test), database_size=y_test.shape[0])
-                        print(enrich)
 
                         output_dict["target"].append(target_name)
                         output_dict["enrich"].append(enrich)
@@ -211,17 +199,17 @@ if __name__ == "__main__":
                         output_dict["actives_database"].append(actives_database)
                         output_dict["hdc_actives_sampled"].append(hd_actives)
                         output_dict["trial"].append(trial)
-                    
-                    
-                    
+                
+                        print(trial, result_file, sklearn_result_file)
+
                     df = pd.DataFrame(output_dict)
 
                     enrich_list.append(df)
-                else:
-                    tqdm.write(f"result file: {result_file} for input file {lit_pcba_path} doesn't exist. moving on to next target..")
+            else:
+                tqdm.write(f"result file: {result_file} for input file {lit_pcba_path} doesn't exist. moving on to next target..")
 
 
-    full_df = pd.concat(enrich_list)
-    full_df.to_csv(f"{args.random_state}_{args.dataset}_{args.sklearn_model}_{args.initial_p}_multistep_enrich.csv")
-
+        full_df = pd.concat(enrich_list)
+        full_df.to_csv(f"{args.random_state}_{args.dataset}_{args.sklearn_model}_{args.initial_p}_multistep_enrich.csv")
+        # '''
 
