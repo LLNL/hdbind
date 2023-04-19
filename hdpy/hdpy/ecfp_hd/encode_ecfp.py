@@ -6,6 +6,7 @@ from hdpy.hd_model import HDModel
 from rdkit.Chem import DataStructs
 from rdkit.Chem import rdmolfiles
 from rdkit.Chem import AllChem
+import multiprocessing as mp
 
 
 
@@ -64,6 +65,17 @@ class ECFPEncoder(HDModel):
         hv = torch.where(hv <= 0, hv, 1)
 
         return hv
+
+
+    def batch_encode(self, data, num_workers=16):
+
+        with mp.Pool(num_workers) as pool:
+
+            result = list(tqdm(pool.imap(self.encode, data), total=len(data), desc="encoding data in batch mode"))
+
+        return torch.cat(result)
+
+
 
 
 

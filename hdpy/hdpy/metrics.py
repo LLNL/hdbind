@@ -49,10 +49,14 @@ def compute_enrichment_factor(sample_scores, sample_labels, n_percent, actives_d
     # this variant implements the equation from Xiaohua's paper
     
     sample_n = int(np.ceil(n_percent * sample_labels.shape[0]))
-    
+
+    if sample_n > sample_labels.shape[0]:
+        sample_n = sample_labels.shape[0]
+        print("bug")        
+
+
+
     sorted_scores = sorted(zip(sample_scores, sample_labels), key=lambda x: x[0], reverse=True)
-    # import pdb
-    # pdb.set_trace()
 
     top_n_sorted_scores = sorted_scores[:sample_n]
 
@@ -66,7 +70,6 @@ def compute_enrichment_factor(sample_scores, sample_labels, n_percent, actives_d
         database_size = sample_labels.shape[0]
     enrich = (actives_sampled / actives_database) * (database_size/sample_n)
     
-    # print(actives_sampled, actives_database, database_size, sample_n, enrich)
     return enrich
 
 def validate(labels, pred_labels, pred_scores):
@@ -83,17 +86,6 @@ def validate(labels, pred_labels, pred_scores):
 
     print(f"random precision {random_precision}")
     print(f"FPDE: {precision/random_precision}")
-
-    # import pdb 
-    # pdb.set_trace()
-    # top_10_enrichment = compute_top_n_enrichment(scores=pred_scores, labels=labels, n=10)
-    # print(f"top-10 enrichment: {top_10_enrichment[0]} +/- ({top_10_enrichment[1]})")
-    # top_100_enrichment = compute_top_n_enrichment(scores=pred_scores, labels=labels, n=100)
-    # print(f"top-100 enrichment: {top_100_enrichment[0]} +/- ({top_100_enrichment[1]})")
-    # top_1000_enrichment = compute_top_n_enrichment(scores=pred_scores, labels=labels, n=1000)
-    # print(f"top-1000 enrichment: {top_1000_enrichment[0]} +/- ({top_1000_enrichment[1]})")
-
-
 
     enrich_fact_1 = compute_enrichment_factor(scores=pred_scores, labels=labels, n_percent=.01)
     print(f"enrichment-factor (EF) (1%): {enrich_fact_1}")

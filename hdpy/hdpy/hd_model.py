@@ -66,8 +66,8 @@ class HDModel(nn.Module):
 
     def predict(self, enc_hvs):
 
-        import pdb 
-        pdb.set_trace()
+        # import pdb 
+        # pdb.set_trace()
         preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().float(), torch.cat([x.reshape(1,-1) for x in self.am.values()]).float()), dim=1)
 
         return preds 

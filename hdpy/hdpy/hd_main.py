@@ -414,8 +414,8 @@ def run_hd_trial(x_train, y_train, x_test, y_test, smiles_train=None, smiles_tes
 
         result_dict[i]["hd_learning_curve"] = learning_curve
         
-        import pdb 
-        pdb.set_trace()
+        # import pdb 
+        # pdb.set_trace()
         # time test inside of the funcion
         trial_dict = test(hd_model, test_dataset_hvs, test_dataset_labels)
 
