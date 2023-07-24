@@ -42,6 +42,15 @@ int main(int argc, char* argv[]) {
     int nFeatures_train, nClasses_train;  // nFeatures is same as x_train[0].size()
     int nFeatures_test, nClasses_test;
 
+
+    // print out the arguments
+
+    for (int i = 0; i < argc; ++i) {
+        std::cout << i << "\t" << argv[i] << std::endl;
+    }
+
+
+
     std::vector<std::vector<float>> x_test;
     std::vector<std::vector<float>> x_train;
     std::vector<std::vector<float>> x_test_tmp;
@@ -338,6 +347,20 @@ int main(int argc, char* argv[]) {
     std::cout << "Test Acc: " << (float) guess_hit_testing/test_set_num << std::endl;
 
     cublasDestroy(handle);
+
+
+
+
+    // write the predictions and ground truth to disk for later analysis
+
+    // std::cout << argv[7] <<std::endl;
+
+    // FILE *f = fopen(argv[7], "wb");
+    // fwrite(d_guess_vec_test, sizeof(char), sizeof(d_guess_vec_test), f);
+    // fclose(f);
+
+
+
 #ifdef USE_DOT_ENCODING
     HANDLE_ERROR(cudaFree(d_bases));
 #endif

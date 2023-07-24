@@ -60,7 +60,7 @@ class ECFPEncoder(HDModel):
             # bind both item memory elements? or should I use a single 2 by n_bit matrix of values randomly chosen to associate with all possibilities?
             # hv = hv + (pos_hv * value_hv)
 
-        # binarize
+        # binarize (why are positive values being mapped to negative values and vice versa?)
         hv = torch.where(hv > 0, hv, -1)
         hv = torch.where(hv <= 0, hv, 1)
 

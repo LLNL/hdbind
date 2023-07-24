@@ -4,9 +4,9 @@
 
 DATASET="dude"
 D=10000
-N_TRIALS=1
+N_TRIALS=10
 HD_RETRAIN_EPOCHS=10
-RANDOM_STATE=123
+RANDOM_STATE=125
 
 # smiles-pe ngram tokenizer, unigram + bigram + trigram
 for ngram_order in "2"; 
