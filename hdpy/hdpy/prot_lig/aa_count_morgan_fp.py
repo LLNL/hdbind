@@ -1,4 +1,5 @@
 from pathlib import Path
+from sklearn.metrics import classification_report, roc_auc_score
 import time     
 import pandas as pd
 from tqdm import tqdm 
@@ -14,8 +15,12 @@ import numpy as np
 from hdpy.ecfp_hd.encode_ecfp import ECFPEncoder
 import mdtraj
 import pandas as pd
+from rdkit import Chem
+from hdpy.ecfp_hd.encode_ecfp import compute_fingerprint_from_smiles
+import ipdb 
+# ipdb.set_trace()
 #todo: contact map https://warwick.ac.uk/fac/sci/moac/people/students/peter_cock/python/protein_contact_map/ 
-
+from hdpy.baseline_hd.classification_modules import RPEncoder
 
 class PROTHDEncoder(HDModel):
 
@@ -64,7 +69,8 @@ class PROTHDEncoder(HDModel):
 
 
 class PDBBindHD(HDModel):
-
+    def __init__(self, D):
+        super(HDModel, self).__init__()
     def featurize(  # type: ignore[override]
             self, protein_file: str, ligand_file:str, ligand_encoder:ECFPEncoder) -> np.ndarray:
 
@@ -107,35 +113,130 @@ class PDBBindHD(HDModel):
 
         prot_vec = torch.from_numpy(np.array(list(residue_map.values())).reshape(1, -1))
 
-        from hdpy.baseline_hd.classification_modules import RPEncoder
         rp_encoder = RPEncoder(D=10000, input_size=24, num_classes=2).cpu()
         prot_hv = rp_encoder.encode(prot_vec)
 
         # this should be constructed outside of this 
 
-        # import ipdb 
-        # ipdb.set_trace()
-        from rdkit import Chem
-        # mol_supp = Chem.SDMolSupplier(str(ligand_file))
-        # mol = next(mol_supp)
 
         # see this for more information https://www.blopig.com/blog/2021/09/watch-out-when-using-pdbbind/
         mol = Chem.MolFromMol2File(str(ligand_file))
 
         smiles = Chem.MolToSmiles(mol)
-
-        from hdpy.ecfp_hd.encode_ecfp import compute_fingerprint_from_smiles
-        # smiles = pd.read_csv(ligand_file, sep="\t", header=None)[0].values[0]
-
-
         fp  = compute_fingerprint_from_smiles(smiles)
         lig_hv = lig_encoder.encode(fp)
 
-        # import ipdb
-        # ipdb.set_trace()
         complex_hv = prot_hv * lig_hv
 
         return complex_hv
+
+
+
+
+from graphein.protein.config import ProteinGraphConfig
+from graphein.protein.graphs import construct_graph
+from graphein.molecule import MoleculeGraphConfig
+import graphein.molecule as gm
+
+
+from openbabel import pybel 
+from tf_bio_data import featurize_pybel_complex
+from torch_geometric.data import Data
+from torch_geometric.utils import dense_to_sparse, k_hop_subgraph
+
+
+class ComplexGraphHD(HDModel):
+
+    def __init__(self, D:int):
+        super(HDModel, self).__init__()
+        self.D = D
+
+    def featurize(self, protein_file:Path, ligand_file:Path, ligand_encoder:None):
+
+        # import ipdb
+        # ipdb.set_trace()
+        # prot_config = ProteinGraphConfig()
+        # lig_config = MoleculeGraphConfig()
+        # g = construct_graph(config, pdb_code=protein_file.parent.name)
+
+        # p_g = construct_graph(prot_config, path=str(protein_file))
+        # l_g = gm.construct_graph(lig_config, path=str(ligand_file))
+
+
+        ligand_mol = next(pybel.readfile("mol2", str(ligand_file.with_suffix(".mol2"))))
+        pocket_mol = next(pybel.readfile("mol2", str(protein_file.with_suffix(".mol2"))))
+
+
+        data = featurize_pybel_complex(ligand_mol=ligand_mol, pocket_mol=pocket_mol)
+
+
+        # compute pairwise distances
+        from scipy.spatial import distance
+        pdists = distance.squareform(distance.pdist(data[:, :3]) <= 1.5)
+        pdists = torch.from_numpy(pdists)
+        edge_index, _ = dense_to_sparse(pdists)
+
+        graph_data = Data(x=data, edge_index=edge_index, num_nodes=data.shape[0])        
+
+        # convert to pytorch geometric object, use the torch_geometric.utils.k_hop_subgraph function
+
+        # import ipdb
+        # ipdb.set_trace()
+
+        subgraph_1_hop_list = []
+        subgraph_2_hop_list = []
+        for node_idx in range(graph_data.num_nodes):
+
+            _, _, _, edge_mask_1_hop = k_hop_subgraph([node_idx], num_hops=1, edge_index=edge_index, relabel_nodes=False)
+            _, _, _, edge_mask_2_hop = k_hop_subgraph([node_idx], num_hops=2, edge_index=edge_index, relabel_nodes=False)
+
+            subgraph_1_hop_list.append(edge_mask_1_hop.unsqueeze(dim=0))
+            subgraph_2_hop_list.append(edge_mask_2_hop.unsqueeze(dim=0))
+
+            # ipdb.set_trace()
+
+        graph_data.subgraph_1_hop_mask = torch.cat(subgraph_1_hop_list)
+        graph_data.subgraph_2_hop_mask = torch.cat(subgraph_2_hop_list)
+
+        # import ipdb
+        # ipdb.set_trace()
+        return graph_data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def job(pdbid_tup:tuple):
@@ -201,6 +302,7 @@ if __name__ == "__main__":
 
     p = float(sys.argv[1])
 
+
     df = pd.read_csv("/g/g13/jones289/workspace/fast_md/data/metadata/pdbbind_2016_train_val_test.csv").sample(frac=p)
 
     #todo: switch v2016 to updated pdbbind version
@@ -215,7 +317,11 @@ if __name__ == "__main__":
 
     if not result_path.exists():
 
-        featurizer = PDBBindHD()
+
+        # here is a good place to use command line args to choose the featurizer for the complex
+        # todo (derek): does it make sense to build the ligand item memory here?
+        # featurizer = PDBBindHD(D=10000)
+        featurizer = ComplexGraphHD(D=10000)
         lig_encoder = ECFPEncoder(D=10000)
         lig_encoder.build_item_memory(n_bits=1024)
 
@@ -236,7 +342,16 @@ if __name__ == "__main__":
                                     ligand_encoder=lig_encoder)
             
                 affinity = pdbid_df["-logKd/Ki"].values[:]
-                label = affinity > 6 or affinity < 4
+
+                label = None
+                if affinity > 6:
+                    label = 1
+                elif affinity < 4:
+                    label = 0 
+                else:
+                    # this would be ambiguous so we toss these examples
+                    print("ambiguous binder, skipping")
+                    continue
 
                 split_dict[split]["data_list"].append(data)
                 split_dict[split]["label_list"].append(label)
@@ -256,106 +371,49 @@ if __name__ == "__main__":
         with open(result_path, "rb") as handle:
             out_dict = pickle.load(handle)
 
-
-
-    import ipdb 
-    ipdb.set_trace()
-
     train_hv_list = [value["data_list"] for key, value in out_dict["split_dict"].items() if key in ["general_train", "refined_train"]]
     train_label_list = [value["label_list"] for key, value in out_dict["split_dict"].items() if key in ["general_train", "refined_train"]]
 
     test_hv_list = [value["data_list"] for key, value in out_dict["split_dict"].items() if key in ["core_test"]]
     test_label_list = [value["label_list"] for key, value in out_dict["split_dict"].items() if key in ["core_test"]]
-    # from hdpy.hd_main import train, test 
 
-    '''
-    hvs = torch.cat(out_dict["data"])
-    labels = torch.from_numpy(np.concatenate(out_dict["label"])).int().reshape(-1,1)
-    pdbid_list = np.array(out_dict["pdbid"])
-
-    # I'm using exisitng splits to group the pdbids together in to train/test splits
-    train_list = []
-    test_list = []
-    for grp_name, grp_df in df.groupby("set"):
-        if grp_name in ["general_train", "refined_train"]:
-            train_list.append(grp_df)
-        elif grp_name in ["core_test"]:
-            test_list.append(grp_df)
-
-    # concatenate the dataframes which contain the pdbids
-    train_df = pd.concat(train_list)
-    test_df = pd.concat(test_list)
-
-
-    train_hv_list = []
-    test_hv_list = []
-    train_label_list = []
-    test_label_list = []
-
-    #collect the train hypervectors and labels
-    for pdbid in train_df["name"]:
-
-        idx = np.where(pdbid_list == pdbid)[0]
-
-        if idx.shape[0] == 0:
-            pass
-        # if pdbid == "3mf5":
-            # import ipdb 
-            # ipdb.set_trace()
-        else:
-            print(idx, len(train_df), pdbid)
-            train_hv_list.append(hvs[idx])
-            train_label_list.append(labels[idx])
-
-
-    # collect the test hypervectors and labels 
-    for pdbid in test_df["name"]:
-        idx = np.where(pdbid_list == pdbid)[0]
-        if idx.shape[0] == 0:
-            pass
-        else:
-            print(idx, len(test_df), pdbid)
-            test_hv_list.append(hvs[idx])
-            test_label_list.append(labels[idx])
-
-    '''
-    # train_hvs = torch.cat(train_hv_list)
-    # test_hvs = torch.cat(test_hv_list)
     train_hvs = torch.cat([torch.cat(x) for x in train_hv_list])
     test_hvs = torch.cat([torch.cat(x) for x in test_hv_list])
 
 
     train_labels = torch.from_numpy(np.concatenate(train_label_list)).int()
     test_labels = torch.from_numpy(np.concatenate(test_label_list)).int()
-    # train_labels = torch.cat(train_label_list)
-    # test_labels = torch.cat(test_label_list)
 
     # fit the model on the training set
 
 
     print(train_hvs.shape, test_hvs.shape, train_labels.shape, test_labels.shape)
-    learning_curve_list, single_pass_train_time, retrain_time = train(model=out_dict["featurizer"], hv_train=train_hvs, y_train=train_labels,epochs=100)
+    learning_curve_list, single_pass_train_time, retrain_time = train(model=out_dict["featurizer"], hv_train=train_hvs, y_train=train_labels,epochs=10)
 
     result_dict = test(model=out_dict["featurizer"], hv_test=test_hvs, y_test=test_labels)
-
-    with open("result_dict.pkl", "wb") as handle:
-        pickle.dump(result_dict, handle)
-
-    from sklearn.metrics import classification_report, roc_auc_score
+    result_dict["featurizer"] = out_dict["featurizer"]
+    result_dict["lig_encoder"] = out_dict["lig_encoder"]
 
     print(f"roc_auc: {roc_auc_score(y_true=result_dict['y_true'], y_score=result_dict['eta'])}")
     print(classification_report(y_pred=result_dict["y_pred"], y_true=result_dict["y_true"]))
-    '''
-    # print(pdbid, activity)
 
-    # import multiprocessing as mp
-    # mp.set_start_method("spawn")
+    from sklearn.dummy import DummyClassifier
 
-    # with mp.Pool(64) as p:
+    uni_dummy_clf = DummyClassifier(strategy="uniform")
+    uni_dummy_clf.fit(X=train_labels.numpy(), y=train_labels.numpy())
+    uni_dummy_probs = uni_dummy_clf.predict_proba(X=test_labels.numpy())
+    uni_dummy_roc_auc = roc_auc_score(y_true=test_labels.numpy(), y_score=uni_dummy_probs[:, 1])
+    print(f"roc_auc (random): {uni_dummy_roc_auc}")
 
-        # result = list(tqdm(p.imap(job, list(df.groupby("name"))), total=len(df)))
+
+    most_freq_clf = DummyClassifier(strategy="most_frequent")
+    most_freq_clf.fit(X=train_labels.numpy(), y=train_labels.numpy())
+    most_freq_probs = most_freq_clf.predict_proba(X=test_labels.numpy())
+    most_freq_roc_auc = roc_auc_score(y_true=test_labels.numpy(), y_score=most_freq_probs[:, 1])
+    print(f"roc_auc (most frequent): {most_freq_roc_auc}")
 
 
-    # data = torch.cat([x[0] for x in result])
-    # labels = torch.cat(x[1] for x in result)
-    '''
+    # import ipdb 
+    # ipdb.set_trace()
+    with open("result_dict.pkl", "wb") as handle:
+        pickle.dump(result_dict, handle)
