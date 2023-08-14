@@ -21,6 +21,19 @@ import ipdb
 # ipdb.set_trace()
 #todo: contact map https://warwick.ac.uk/fac/sci/moac/people/students/peter_cock/python/protein_contact_map/ 
 from hdpy.baseline_hd.classification_modules import RPEncoder
+from scipy.spatial import distance
+# from graphein.protein.config import ProteinGraphConfig
+# from graphein.protein.graphs import construct_graph
+# from graphein.molecule import MoleculeGraphConfig
+# import graphein.molecule as gm
+
+
+from openbabel import pybel 
+from tf_bio_data import featurize_pybel_complex
+from torch_geometric.data import Data
+from torch_geometric.utils import dense_to_sparse, k_hop_subgraph
+
+
 
 class PROTHDEncoder(HDModel):
 
@@ -69,8 +82,10 @@ class PROTHDEncoder(HDModel):
 
 
 class PDBBindHD(HDModel):
-    def __init__(self, D):
+    def __init__(self, D:int):
         super(HDModel, self).__init__()
+
+        self.D = D
     def featurize(  # type: ignore[override]
             self, protein_file: str, ligand_file:str, ligand_encoder:ECFPEncoder) -> np.ndarray:
 
@@ -100,7 +115,8 @@ class PDBBindHD(HDModel):
         "VAL": 0, 
         "ASX": 0, 
         "GLX": 0
-    }
+        }
+
 
         protein = mdtraj.load(protein_file)
 
@@ -131,25 +147,13 @@ class PDBBindHD(HDModel):
         return complex_hv
 
 
-
-
-from graphein.protein.config import ProteinGraphConfig
-from graphein.protein.graphs import construct_graph
-from graphein.molecule import MoleculeGraphConfig
-import graphein.molecule as gm
-
-
-from openbabel import pybel 
-from tf_bio_data import featurize_pybel_complex
-from torch_geometric.data import Data
-from torch_geometric.utils import dense_to_sparse, k_hop_subgraph
-
-
 class ComplexGraphHD(HDModel):
 
-    def __init__(self, D:int):
+    def __init__(self, D:int, node_feat_size:int):
         super(HDModel, self).__init__()
         self.D = D
+        self.node_feat_size = node_feat_size
+        self.rp_encoder = RPEncoder(input_size=self.node_feat_size, D=self.D, num_classes=2)
 
     def featurize(self, protein_file:Path, ligand_file:Path, ligand_encoder:None):
 
@@ -167,28 +171,37 @@ class ComplexGraphHD(HDModel):
         pocket_mol = next(pybel.readfile("mol2", str(protein_file.with_suffix(".mol2"))))
 
 
-        data = featurize_pybel_complex(ligand_mol=ligand_mol, pocket_mol=pocket_mol)
+        data = torch.from_numpy(featurize_pybel_complex(ligand_mol=ligand_mol, pocket_mol=pocket_mol)).float()
 
+        #map node features to binary (bipolar) using random projection
+        node_hvs = self.rp_encoder.encode(data)
 
         # compute pairwise distances
-        from scipy.spatial import distance
         pdists = distance.squareform(distance.pdist(data[:, :3]) <= 1.5)
         pdists = torch.from_numpy(pdists)
         edge_index, _ = dense_to_sparse(pdists)
 
-        graph_data = Data(x=data, edge_index=edge_index, num_nodes=data.shape[0])        
+        graph_data = Data(x=data, node_hvs=node_hvs, edge_index=edge_index, num_nodes=data.shape[0])        
 
         # convert to pytorch geometric object, use the torch_geometric.utils.k_hop_subgraph function
 
-        # import ipdb
-        # ipdb.set_trace()
+        import ipdb
+        ipdb.set_trace()
 
         subgraph_1_hop_list = []
         subgraph_2_hop_list = []
         for node_idx in range(graph_data.num_nodes):
 
-            _, _, _, edge_mask_1_hop = k_hop_subgraph([node_idx], num_hops=1, edge_index=edge_index, relabel_nodes=False)
-            _, _, _, edge_mask_2_hop = k_hop_subgraph([node_idx], num_hops=2, edge_index=edge_index, relabel_nodes=False)
+            node_subset_1_hop, _, _, edge_mask_1_hop = k_hop_subgraph([node_idx], num_hops=1, edge_index=edge_index, relabel_nodes=False)
+            node_subset_2_hop, _, _, edge_mask_2_hop = k_hop_subgraph([node_idx], num_hops=2, edge_index=edge_index, relabel_nodes=False)
+
+
+            hv_1_hop = graph_data.node_hvs[node_subset_1_hop].sum(dim=0)
+            hv_2_hop = graph_data.node_hvs[node_subset_2_hop].sum(dim=0)
+
+
+
+            # why just two hops? we can specify this as a parameter
 
             subgraph_1_hop_list.append(edge_mask_1_hop.unsqueeze(dim=0))
             subgraph_2_hop_list.append(edge_mask_2_hop.unsqueeze(dim=0))
@@ -198,9 +211,30 @@ class ComplexGraphHD(HDModel):
         graph_data.subgraph_1_hop_mask = torch.cat(subgraph_1_hop_list)
         graph_data.subgraph_2_hop_mask = torch.cat(subgraph_2_hop_list)
 
-        # import ipdb
-        # ipdb.set_trace()
-        return graph_data
+        # create node feature hypervectors
+
+        # p_hv = torch.empty(1, self.D).uniform_(0, 1)
+        # p_hv = (2*torch.bernoulli(p_hv)) - 1
+
+        # find torch function that rotates hypervector, use this to assign a value to each atom in the graph to form the node feature matrix
+
+        import ipdb
+        ipdb.set_trace()
+
+
+
+
+        #relation embedding stage 
+
+        for node in range(graph_data.num_nodes):
+
+            hv_1_hop = graph_data.subgraph_1_hop_mask[node].sum(dim=0)
+            hv_2_hop = graph_data.subgraph_2_hop_mask[node].sum(dim=0)
+
+
+        
+
+        return graph_data 
 
 
 
@@ -321,7 +355,7 @@ if __name__ == "__main__":
         # here is a good place to use command line args to choose the featurizer for the complex
         # todo (derek): does it make sense to build the ligand item memory here?
         # featurizer = PDBBindHD(D=10000)
-        featurizer = ComplexGraphHD(D=10000)
+        featurizer = ComplexGraphHD(D=10000, node_feat_size=22)
         lig_encoder = ECFPEncoder(D=10000)
         lig_encoder.build_item_memory(n_bits=1024)
 
