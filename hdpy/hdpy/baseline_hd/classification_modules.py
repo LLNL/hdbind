@@ -8,7 +8,7 @@ from hdpy.hd_model import HDModel, CustomDataset
 
 class RPEncoder(HDModel):
     def __init__(self, input_size, D, num_classes):
-        super(RPEncoder, self).__init__()
+        super(RPEncoder, self).__init__(D=D)
 
         self.rp_layer = nn.Linear(input_size, D, bias=False)
 

@@ -24,10 +24,10 @@ class CustomDataset(Dataset):
 
 class HDModel(nn.Module):
 
-    def __init__(self):
+    def __init__(self, D):
         super(HDModel, self).__init__()
         self.am = None
-
+        self.D = D
     def build_item_memory(self, x_train, train_labels):
         raise NotImplementedError("Please implement this function in a subclass")
 
@@ -46,12 +46,25 @@ class HDModel(nn.Module):
             else:
                 self.am[int(label)] += hv
 
+
+    def update_am(self, dataset_hvs, labels):
+        # this avoids creating a new associative memory and instead just updates the existing one...not sure why we need two functions so that should be updated at some point
+        if self.am is None:
+            self.am = {}
+        for hv, label in zip(dataset_hvs, labels):
+
+            if int(label) not in self.am.keys():
+                self.am[int(label)] = hv
+            else:
+                self.am[int(label)] += hv
+
+
     def encode(self, x):
         raise NotImplementedError("Please implement this function in a subclass")
 
 
     def encode_dataset(self, dataset):
-
+        # lets process batches instead of one by one
         dataset_hvs = []
 
         for datapoint in tqdm(dataset, desc="encoding dataset..."):
@@ -87,24 +100,6 @@ class HDModel(nn.Module):
 
         sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone(), am_array)
 
-        # eta_list = []
-
-        '''
-        for idx, hv in enumerate(dataset_hvs):
-            # out = torch.nn.CosineSimilarity()(am_array, hv.float())
-            out = sims[idx,:]
-            eta = 0
-            try:
-                eta = (1/2) + (1/4) * (out[1] - out[0])
-            except Exception as e:
-                print(e)
-                eta = 0
-            eta_list.append(eta)
-
-        # return torch.cat([x.reshape(1, -1) for x in eta_list]).cuda()
-        return torch.cat([x.reshape(1, -1) for x in eta_list])
-        '''
-
         eta = (sims[:, 1] - sims[:, 0]) * (1/4)
         eta = torch.add(eta, (1/2))
         return eta.reshape(-1)
@@ -121,7 +116,7 @@ class HDModel(nn.Module):
 
         mistakes = 0
         
-        for hv, label in tqdm(zip(dataset_hvs, labels), desc=f"retraining...", total=len(dataset_hvs)):
+        for hv, label in zip(dataset_hvs, labels):
 
             out = int(torch.argmax(torch.nn.CosineSimilarity()(am_array.float(), hv.float())))
 
