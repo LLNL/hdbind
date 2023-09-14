@@ -1,30 +1,71 @@
 import torch
 import torch.nn as nn
 from tqdm import tqdm 
-from torch.utils.data import DataLoader
-from hdpy.hd_model import HDModel, CustomDataset
-
+from torch.utils.data import DataLoader, Dataset
+from hdpy.hdpy.hd_model import HDModel
+from hdpy.hdpy.utils import CustomDataset
+from hdpy.hdpy.ecfp_hd.encode import compute_fingerprint_from_smiles
+import time
+import numpy as np
 
 
 class RPEncoder(HDModel):
     def __init__(self, input_size, D, num_classes):
         super(RPEncoder, self).__init__(D=D)
-
+        # super()
         self.rp_layer = nn.Linear(input_size, D, bias=False)
 
         init_rp_mat = torch.bernoulli(torch.tensor([[0.5] * input_size] * D)).float()*2-1
         self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False)
 
-        self.init_class_hvs = torch.zeros(num_classes, D).float().cuda()
+        self.init_class_hvs = torch.zeros(num_classes, D).float()
 
 
     def encode(self, x):
-
+                
         hv = self.rp_layer(x.float())
         hv = torch.where(hv>0, 1.0, -1.0)
         return hv 
 
+class ECFPDataset(Dataset):
+    def __init__(self, input_size:int, radius:float, D:int, num_classes:int, fp_list:list):
+        super()
 
+        # self.smiles_list = smiles_list
+        # self.rp_encoder = RPEncoder(input_size=input_size, num_classes=num_classes, D=D)
+        # self.rp_encoder = rp_encoder
+        self.input_size = input_size
+        self.radius = radius
+        self.D = D
+        self.num_classes = num_classes
+        # self.smiles_list = smiles_list
+        # self.compute_fingerprint_from_smiles = compute_fingerprint_from_smiles
+        # import ipdb
+        # ipdb.set_trace()        
+        self.ecfp_arr = torch.from_numpy(np.concatenate(fp_list)).reshape(-1, self.input_size)
+        
+
+    def __len__(self):
+        return len(self.ecfp_arr)
+
+    def __getitem__(self, idx):
+        # import ipdb 
+        # ipdb.set_trace()
+        # ecfp = torch.from_numpy(self.compute_fingerprint_from_smiles(smiles=self.smiles_list[idx],
+                                                    # radius=self.radius,
+                                                    # input_size=self.input_size))
+        # ecfp = self.ecfp_list[idx]
+        return self.ecfp_arr[idx]
+        # if ecfp is not None:
+            # print(ecfp)
+            # start = time.time()
+            # hv = self.rp_encoder.encode(ecfp)
+            # end = time.time()
+
+            # return hv, end-start
+        # else:
+            # self.smiles_list.pop(idx)
+            # return None
 
 
 

@@ -2,24 +2,6 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm 
 import torchmetrics
-from torch.utils.data import Dataset
-
-
-def binarize(x):
-    return torch.where(x>0, 1.0, -1.0)
-
-
-class CustomDataset(Dataset):
-    def __init__(self, features, labels):
-
-        self.features = features 
-        self.labels = labels 
-
-    def __len__(self):
-        return len(self.labels)
-
-    def __getitem__(self, idx):
-        return self.features[idx], self.labels[idx]
 
 
 class HDModel(nn.Module):
@@ -93,18 +75,19 @@ class HDModel(nn.Module):
 
     def compute_confidence(self, dataset_hvs):
 
-        # TODO: parallelize the cosine similarity calc
-
         # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order 
         am_array = torch.concat([self.am[key].reshape(1,-1) for key in sorted(self.am.keys())], dim=0)
 
-        sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone(), am_array)
+        # this torchmetrics function potentially edits in place so we make a clone
+        sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone(), am_array.clone())
 
         eta = (sims[:, 1] - sims[:, 0]) * (1/4)
         eta = torch.add(eta, (1/2))
         return eta.reshape(-1)
 
     def retrain(self, dataset_hvs, labels, return_mistake_count=False, lr=1.0):
+
+        # should do this in parallel instead of the sequential? or can we define two functions and possibly combine the two? i.e. use the parallel version most of the time and then periodically update with the sequential version?
 
         shuffle_idx = torch.randperm(dataset_hvs.size()[0])
         dataset_hvs = dataset_hvs[shuffle_idx].int()
@@ -117,9 +100,13 @@ class HDModel(nn.Module):
         mistakes = 0
         
         for hv, label in zip(dataset_hvs, labels):
+            # import pdb
+            # pdb.set_trace()
+            # out = int(torch.argmax(torch.nn.CosineSimilarity()(am_array.float(), hv.float())))
+            out = int(torch.argmax(torch.nn.CosineSimilarity()(hv.float(),am_array.float())))
 
-            out = int(torch.argmax(torch.nn.CosineSimilarity()(am_array.float(), hv.float())))
-
+            # sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone().float(), am_array.float())
+            # out = torch.argmax(sims)
             if out == int(label):
                 pass
             else:

@@ -1,8 +1,8 @@
 import time
 from tqdm import tqdm
 import numpy as np
-from hdpy.utils import convert_pdbbind_affinity_to_class_label
-
+# from hdpy.utils import convert_pdbbind_affinity_to_class_label
+from torch.utils.data import Dataset
 
 
 class timing_part:
@@ -25,14 +25,15 @@ class timing_part:
 
 
 
-
+'''
 def map_features_by_class(data, class_list, col_index=0, dataset=None):
-    '''
+'''
+'''
         Takes a data (iterable?), list of acceptable classes, column index, and task_type for 
         the label as input and outputs a dictionary with a list of data elements that indexed
         by the unique label values.
-    '''
-
+'''
+'''
     assert dataset is not None
     class_dict = {}
 
@@ -58,7 +59,7 @@ def map_features_by_class(data, class_list, col_index=0, dataset=None):
             class_dict[element_class].append(element)
 
     return class_dict
-
+'''
 
 def load_features(path:str, dataset:str):
 
@@ -91,3 +92,18 @@ def load_features(path:str, dataset:str):
     return features, labels
 
 
+def binarize(x):
+    return torch.where(x>0, 1.0, -1.0)
+
+
+class CustomDataset(Dataset):
+    def __init__(self, features, labels):
+
+        self.features = features 
+        self.labels = labels 
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        return self.features[idx], self.labels[idx]

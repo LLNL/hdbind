@@ -23,17 +23,13 @@ from sklearn.metrics import roc_auc_score
 from pathlib import Path
 from sklearn.neural_network import MLPClassifier
 from rdkit import Chem
-from hdpy.ecfp_hd.encode_ecfp import ECFPEncoder
+from hdpy.hdpy.ecfp_hd.encode import ECFPEncoder
 from hdpy.baseline_hd.classification_modules import RPEncoder
 from hdpy.rff_hdc.encoder import RandomFourierEncoder
-from hdpy.mole_hd.encode_smiles import SMILESHDEncoder, tokenize_smiles
+from hdpy.hdpy.mole_hd.encode import SMILESHDEncoder, tokenize_smiles
 from hdpy.selfies.encode_selfies import SELFIESHDEncoder, tokenize_selfies_from_smiles
-from hdpy.ecfp_hd.encode_ecfp import compute_fingerprint_from_smiles
+from hdpy.hdpy.ecfp_hd.encode import compute_fingerprint_from_smiles
 from hdpy.metrics import validate
-
-
-
-
 
 import argparse
 
@@ -658,8 +654,8 @@ if __name__ == "__main__":
     print(args)
 
     if args.dataset == "bbbp":
-
-        df = pd.read_csv("BBBPMoleculesnetMOE3D_rdkitSmilesInchi.csv")
+        
+        df = pd.read_csv("/g/g13/jones289/workspace/hd-cuda-master/datasets/moleculenet/BBBPMoleculesnetMOE3D_rdkitSmilesInchi.csv")
 
         # probably want to use MOE_smiles
         smiles = df["rdkitSmiles"].values.tolist()
@@ -722,7 +718,7 @@ if __name__ == "__main__":
 
     elif args.dataset == "sider":
 
-        df = pd.read_csv("/g/g13/jones289/workspace/hd-cuda-master/datasets/sider.csv")
+        df = pd.read_csv("/g/g13/jones289/workspace/hd-cuda-master/datasets/moleculenet/sider.csv")
 
         label_cols = [x for x in df.columns.values if "smiles" not in x]
         smiles = df["smiles"].values.tolist()
@@ -796,7 +792,7 @@ if __name__ == "__main__":
 
 
         df = pd.read_csv(
-            "/g/g13/jones289/workspace/hd-cuda-master/datasets/clintox.csv"
+            "/g/g13/jones289/workspace/hd-cuda-master/datasets/moleculenet/clintox.csv"
         )
 
 
@@ -906,7 +902,7 @@ if __name__ == "__main__":
         if args.split_type.lower() != "random": #i.e. scaffold
             raise NotImplementedError(f"DUD-E does not support {args.split_type}")
 
-        dude_data_p = Path("/usr/workspace/atom/gbsa_modeling/dude_smiles/")
+        dude_data_p = Path("/g/g13/jones289/workspace/hd-cuda-master/datasets/dude_smiles/")
         dude_path_list = list(dude_data_p.glob("*_gbsa_smiles.csv"))
         random.shuffle(dude_path_list)
         for dude_smiles_path in dude_path_list:

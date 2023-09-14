@@ -1,16 +1,16 @@
 import torch
-from hdpy.hd_model import HDModel
+from hdpy.hdpy.hd_model import HDModel
 from tqdm import tqdm 
 from SmilesPE.pretokenizer import atomwise_tokenizer, kmer_tokenizer
 import multiprocessing as mp
 import functools
-
+from SmilesPE.tokenizer import SPE_Tokenizer, codecs
 
 
 class SMILESHDEncoder(HDModel):
 
     def __init__(self, D):
-        super(SMILESHDEncoder, self).__init__()
+        super(SMILESHDEncoder, self).__init__(D=D)
 
         # "D" is the dimension of the encoded representation
         self.D = D
@@ -30,11 +30,17 @@ class SMILESHDEncoder(HDModel):
                 if token not in self.item_mem.keys():
                     # print(token)
                     # draw a random vector from 0->1, convert to binary (i.e. if < .5), convert to polarized
-                    token_hv = torch.bernoulli(torch.empty(self.D).uniform_(0,1))
-                    token_hv = torch.where(token_hv > 0 , token_hv, -1).int() 
+                    token_hv = self.draw_random_hv()
                     self.item_mem[token] = token_hv
 
         print(f"item memory formed with {len(self.item_mem.keys())} entries.")
+
+    def draw_random_hv(self):
+        hv = torch.bernoulli(torch.empty(self.D).uniform_(0,1))
+        hv = torch.where(hv > 0 , hv, -1).int() 
+
+        return hv
+
 
     def encode(self, tokens):
 
@@ -52,16 +58,31 @@ class SMILESHDEncoder(HDModel):
         hv = torch.where(hv <= 0, hv, 1).int()
         return hv
 
+    def tokenize_smiles(self, smiles_list, tokenizer, ngram_order):
+        return tokenize_smiles(smiles_list=smiles_list, tokenizer=tokenizer, ngram_order=ngram_order)
 
-def tokenize_smiles(smiles, tokenizer, ngram_order):
+def tokenize_smiles(smiles_list, tokenizer, ngram_order, num_workers=0):
 
     tokenizer_func = None
     toks = None
 
 
+    if num_workers == 0:
+        spe_vob = codecs.open('/p/lustre2/jones289/hd_bind_datasets/SPE_ChEMBL.txt')
+        spe = SPE_Tokenizer(spe_vob)
+
+        tok_list = []
+
+        for smiles in smiles_list:
+            toks = spe.tokenize(smiles)
+            toks = [x.split(' ') for x in toks]
+            tok_list.extend(toks)
+
+        return toks
+
+
     if tokenizer == "bpe":
         print("using Pre-trained SmilesPE Tokenizer")
-        from SmilesPE.tokenizer import SPE_Tokenizer, codecs
         spe_vob = codecs.open('/p/lustre2/jones289/hd_bind_datasets/SPE_ChEMBL.txt')
         spe = SPE_Tokenizer(spe_vob)
 
