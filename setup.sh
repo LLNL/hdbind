@@ -6,4 +6,4 @@ export LD_LIBRARY_PATH=/usr/workspace/wsa/jones289/miniconda3/envs/HD_env/lib:$L
 # below you need to specify the compute capability for the CUDA device
 export SMS=60
 conda activate /usr/workspace/wsa/jones289/miniconda3/envs/HD_env 
-export PYTHONPATH=$PWD/hdpy:$PYTHONPATH
+export PYTHONPATH=$PWD:$PYTHONPATH
