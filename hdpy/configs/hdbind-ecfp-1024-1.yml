@@ -1,0 +1,4 @@
+model: rp
+embedding: ecfp
+D: 10000
+cpu_only: true

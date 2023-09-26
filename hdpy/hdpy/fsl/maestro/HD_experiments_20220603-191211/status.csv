@@ -1,7 +1,0 @@
-Step Name,Workspace,State,Run Time,Elapsed Time,Start Time,Submit Time,End Time,Number Restarts
-postera_FEAT.mordred,FEAT.mordred,FINISHED,0d:00h:07m:00s,0d:00h:08m:01s,2022-06-03 19:13:13,2022-06-03 19:12:12,2022-06-03 19:20:13,0
-postera_FEAT.smiles_to_image,FEAT.smiles_to_image,FINISHED,0d:00h:13m:01s,0d:00h:14m:02s,2022-06-03 19:13:13,2022-06-03 19:12:12,2022-06-03 19:26:14,0
-postera_FEAT.smiles_to_seq,FEAT.smiles_to_seq,FINISHED,0d:00h:05m:00s,0d:00h:06m:01s,2022-06-03 19:13:13,2022-06-03 19:12:12,2022-06-03 19:18:13,0
-postera_FEAT.maacs,FEAT.maacs,FINISHED,0d:00h:04m:00s,0d:00h:05m:00s,2022-06-03 19:13:13,2022-06-03 19:12:13,2022-06-03 19:17:13,0
-postera_FEAT.ecfp,FEAT.ecfp,FINISHED,0d:00h:06m:00s,0d:00h:07m:01s,2022-06-03 19:13:13,2022-06-03 19:12:12,2022-06-03 19:19:13,0
-postera_FEAT.rdkit,FEAT.rdkit,FINISHED,0d:00h:05m:00s,0d:00h:06m:00s,2022-06-03 19:13:13,2022-06-03 19:12:13,2022-06-03 19:18:13,0

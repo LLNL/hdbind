@@ -1,2 +1,0 @@
-nohup: ignoring input
-['/usr/WS1/jones289/hd-cuda-master/hdpy/hdpy/fsl/maestro/HD_experiments_20220602-163227/HD_experiments.study.pkl']
