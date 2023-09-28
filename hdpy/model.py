@@ -4,6 +4,11 @@ from tqdm import tqdm
 import torchmetrics
 
 
+def get_random_hv(m, n):
+    return torch.bernoulli(torch.tensor([[0.5] * m] * n)).float()*2-1
+
+
+
 class HDModel(nn.Module):
 
     def __init__(self, D:int):
@@ -45,18 +50,18 @@ class HDModel(nn.Module):
         raise NotImplementedError("Please implement this function in a subclass")
 
 
-    def encode_dataset(self, dataset):
+    # def encode_dataset(self, dataset):
         # lets process batches instead of one by one
-        dataset_hvs = []
+        # dataset_hvs = []
 
-        for datapoint in tqdm(dataset, desc="encoding dataset..."):
-            dataset_hvs.append(self.encode(datapoint).reshape(1, -1)) 
+        # for datapoint in tqdm(dataset, desc="encoding dataset..."):
+            # dataset_hvs.append(self.encode(datapoint).reshape(1, -1)) 
 
     
-        torch.cat(dataset_hvs)
+        # torch.cat(dataset_hvs)
 
 
-        return dataset_hvs
+        # return dataset_hvs
 
 
     def predict(self, enc_hvs):

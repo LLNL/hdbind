@@ -2,33 +2,33 @@ import numpy as np
 from sklearn.metrics import recall_score, precision_score
 
 
-def compute_top_n_enrichment(scores, labels, n, n_samples=10):
+# def compute_top_n_enrichment(scores, labels, n, n_samples=10):
 
-    '''
-    scores: numpy array (vector) of scores. 1:1 correspondence (position) with labels
-    labels: ground truth labels that correspond to scores
-    n: the value n for top-n rankings    
-    '''
+    # '''
+    # scores: numpy array (vector) of scores. 1:1 correspondence (position) with labels
+    # labels: ground truth labels that correspond to scores
+    # n: the value n for top-n rankings    
+    # '''
 
 
-    sorted_scores = sorted(zip(scores, labels), key=lambda x: x[0], reverse=True)
+    # sorted_scores = sorted(zip(scores, labels), key=lambda x: x[0], reverse=True)
 
-    top_n_sorted_scores = sorted_scores[:n]
+    # top_n_sorted_scores = sorted_scores[:n]
 
 
     # counting number of true positives
-    score_tp = sum([y for x, y in top_n_sorted_scores])
+    # score_tp = sum([y for x, y in top_n_sorted_scores])
 
 
-    score_list = []
-    for i in range(n_samples):
+    # score_list = []
+    # for i in range(n_samples):
 
-        random_tp = sum(np.random.choice(a=labels.squeeze(), size=n))
+        # random_tp = sum(np.random.choice(a=labels.squeeze(), size=n))
 
-        score = score_tp / random_tp
-        score_list.append(score)
+        # score = score_tp / random_tp
+        # score_list.append(score)
 
-    return np.mean(score_list), np.std(score_list)
+    # return np.mean(score_list), np.std(score_list)
 
 
 def compute_enrichment_factor(scores, labels, n_percent):

@@ -5,7 +5,6 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 # from rdkit import Chem
-# from hdpy.utils import convert_pdbbind_affinity_to_class_label
 from torch.utils.data import Dataset
 from pathlib import Path
 from sklearn.model_selection import train_test_split
@@ -56,41 +55,6 @@ def load_molformer_embeddings(embed_path):
     # return torch.cat(rep_list, dim=0), torch.cat(label_list, dim=0), time_list
     
 
-'''
-def map_features_by_class(data, class_list, col_index=0, dataset=None):
-'''
-'''
-        Takes a data (iterable?), list of acceptable classes, column index, and task_type for 
-        the label as input and outputs a dictionary with a list of data elements that indexed
-        by the unique label values.
-'''
-'''
-    assert dataset is not None
-    class_dict = {}
-
-    for element in data:
-
-        # will make the assumption that the provided label is some binary format (bind/no-bind, strong-bind/weak-bind, etc.) otherwise 
-        # it is necessary to make an explicit case that handles the conversion of that measure to a binary format 
-        element_class = None
-        if dataset == "pdbbind":
-            element_target = int(element[col_index]) # expecting ints, make sure this is converted to int for use as dict key
-            element_class = convert_pdbbind_affinity_to_class_label(element_target)
-
-        else:
-            element_class = int(element[col_index])
-
-        if element_class in class_list:
-
-            # if we haven't added the class to the class_dict yet then do so
-            if element_class not in class_dict.keys():
-                class_dict[element_class] = []
-
-            # append the data to the element class data list
-            class_dict[element_class].append(element)
-
-    return class_dict
-'''
 
 def load_features(path:str, dataset:str):
 
@@ -153,12 +117,6 @@ class SMILESDataset(Dataset):
 
 
 
-
-
-
-
-
-
 class MolFormerDataset(Dataset):
 
     def __init__(self, path, split_df):
@@ -211,6 +169,9 @@ class MolFormerDataset(Dataset):
         self.smiles_train = split_df[split_df["split"] == "train"]["smiles"]
 
         self.smiles_test = split_df[split_df["split"] == "test"]["smiles"]
+        self.smiles = pd.concat([self.smiles_train, self.smiles_test])
+
+
 
     def __len__(self):
         return self.y.shape[0]

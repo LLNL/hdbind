@@ -30,7 +30,8 @@ def get_parser():
     # parser.add_argument("--dry-run", action="store_true")
     # parser.add_argument("--cpu-only", action="store_true")
     parser.add_argument("--random-state", type=int, default=0)
-
+    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--num-workers", type=int, default=0)
 
     return parser
 

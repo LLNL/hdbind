@@ -3,5 +3,4 @@ embedding: molformer
 input_size: 768
 ecfp_radius: 
 D: 10000
-hd_retrain_epochs: 10
-cpu_only: true
+epochs: 10

@@ -32,7 +32,8 @@ from utils import load_molformer_embeddings
 from hdpy.utils import compute_splits
 # from hdpy.selfies.encode import encode_smiles_as_selfie
 # import hdpy.parser as parser
-
+from torch.utils.data import TensorDataset
+from hdpy.model import get_random_hv
 '''
 # todo: should use a dataset object for this
 def compute_features_from_smiles(smiles, params):
@@ -69,96 +70,126 @@ def seed_rngs(seed: int):
     torch.manual_seed(seed)
 
 
-# seed_rngs(args.random_state)
+def train(model, train_dataloader):
+
+    with torch.no_grad():
+        model = model.to(device)
+        model.am = {0: get_random_hv(config.D, 1).to(device), 1: get_random_hv(config.D, 1).to(device)}
+        single_pass_train_time, retrain_time = None, None
 
 
-def train(model, hv_train, y_train, epochs=10):
+        learning_curve = []
+        for epoch in range(config.epochs):
 
-    single_pass_train_start = time.time()
-    model.build_am(hv_train, y_train)
-    single_pass_train_time = time.time() - single_pass_train_start
+            mistake_ct = 0
+            #TODO: initialize the associative memory with single pass training instead of the random initialization?
+            for batch in tqdm(train_dataloader, desc=f"training-epoch {epoch}"):
+                x, y = batch
+                x, y = x.to(device), y.squeeze().to(device)
+                hv = model.encode(x)
+                y_ = model.forward(hv)
 
-    learning_curve_list = []
+                update_mask = torch.abs(y-y_).bool()
+                wrong_hvs, wrong_labels = hv[update_mask], y[update_mask]
+                mistake_ct += sum(update_mask)
+                for mistake_hv, mistake_label in zip(wrong_hvs, wrong_labels):
+                    model.am[int(mistake_label)] -= mistake_hv
 
-    retrain_start = time.time()
-    for _ in range(epochs):
+                    model.am[int(~mistake_label.bool())] += mistake_hv
 
-        mistake_ct = model.retrain(hv_train, y_train, return_mistake_count=True)
-        learning_curve_list.append(mistake_ct)
+            learning_curve.append(mistake_ct)
 
-    retrain_time = time.time() - retrain_start
-    return learning_curve_list, single_pass_train_time, retrain_time
-
-
-def test(model, hv_test, y_test):
-
-    # import pdb
-    # pdb.set_trace()
-    test_start = time.time()
-    pred_list = model.predict(hv_test)
-    test_time = time.time() - test_start
-
-    conf_test_start = time.time()
-    eta_list = model.compute_confidence(hv_test)
-    conf_test_time = time.time() - conf_test_start
-
-    return {
-        "y_pred": pred_list,
-        "y_true": y_test,
-        "eta": eta_list,
-        "test_time": test_time,
-        "conf_test_time": conf_test_time,
-    }
+        return model, learning_curve, single_pass_train_time, retrain_time
 
 
-def functional_encode(datapoint):
-    hv = torch.zeros(config.D)
+def test(model, test_dataloader):
 
-    for pos, value in enumerate(datapoint):
+    with torch.no_grad():
+        model = model.to(device)
+        test_time_list = []
+        conf_time_list = []
+        target_list = []
+        pred_list = []
+        conf_list = []
+        # import pdb
+        # pdb.set_trace()
+        for batch in tqdm(test_dataloader, desc="testing.."):
 
-        if isinstance(value, torch.Tensor):
+            # pred_list = model.predict(hv_test)
 
-            hv = (
-                hv
-                + hd_model.item_mem["pos"][pos]
-                * hd_model.item_mem["value"][value.data.int().item()]
-            )
+            x, y = batch
+            x, y = x.to(device), y.reshape(x.shape[0])
+            target_list.append(y.cpu())
 
-        else:
+            test_start = time.time()
+            hv = model.encode(x)
+            y_ = model.forward(hv)
+            test_end = time.time() - test_start
+            pred_list.append(y_.cpu())
+            test_time_list.append(test_end - test_start)
 
-            hv = hv + hd_model.item_mem["pos"][pos] * hd_model.item_mem["value"][value]
+            conf_test_start = time.time()
+            conf = model.compute_confidence(hv)
+            conf_test_end = time.time() - conf_test_start
+            conf_list.append(conf.cpu())
+            conf_time_list.append(conf_test_end - conf_test_start)
+
+        # import pdb
+        # pdb.set_trace()
+        return {
+            "y_pred": torch.cat(pred_list),
+            "y_true": torch.cat(target_list),
+            "eta": torch.cat(conf_list),
+            "test_time": np.sum(test_time_list),
+            "conf_test_time": np.sum(conf_time_list),
+        }
+
+
+# def functional_encode(datapoint):
+    # hv = torch.zeros(config.D)
+
+    # for pos, value in enumerate(datapoint):
+
+        # if isinstance(value, torch.Tensor):
+
+            # hv = (
+                # hv
+                # + hd_model.item_mem["pos"][pos]
+                # * hd_model.item_mem["value"][value.data.int().item()]
+            # )
+
+        # else:
+
+            # hv = hv + hd_model.item_mem["pos"][pos] * hd_model.item_mem["value"][value]
 
         # bind both item memory elements? or should I use a single 2 by n_bit matrix of values randomly chosen to associate with all possibilities?
         # hv = hv + (pos_hv * value_hv)
 
     # binarize
-    hv = torch.where(hv > 0, hv, -1)
-    hv = torch.where(hv <= 0, hv, 1)
+    # hv = torch.where(hv > 0, hv, -1)
+    # hv = torch.where(hv <= 0, hv, 1)
 
-    return hv
+    # return hv
 
 
-def collate_ecfp(batch):
+# def collate_ecfp(batch):
 
-    return torch.stack([functional_encode(x) for x in batch])
+    # return torch.stack([functional_encode(x) for x in batch])
 
 
 # def run_hd_trial(smiles, labels, train_idxs, test_idxs):
 def run_hd_trial(
     # root_data_p,
-    hd_model,
-    x_train,
-    y_train,
-    x_test,
-    y_test,
+    model,
+    # x_train,
+    # y_train,
+    # x_test,
+    # y_test,
+    train_dataset, 
+    test_dataset,
     smiles_train=None,
     smiles_test=None,
 ):
-
-    # train_hv_p = root_data_p / Path("train_dataset_hv.pth")
-    # test_hv_p = root_data_p / Path("test_dataset_hv.pth")
-    # im_p = root_data_p / Path("item_mem.pth")
-    # am_p = root_data_p / Path("assoc_mem.pth")
 
     train_encode_time = 0
     test_encode_time = 0
@@ -176,13 +207,13 @@ def run_hd_trial(
 
         toks = train_toks + test_toks
 
-        hd_model.build_item_memory(toks)
+        model.build_item_memory(toks)
         train_encode_start = time.time()
-        train_dataset_hvs = hd_model.encode_dataset(train_toks)
+        train_dataset_hvs = model.encode_dataset(train_toks)
         train_encode_time = time.time() - train_encode_start
 
         test_encode_start = time.time()
-        test_dataset_hvs = hd_model.encode_dataset(test_toks)
+        test_dataset_hvs = model.encode_dataset(test_toks)
         test_encode_time = time.time() - test_encode_start
 
         train_dataset_hvs = torch.vstack(train_dataset_hvs).int()
@@ -312,7 +343,7 @@ def run_hd_trial(
         else:
             test_dataset_hvs = torch.load(test_hv_p)
 
-    elif config.model == "rp":
+    # elif config.model == "rp":
         # hd_model.cuda()
         # todo: cache the actual model projection matrix too
 
@@ -321,20 +352,20 @@ def run_hd_trial(
 
             # train_hv_p.parent.mkdir(parents=True, exist_ok=True)
             # TODO: the current code is capturing alot of other overhead besides the encoding, fix that
-        train_encode_start = time.time()
-        train_dataloader = DataLoader(x_train, num_workers=0, batch_size=1000)
-        train_dataset_hvs = []
+        # train_encode_start = time.time()
+        # train_dataloader = DataLoader(x_train, num_workers=0, batch_size=1000)
+        # train_dataset_hvs = []
         # import ipdb
         # ipdb.set_trace()
-        hd_model.to("cuda")
-        for batch_hvs in tqdm(train_dataloader, total=len(train_dataloader)):
-            train_dataset_hvs.append(hd_model.encode(batch_hvs.cuda()).cpu())
+        # hd_model.to("cuda")
+        # for batch_hvs in tqdm(train_dataloader, total=len(train_dataloader)):
+            # train_dataset_hvs.append(hd_model.encode(batch_hvs.cuda()).cpu())
 
-        train_dataset_hvs = torch.cat(train_dataset_hvs, dim=0)
-        train_encode_time = time.time() - train_encode_start
+        # train_dataset_hvs = torch.cat(train_dataset_hvs, dim=0)
+        # train_encode_time = time.time() - train_encode_start
 
         # torch.save(train_dataset_hvs, train_hv_p)
-        print(f"encode train: {train_encode_time}")
+        # print(f"encode train: {train_encode_time}")
         # else:
             # train_dataset_hvs = torch.load(train_hv_p)
 
@@ -343,14 +374,14 @@ def run_hd_trial(
 
             # test_hv_p.parent.mkdir(parents=True, exist_ok=True)
             # TODO: the current code is capturing alot of other overhead besides the encoding, fix that
-        test_encode_start = time.time()
-        test_dataloader = DataLoader(x_test, num_workers=0, batch_size=1000)
-        test_dataset_hvs = []
-        for batch_hvs in tqdm(test_dataloader, total=len(test_dataloader)):
-            test_dataset_hvs.append(hd_model.encode(batch_hvs.cuda()).cpu())
+        # test_encode_start = time.time()
+        # test_dataloader = DataLoader(x_test, num_workers=0, batch_size=1000)
+        # test_dataset_hvs = []
+        # for batch_hvs in tqdm(test_dataloader, total=len(test_dataloader)):
+            # test_dataset_hvs.append(hd_model.encode(batch_hvs.cuda()).cpu())
 
-        test_dataset_hvs = torch.cat(test_dataset_hvs, dim=0)
-        test_encode_time = time.time() - test_encode_start
+        # test_dataset_hvs = torch.cat(test_dataset_hvs, dim=0)
+        # test_encode_time = time.time() - test_encode_start
 
             # import pdb
             # pdb.set_trace()
@@ -363,16 +394,37 @@ def run_hd_trial(
     # create label tensors and transfer all tensors to the GPU
     # import ipdb
     # ipdb.set_trace()
-    if isinstance(y_train, np.ndarray):
-        y_train = torch.from_numpy(y_train).to(device).float()
-    if isinstance(y_test, np.ndarray):
-        y_test = torch.from_numpy(y_test).to(device).float()
+    # if isinstance(y_train, np.ndarray):
+        # y_train = torch.from_numpy(y_train).to(device).float()
+    # if isinstance(y_test, np.ndarray):
+        # y_test = torch.from_numpy(y_test).to(device).float()
     # train_dataset_labels = 
     # test_dataset_labels = torch.from_numpy(y_test).to(device).float()
 
-    train_dataset_hvs = train_dataset_hvs.to(device).float()
-    test_dataset_hvs = test_dataset_hvs.to(device).float()
+    # train_dataset_hvs = train_dataset_hvs.to(device).float()
+    # test_dataset_hvs = test_dataset_hvs.to(device).float()
 
+
+    train_dataloader = DataLoader(train_dataset, 
+                                  batch_size=args.batch_size, 
+                                  num_workers=args.num_workers,
+                                  persistent_workers=True)
+    test_dataloader = DataLoader(test_dataset, 
+                                 batch_size=args.batch_size,
+                                 num_workers=1,
+                                 persistent_workers=False)
+
+    # import pdb
+    # pdb.set_trace()
+    # model.build_am()
+    
+
+        # subtract wrong_hvs from incorrect am element
+
+        # add wrong_hvs to correct am element
+        
+
+    # '''
     result_dict = {}
     for i in range(args.n_trials):
 
@@ -382,38 +434,44 @@ def run_hd_trial(
         result_dict[i] = {}
 
         # time train inside of the funciton
-        learning_curve, single_pass_train_time, retrain_time = train(
-            hd_model,
-            train_dataset_hvs,
-            y_train,
-            epochs=config.hd_retrain_epochs,
-        )
+        # learning_curve, single_pass_train_time, retrain_time = train(
+            # hd_model,
+            # train_dataset_hvs,
+            # y_train,
+            # epochs=config.hd_retrain_epochs,
+        # )
+
+        model, learning_curve, single_pass_train_time, retrain_time = train(model=model, train_dataloader=train_dataloader)
+
 
         result_dict[i]["hd_learning_curve"] = learning_curve
 
         # import pdb
         # pdb.set_trace()
         # time test inside of the funcion
-        trial_dict = test(hd_model, test_dataset_hvs, y_test)
+        trial_dict = test(model, test_dataloader)
 
         result_dict[i]["am"] = {
-            0: hd_model.am[0].cpu().numpy(),
-            1: hd_model.am[1].cpu().numpy(),
+            0: model.am[0].cpu().numpy(),
+            1: model.am[1].cpu().numpy(),
         }  # store the associative memory so it can be loaded up later on
-        result_dict[i]["model"] = hd_model.to("cpu")
+        result_dict[i]["model"] = model.to("cpu")
+
+
+        # '''
         result_dict[i]["y_pred"] = trial_dict["y_pred"].cpu().numpy()
         result_dict[i]["eta"] = trial_dict["eta"].cpu().numpy().reshape(-1, 1)
         result_dict[i]["y_true"] = trial_dict["y_true"].cpu().numpy()
         result_dict[i]["single_pass_train_time"] = single_pass_train_time
-        result_dict[i]["retrain_time"] = retrain_time
-        result_dict[i]["train_time"] = single_pass_train_time + retrain_time
+        # result_dict[i]["retrain_time"] = retrain_time
+        # result_dict[i]["train_time"] = single_pass_train_time + retrain_time
         result_dict[i]["test_time"] = trial_dict["test_time"]
         result_dict[i]["conf_test_time"] = trial_dict["conf_test_time"]
         result_dict[i]["train_encode_time"] = train_encode_time
         result_dict[i]["test_encode_time"] = test_encode_time
         result_dict[i]["encode_time"] = train_encode_time + test_encode_time
-        result_dict[i]["train_size"] = train_dataset_hvs.shape[0]
-        result_dict[i]["test_size"] = test_dataset_hvs.shape[0]
+        # result_dict[i]["train_size"] = train_dataset_hvs.shape[0]
+        # result_dict[i]["test_size"] = test_dataset_hvs.shape[0]
 
 
         # import ipdb 
@@ -424,7 +482,7 @@ def run_hd_trial(
 
         try:
             result_dict[i]["roc-auc"] = roc_auc_score(
-                y_score=result_dict[i]["eta"], y_true=y_test.cpu().numpy()
+                y_score=result_dict[i]["eta"], y_true=result_dict[i]["y_true"]
             )
 
         except ValueError as e:
@@ -436,12 +494,13 @@ def run_hd_trial(
         print(f"roc-auc {result_dict[i]['roc-auc']}")
 
         validate(
-            labels=y_test.cpu().numpy(),
+            labels=result_dict[i]["y_true"],
             pred_labels=result_dict[i]["y_pred"],
             pred_scores=result_dict[i]["eta"],
         )
-
+    # '''
     return result_dict
+    
 
 
 # def run_sklearn_trial(smiles, labels, train_idxs, test_idxs):
@@ -583,28 +642,23 @@ def run_sklearn_trial(x_train, y_train, x_test, y_test):
 
 
 def main(
-    hd_model,
-    x_train,
-    y_train,
-    x_test,
-    y_test,
-    smiles_train=None,
-    smiles_test=None,
+    model,
+    train_dataset,
+    test_dataset,
 ):
 
     if config.model in ["smiles-pe", "selfies", "ecfp", "rp"]:
         result_dict = run_hd_trial(
-            hd_model=hd_model,
-            x_train=x_train,
-            y_train=y_train,
-            x_test=x_test,
-            y_test=y_test,
-            smiles_train=smiles_train,
-            smiles_test=smiles_test,
+            model=model,
+            train_dataset=train_dataset,
+            test_dataset=test_dataset,
         )
     else:
         result_dict = run_sklearn_trial(
-            x_train=x_train, y_train=y_train, x_test=x_test, y_test=y_test
+            x_train=train_dataset.x, 
+            y_train=train_dataset.y,
+            x_test=test_dataset.x,
+            y_test=test_dataset.y
         )
 
     return result_dict
@@ -617,28 +671,28 @@ def driver():
     exp_name = f"{Path(args.config).stem}"
     if config.model == "smiles-pe":
 
-        hd_model = SMILESHDEncoder(D=config.D)
+        model = SMILESHDEncoder(D=config.D)
 
     elif config.model == "selfies":
-        hd_model = SELFIESHDEncoder(D=config.D)
+        model = SELFIESHDEncoder(D=config.D)
 
     elif config.model == "ecfp":
 
-        hd_model = ECFPEncoder(D=config.D)
+        model = ECFPEncoder(D=config.D)
 
     elif config.model == "rp":
 
         assert config.input_size is not None
         assert config.D is not None
-        hd_model = RPEncoder(input_size=config.input_size, D=config.D, num_classes=2)
+        model = RPEncoder(input_size=config.input_size, D=config.D, num_classes=2)
 
     else:
         # if using sklearn or pytorch non-hd model
-        hd_model = None
+        model = None
 
     if config.model in ["smiles-pe", "selfies", "ecfp", "rp"]:
         # transfer the model to GPU memory
-        hd_model = hd_model.to(device).float()
+        model = model.to(device).float()
 
         print("model is on the gpu")
 
@@ -701,7 +755,7 @@ def driver():
         else:
             result_dict = main(
                 # root_data_p=root_data_p,
-                hd_model=hd_model,
+                model=model,
                 x_train=x_train,
                 y_train=y_train,
                 x_test=x_test,
@@ -778,7 +832,7 @@ def driver():
                 
             else:
                 result_dict = main(
-                    hd_model=hd_model,
+                    model=model,
                     x_train=x_train,
                     x_test=x_test,
                     y_train=y_train,
@@ -851,7 +905,7 @@ def driver():
             pass
         else:
             result_dict = main(
-                hd_model=hd_model,
+                model=model,
                 x_train=x_train,
                 x_test=x_test,
                 y_train=y_train,
@@ -941,83 +995,31 @@ def driver():
                                 labels=df["decoy"].astype(int).values)
 
                     x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
-                    '''
-                    for split, smiles_list in [
-                        ("train", smiles_train),
-                        ("test", smiles_test),
-                    ]:
-                        ecfp_path = dude_smiles_path.parent / Path(
-                            f"{target_name}.{args.split_type}.{split}.ecfp.npy"
-                        )
-                        fps = None
-                        if ecfp_path.exists():
-                            print(f"{ecfp_path} exists. loading from disk.")
-                            fps = np.load(ecfp_path, allow_pickle=True)
-                            print(f"done.")
-                        else:
 
-                            print(f"computing {ecfp_path}.")
-                            fps = [
-                                compute_fingerprint_from_smiles(
-                                    x,
-                                    input_size=config.input_size,
-                                    radius=config.ecfp_radius,
-                                )
-                                for x in tqdm(smiles_list)
-                            ]
-                            fps = np.vstack(fps)
-                            print("cacheing result..")
-                            np.save(ecfp_path, fps)
-                            print("done.")
 
-                        if split == "train":
-                            x_train = fps
-                        if split == "test":
-                            x_test = fps
-                    '''
                 elif config.embedding == "molformer":
 
-                    dataset = MolFormerDataset(path=f"/p/lustre2/jones289/molformer_embeddings/dude-{target_name}_molformer_embeddings.pt",
+                    train_dataset = MolFormerDataset(path=f"/p/lustre2/jones289/molformer_embeddings/dude-{target_name}_random_train_molformer_embeddings.pt",
                                        split_df=df)
-                    # for split in ["train", "test"]:
-                        # molformer_embed_path = dude_data_p / Path(
-                            # f"{target_name}_gbsa_smiles_random_{split}_molformer_embeddings.pkl"
-                        # )
-
-                        # embeds = load_molformer_embeddings(molformer_embed_path)
-                        # if split == "train":
-                            # x_train, y_train = embeds
-                        # if split == "test":
-                            # x_test, y_test = embeds
-                # x_train, x_test = fps[train_idxs, :], fps[test_idxs, :]
-                # y_train, y_test = labels[train_idxs], labels[test_idxs]
-
-                # smiles_train = df["smiles"].iloc[train_idxs].values.tolist()
-                # smiles_test = df["smiles"].iloc[test_idxs].values.tolist()
-
-                """
-                np.save(output_file.with_name(f"{args.dataset}_{args.split_type}_{target_name}_labels_train.npy"), y_train)
-                np.save(output_file.with_name(f"{args.dataset}_{args.split_type}_{target_name}_labels_test.npy"), y_test)
-                """
-                # import ipdb
-                # ipdb.set_trace()
+                    test_dataset = MolFormerDataset(path=f"/p/lustre2/jones289/molformer_embeddings/dude-{target_name}_random_test_molformer_embeddings.pt",
+                                       split_df=df)
 
                 result_dict = main(
-                    hd_model=hd_model,
-                    x_train=x_train,
-                    x_test=x_test,
-                    y_train=y_train,
-                    y_test=y_test,
-                    smiles_train=dataset.smiles_train,
-                    smiles_test=dataset.smiles_test,
+                    model=model,
+                    x_train=train_dataset.x,
+                    x_test=test_dataset.x,
+                    y_train=train_dataset.y,
+                    y_test=test_dataset.y,
+                    smiles_train=train_dataset.smiles,
+                    smiles_test=test_dataset.smiles,
                 )
 
-                result_dict["smiles_train"] = dataset.smiles_train
-                result_dict["smiles_test"] = dataset.smiles_test
-                result_dict["x_train"] = x_train
-                result_dict["x_test"] = x_test
-                result_dict["y_train"] = y_train
-                result_dict["y_test"] = y_test
+                result_dict["smiles_train"] = train_dataset.smiles
+                result_dict["smiles_test"] = test_dataset.smiles
+                result_dict["x_train"] = train_dataset.x
+                result_dict["x_test"] = test_dataset.x
+                result_dict["y_train"] = train_dataset.y
+                result_dict["y_test"] = test_dataset.y
 
                 result_dict["args"] = config
                 with open(output_file, "wb") as handle:
@@ -1036,10 +1038,16 @@ def driver():
         random.shuffle(lit_pcba_path_list)
         for lit_pcba_path in lit_pcba_path_list:
 
+            
+
             target_name = lit_pcba_path.name
+            
+            # if target_name != "ESR1_ago":
+                # continue
+            # '''
             output_file = Path(
-                f"{output_result_dir}/{args.dataset.replace('-', '_')}.{target_name}.{config.model}.{config.tokenizer}.{config.ngram_order}.pkl"
-            )
+            f"{output_result_dir}/{exp_name}.{args.dataset}-{target_name}.{args.random_state}.pkl"
+        )
 
             if output_file.exists():
                 # don't recompute if it's already been calculated
@@ -1050,9 +1058,6 @@ def driver():
 
             else:
                 print(f"processing {lit_pcba_path}...")
-
-                # import pdb
-                # pdb.set_trace()
 
                 actives_df = pd.read_csv(
                     list(lit_pcba_path.glob("actives.smi"))[0],
@@ -1070,80 +1075,66 @@ def driver():
 
                 df = pd.concat([actives_df, inactives_df]).reset_index(drop=True)
 
-                train_idxs, test_idxs = train_test_split(
+                _, test_idxs = train_test_split(
                     list(range(len(df))),
                     stratify=df["label"],
                     random_state=args.random_state,
                 )
 
-                smiles = df[0].values.tolist()
-                labels = df["label"].values.reshape(-1, 1)
+                df["smiles"] = df[0]
+                df["index"] = df.index
+                df["split"] = ["train"] * len(df)
+                df.loc[test_idxs, "split"] = "test"
 
-                n_tasks = 1
+                if config.embedding == "ecfp":
+                    dataset = ECFPDataset(path=lit_pcba_path/Path("full_smiles_with_labels.csv"),
+                                smiles_col="smiles", label_col="decoy",
+                                #   split_df=df,
+                                smiles=df["smiles"],
+                                split_df=df,
+                                split_type=args.split_type,
+                                random_state=args.random_state, 
+                                ecfp_length=config.input_size,
+                                ecfp_radius=config.ecfp_radius,
+                                labels=df["decoy"].astype(int).values)
 
-                ecfp_path = lit_pcba_path.parent / Path(
-                    f"{target_name}/{args.split_type}_ecfp.npy"
+                    x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
+
+
+                elif config.embedding == "molformer":
+
+                    dataset = MolFormerDataset(path=f"/p/lustre2/jones289/molformer_embeddings/lit-pcba-{target_name}_molformer_embeddings.pt",
+                            split_df=df)
+
+                    x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
+
+                # import ipdb
+                # ipdb.set_trace()
+
+                train_dataset = TensorDataset(torch.from_numpy(x_train).int(), 
+                                              torch.from_numpy(y_train).int())
+                test_dataset = TensorDataset(torch.from_numpy(x_test).int(),
+                                            torch.from_numpy(y_test).int())
+
+                result_dict = main(
+                    model=model,
+                    train_dataset=train_dataset,
+                    test_dataset=test_dataset
                 )
 
-                fps = None
-                if ecfp_path.exists():
-                    fps = np.load(ecfp_path)
+                # result_dict["smiles_train"] = dataset.smiles_train
+                # result_dict["smiles_test"] = dataset.smiles_test
+                # result_dict["x_train"] = train_dataset.x
+                # result_dict["x_test"] = test_dataset.x
+                # result_dict["y_train"] = train_dataset.y
+                # result_dict["y_test"] = test_dataset.y
 
-                else:
+                result_dict["args"] = config
+                with open(output_file, "wb") as handle:
+                    pickle.dump(result_dict, handle)
 
-                    fps = [
-                        compute_fingerprint_from_smiles(x)
-                        for x in tqdm(df[0].values.tolist())
-                    ]
-                    fps = np.vstack(fps)
-                    np.save(ecfp_path, fps)
-
-                x_train, x_test = fps[train_idxs, :], fps[test_idxs, :]
-
-                y_train, y_test = (
-                    df["label"].values[train_idxs],
-                    df["label"].values[test_idxs],
-                )
-
-                smiles_train = df[0].iloc[train_idxs].values.tolist()
-                smiles_test = df[0].iloc[test_idxs].values.tolist()
-
-                np.save(
-                    output_file.with_name(
-                        f"{args.dataset}_{args.split_type}_{target_name}_labels_train.npy"
-                    ),
-                    y_train,
-                )
-                np.save(
-                    output_file.with_name(
-                        f"{args.dataset}_{args.split_type}_{target_name}_labels_test.npy"
-                    ),
-                    y_test,
-                )
-
-                if not config.dry_run:
-                    result_dict = main(
-                        hd_model=hd_model,
-                        x_train=x_train,
-                        x_test=x_test,
-                        y_train=y_train,
-                        y_test=y_test,
-                        smiles_train=smiles_train,
-                        smiles_test=smiles_test,
-                    )
-
-                    result_dict["smiles_train"] = smiles_train
-                    result_dict["smiles_test"] = smiles_test
-                    result_dict["x_train"] = x_train
-                    result_dict["x_test"] = x_test
-                    result_dict["y_train"] = y_train
-                    result_dict["y_test"] = y_test
-
-                    result_dict["args"] = config
-                    with open(output_file, "wb") as handle:
-                        pickle.dump(result_dict, handle)
-
-                    print(f"done. output file: {output_file}")
+                print(f"done. output file: {output_file}")
+                # '''
 
 
 if __name__ == "__main__":

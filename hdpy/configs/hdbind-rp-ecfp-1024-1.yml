@@ -3,5 +3,4 @@ embedding: ecfp
 input_size: 1024
 ecfp_radius: 4 
 D: 10000
-hd_retrain_epochs: 10
-cpu_only: true
+epochs: 10
