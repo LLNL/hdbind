@@ -65,9 +65,10 @@ class HDModel(nn.Module):
 
 
     def predict(self, enc_hvs):
-
-        preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().float(), torch.cat([x.reshape(1,-1) for x in self.am.values()]).float()), dim=1)
-
+        # import ipdb
+        # ipdb.set_trace()
+        # preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().float(), torch.cat([x.reshape(1,-1) for x in self.am.values()]).float()), dim=1)
+        preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().float(), self.am.clone()), dim=1)
         return preds 
 
     def forward(self, x):
@@ -79,10 +80,10 @@ class HDModel(nn.Module):
     def compute_confidence(self, dataset_hvs):
 
         # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order 
-        am_array = torch.concat([self.am[key].reshape(1,-1) for key in sorted(self.am.keys())], dim=0)
+        # am_array = torch.concat([self.am[key].reshape(1,-1) for key in sorted(self.am.keys())], dim=0)
 
         # this torchmetrics function potentially edits in place so we make a clone
-        sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone(), am_array.clone())
+        sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone(), self.am.clone())
 
         eta = (sims[:, 1] - sims[:, 0]) * (1/4)
         eta = torch.add(eta, (1/2))
@@ -97,13 +98,13 @@ class HDModel(nn.Module):
         labels = labels[shuffle_idx].int()
 
         # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order 
-        am_array = torch.concat([self.am[key].reshape(1,-1) for key in sorted(self.am.keys())], dim=0)
+        # am_array = torch.concat([self.am[key].reshape(1,-1) for key in sorted(self.am.keys())], dim=0)
 
         mistakes = 0
         
         for hv, label in tqdm(zip(dataset_hvs, labels), total=len(dataset_hvs)):
         
-            out = int(torch.argmax(torch.nn.CosineSimilarity()(hv.float(),am_array.float())))
+            out = int(torch.argmax(torch.nn.CosineSimilarity()(hv.float(),self.am.float())))
 
             if out == int(label):
                 pass

@@ -202,25 +202,25 @@ class ClassifierNetwork(nn.Module):
         return out
 
 
-    def fit(self, x_train, y_train, num_epochs):
+    # def fit(self, x_train, y_train, num_epochs):
 
         # cross entropy likes the long tensor so just do this once before training instead of multiple times
-        y_train = y_train.long()
+        # y_train = y_train.long()
 
         # Train the model
 
-        train_dataloader = DataLoader(CustomDataset(x_train, y_train), batch_size=32)
+        # train_dataloader = DataLoader(CustomDataset(x_train, y_train), batch_size=32)
 
-        for batch in tqdm(train_dataloader, desc="training MLP..."):
+        # for batch in tqdm(train_dataloader, desc="training MLP..."):
             # Forward pass
-            features, labels = batch
-            self.optimizer.zero_grad()
-            outputs = self.forward(features)
-            loss = self.criterion(outputs, labels)
-            print(loss) 
+            # features, labels = batch
+            # self.optimizer.zero_grad()
+            # outputs = self.forward(features)
+            # loss = self.criterion(outputs, labels)
+            # print(loss) 
             # Backward and optimize
-            loss.backward()
-            self.optimizer.step()
+            # loss.backward()
+            # self.optimizer.step()
 
 
     def predict(self, features):

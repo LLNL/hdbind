@@ -23,17 +23,17 @@ from sklearn.neural_network import MLPClassifier
 from rdkit import Chem
 from hdpy.ecfp.encode import ECFPEncoder
 from hdpy.baseline_hd.classification_modules import RPEncoder
-# from hdpy.rff_hdc.encoder import RandomFourierEncoder
 from hdpy.mole_hd.encode import SMILESHDEncoder, tokenize_smiles
-from hdpy.selfies.encode import SELFIESHDEncoder, tokenize_selfies_from_smiles
-from hdpy.ecfp.encode import compute_fingerprint_from_smiles
+from hdpy.selfies.encode import SELFIESHDEncoder
 from hdpy.metrics import validate
-from utils import load_molformer_embeddings
 from hdpy.utils import compute_splits
 # from hdpy.selfies.encode import encode_smiles_as_selfie
 # import hdpy.parser as parser
 from torch.utils.data import TensorDataset
 from hdpy.model import get_random_hv
+
+SCRATCH_DIR="/p/lustre2/jones289/"
+SCRATCH_DIR="/p/vast1/jones289/"
 '''
 # todo: should use a dataset object for this
 def compute_features_from_smiles(smiles, params):
@@ -74,9 +74,23 @@ def train(model, train_dataloader):
 
     with torch.no_grad():
         model = model.to(device)
-        model.am = {0: get_random_hv(config.D, 1).to(device), 1: get_random_hv(config.D, 1).to(device)}
+        # model.am = {0: get_random_hv(config.D, 1).to(device), 1: get_random_hv(config.D, 1).to(device)}
+        # model.am = {0: torch.zeros(config.D, 1), 1: torch.zeros(config.D, 1)}
+        model.am = torch.zeros(2, config.D).to(device)
         single_pass_train_time, retrain_time = None, None
 
+
+        # build the associative memory with single-pass training
+        
+
+        for batch in tqdm(train_dataloader, desc=f"building AM with single-pass training.."):
+            x, y = batch
+            x = x.to(device)
+            # import ipdb
+            # ipdb.set_trace()
+            for class_idx in range(2): #binary classification
+                model.am[class_idx] += model.encode(x[y.squeeze() == class_idx, :]).sum()
+            
 
         learning_curve = []
         for epoch in range(config.epochs):
@@ -89,15 +103,16 @@ def train(model, train_dataloader):
                 hv = model.encode(x)
                 y_ = model.forward(hv)
 
+                # import ipdb
+                # ipdb.set_trace()
                 update_mask = torch.abs(y-y_).bool()
-                wrong_hvs, wrong_labels = hv[update_mask], y[update_mask]
                 mistake_ct += sum(update_mask)
-                for mistake_hv, mistake_label in zip(wrong_hvs, wrong_labels):
-                    model.am[int(mistake_label)] -= mistake_hv
+                for mistake_hv, mistake_label in zip(hv[update_mask], y[update_mask]):
+                    model.am[int(mistake_label)] += mistake_hv
 
-                    model.am[int(~mistake_label.bool())] += mistake_hv
+                    model.am[int(~mistake_label.bool())] -= mistake_hv
 
-            learning_curve.append(mistake_ct)
+            learning_curve.append(mistake_ct.cpu().numpy())
 
         return model, learning_curve, single_pass_train_time, retrain_time
 
@@ -408,11 +423,13 @@ def run_hd_trial(
     train_dataloader = DataLoader(train_dataset, 
                                   batch_size=args.batch_size, 
                                   num_workers=args.num_workers,
-                                  persistent_workers=True)
+                                  persistent_workers=True,
+                                  shuffle=True)
     test_dataloader = DataLoader(test_dataset, 
                                  batch_size=args.batch_size,
                                  num_workers=1,
-                                 persistent_workers=False)
+                                 persistent_workers=False,
+                                 shuffle=False)
 
     # import pdb
     # pdb.set_trace()
@@ -425,13 +442,16 @@ def run_hd_trial(
         
 
     # '''
-    result_dict = {}
+    result_dict = {"trials": {}}
+    
     for i in range(args.n_trials):
+        
+        trial_dict = {}
 
         # this should force each call of .fit to be different...I think..
         seed_rngs(args.random_state + i)
 
-        result_dict[i] = {}
+        # result_dict[i] = {}
 
         # time train inside of the funciton
         # learning_curve, single_pass_train_time, retrain_time = train(
@@ -444,201 +464,205 @@ def run_hd_trial(
         model, learning_curve, single_pass_train_time, retrain_time = train(model=model, train_dataloader=train_dataloader)
 
 
-        result_dict[i]["hd_learning_curve"] = learning_curve
+        trial_dict["hd_learning_curve"] = learning_curve
 
         # import pdb
         # pdb.set_trace()
         # time test inside of the funcion
-        trial_dict = test(model, test_dataloader)
+        test_dict = test(model, test_dataloader)
 
-        result_dict[i]["am"] = {
+        trial_dict["am"] = {
             0: model.am[0].cpu().numpy(),
             1: model.am[1].cpu().numpy(),
         }  # store the associative memory so it can be loaded up later on
-        result_dict[i]["model"] = model.to("cpu")
+        # result_dict[i]["model"] = model.to("cpu")
 
 
         # '''
-        result_dict[i]["y_pred"] = trial_dict["y_pred"].cpu().numpy()
-        result_dict[i]["eta"] = trial_dict["eta"].cpu().numpy().reshape(-1, 1)
-        result_dict[i]["y_true"] = trial_dict["y_true"].cpu().numpy()
-        result_dict[i]["single_pass_train_time"] = single_pass_train_time
+        trial_dict["y_pred"] = test_dict["y_pred"].cpu().numpy()
+        trial_dict["eta"] = test_dict["eta"].cpu().numpy().reshape(-1, 1)
+        trial_dict["y_true"] = test_dict["y_true"].cpu().numpy()
+        trial_dict["single_pass_train_time"] = single_pass_train_time
         # result_dict[i]["retrain_time"] = retrain_time
         # result_dict[i]["train_time"] = single_pass_train_time + retrain_time
-        result_dict[i]["test_time"] = trial_dict["test_time"]
-        result_dict[i]["conf_test_time"] = trial_dict["conf_test_time"]
-        result_dict[i]["train_encode_time"] = train_encode_time
-        result_dict[i]["test_encode_time"] = test_encode_time
-        result_dict[i]["encode_time"] = train_encode_time + test_encode_time
+        trial_dict["test_time"] = test_dict["test_time"]
+        trial_dict["conf_test_time"] = test_dict["conf_test_time"]
+        trial_dict["train_encode_time"] = test_encode_time
+        trial_dict["test_encode_time"] = test_encode_time
+        trial_dict["encode_time"] = train_encode_time + test_encode_time
         # result_dict[i]["train_size"] = train_dataset_hvs.shape[0]
         # result_dict[i]["test_size"] = test_dataset_hvs.shape[0]
 
 
         # import ipdb 
         # ipdb.set_trace()
-        result_dict[i]["class_report"] = classification_report(
-            y_pred=result_dict[i]["y_pred"], y_true=result_dict[i]["y_true"]
+        trial_dict["class_report"] = classification_report(
+            y_pred=trial_dict["y_pred"], y_true=trial_dict["y_true"]
         )
 
         try:
-            result_dict[i]["roc-auc"] = roc_auc_score(
-                y_score=result_dict[i]["eta"], y_true=result_dict[i]["y_true"]
+            trial_dict["roc-auc"] = roc_auc_score(
+                y_score=trial_dict["eta"], y_true=trial_dict["y_true"]
             )
 
         except ValueError as e:
-            result_dict[i]["roc-auc"] = None
+            trial_dict["roc-auc"] = None
             print(e)
         # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
 
-        print(result_dict[i]["class_report"])
-        print(f"roc-auc {result_dict[i]['roc-auc']}")
+        print(trial_dict["class_report"])
+        print(f"roc-auc {trial_dict['roc-auc']}")
 
         validate(
-            labels=result_dict[i]["y_true"],
-            pred_labels=result_dict[i]["y_pred"],
-            pred_scores=result_dict[i]["eta"],
+            labels=trial_dict["y_true"],
+            pred_labels=trial_dict["y_pred"],
+            pred_scores=trial_dict["eta"],
         )
+        result_dict["trials"][i] = trial_dict
     # '''
     return result_dict
     
 
 
 # def run_sklearn_trial(smiles, labels, train_idxs, test_idxs):
-def run_sklearn_trial(x_train, y_train, x_test, y_test):
+# def run_sklearn_trial(x_train, y_train, x_test, y_test):
 
-    model = None
-    search = None
+    # model = None
+    # search = None
 
-    scoring = "f1"
+    # scoring = "f1"
 
-    if config.model == "rf":
+    # if config.model == "rf":
 
-        param_dist_dict = {
-            "criterion": ["gini", "entropy"],
-            "n_estimators": [x for x in np.linspace(10, 100, 10, dtype=int)],
-            "max_depth": [x for x in np.linspace(2, x_train.shape[1], 10, dtype=int)],
-            "max_features": ["sqrt", "log2"],
-            "min_samples_leaf": [1, 2, 5, 10],
-            "bootstrap": [True],
-            "oob_score": [True],
-            "max_samples": [
-                x for x in np.linspace(10, y_train.shape[0], 10, dtype=int)
-            ],
-            "n_jobs": [-1],
-        }
+        # param_dist_dict = {
+            # "criterion": ["gini", "entropy"],
+            # "n_estimators": [x for x in np.linspace(10, 100, 10, dtype=int)],
+            # "max_depth": [x for x in np.linspace(2, x_train.shape[1], 10, dtype=int)],
+            # "max_features": ["sqrt", "log2"],
+            # "min_samples_leaf": [1, 2, 5, 10],
+            # "bootstrap": [True],
+            # "oob_score": [True],
+            # "max_samples": [
+                # x for x in np.linspace(10, y_train.shape[0], 10, dtype=int)
+            # ],
+            # "n_jobs": [-1],
+        # }
 
-        search = RandomizedSearchCV(
-            RandomForestClassifier(),
-            param_dist_dict,
-            n_iter=10,
-            cv=5,
-            refit=False,
-            scoring=scoring,
-            verbose=True,
-            n_jobs=int(mp.cpu_count() - 1),
-        )
+        # search = RandomizedSearchCV(
+            # RandomForestClassifier(),
+            # param_dist_dict,
+            # n_iter=10,
+            # cv=5,
+            # refit=False,
+            # scoring=scoring,
+            # verbose=True,
+            # n_jobs=int(mp.cpu_count() - 1),
+        # )
 
-    elif config.model == "mlp":
+    # elif config.model == "mlp":
 
-        param_dist_dict = {
-            "early_stopping": [True],
-            "validation_fraction": [0.1, 0.2],
-            "n_iter_no_change": [2],
-            "alpha": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2],
-            "solver": ["adam"],
-            "batch_size": np.linspace(8, 128, dtype=int),
-            "activation": ["tanh", "relu"],
-            "hidden_layer_sizes": [(512, 256, 128), (256, 128, 64), (128, 64, 32)],
-            "verbose": [True],
-        }
+        # param_dist_dict = {
+            # "early_stopping": [True],
+            # "validation_fraction": [0.1, 0.2],
+            # "n_iter_no_change": [2],
+            # "alpha": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2],
+            # "solver": ["adam"],
+            # "batch_size": np.linspace(8, 128, dtype=int),
+            # "activation": ["tanh", "relu"],
+            # "hidden_layer_sizes": [(512, 256, 128), (256, 128, 64), (128, 64, 32)],
+            # "verbose": [True],
+        # }
 
         # tl;dr these are the "larger" datasets so set max_iter to a smaller value in that case
-        if args.dataset in ["lit-pcba", "lit-pcba-ave", "dockstring"]:
-            param_dist_dict["max_iter"] = [10]
+        # if args.dataset in ["lit-pcba", "lit-pcba-ave", "dockstring"]:
+            # param_dist_dict["max_iter"] = [10]
 
-        else:
-            param_dist_dict["max_iter"] = [100]
+        # else:
+            # param_dist_dict["max_iter"] = [100]
 
-        search = RandomizedSearchCV(
-            MLPClassifier(),
-            param_dist_dict,
-            n_iter=10,
-            cv=5,
-            refit=False,
-            scoring=scoring,
-            verbose=True,
-            n_jobs=int(mp.cpu_count() - 1),
-        )
+        # search = RandomizedSearchCV(
+            # MLPClassifier(),
+            # param_dist_dict,
+            # n_iter=10,
+            # cv=5,
+            # refit=False,
+            # scoring=scoring,
+            # verbose=True,
+            # n_jobs=int(mp.cpu_count() - 1),
+        # )
 
-    else:
-        raise NotImplementedError("please supply valid model type")
+    # else:
+        # raise NotImplementedError("please supply valid model type")
 
     # run the hyperparameter search (without refitting to full training set)
 
-    search.fit(x_train, y_train)
+    # search.fit(x_train, y_train)
 
-    result_dict = {}
-    for i in range(config.n_trials):
+    #todo: (need to finsih refactoring this)
+    # result_dict = {"trials": []}
+    # for i in range(config.n_trials):
 
-        seed = args.random_state + i
+
+        # trial_dict = {}
+        # seed = args.random_state + i
         # this should force each call of .fit to be different...I think..
-        seed_rngs(seed)
+        # seed_rngs(seed)
         # collect the best parameters and train on full training set, we capture timings wrt to the optimal configuration
         # construct after seeding the rng
-        if config.model == "rf":
-            model = RandomForestClassifier(random_state=seed, **search.best_params_)
+        # if config.model == "rf":
+            # model = RandomForestClassifier(random_state=seed, **search.best_params_)
 
-        elif config.model == "mlp":
-            model = MLPClassifier(random_state=seed, **search.best_params_)
+        # elif config.model == "mlp":
+            # model = MLPClassifier(random_state=seed, **search.best_params_)
 
-        result_dict[i] = {}
+        # result_dict[i] = {}
 
-        train_start = time.time()
-        model.fit(x_train, y_train.ravel())
-        train_time = time.time() - train_start
+        # train_start = time.time()
+        # model.fit(x_train, y_train.ravel())
+        # train_time = time.time() - train_start
 
-        test_start = time.time()
-        y_pred = model.predict(x_test)
-        test_time = time.time() - test_start
+        # test_start = time.time()
+        # y_pred = model.predict(x_test)
+        # test_time = time.time() - test_start
 
-        result_dict[i]["model"] = model
-        result_dict[i]["search"] = search
-        result_dict[i]["y_pred"] = y_pred
-        result_dict[i]["eta"] = model.predict_proba(x_test).reshape(-1, 2)
-        result_dict[i]["y_true"] = y_test
-        result_dict[i]["train_time"] = train_time
-        result_dict[i]["test_time"] = test_time
-        result_dict[i]["train_encode_time"] = 0
-        result_dict[i]["test_encode_time"] = 0
-        result_dict[i]["encode_time"] = 0
-        result_dict[i]["train_size"] = x_train.shape[0]
-        result_dict[i]["test_size"] = x_test.shape[0]
+        # result_dict[i]["model"] = model
+        # result_dict[i]["search"] = search
+        # result_dict[i]["y_pred"] = y_pred
+        # result_dict[i]["eta"] = model.predict_proba(x_test).reshape(-1, 2)
+        # result_dict[i]["y_true"] = y_test
+        # result_dict[i]["train_time"] = train_time
+        # result_dict[i]["test_time"] = test_time
+        # result_dict[i]["train_encode_time"] = 0
+        # result_dict[i]["test_encode_time"] = 0
+        # result_dict[i]["encode_time"] = 0
+        # result_dict[i]["train_size"] = x_train.shape[0]
+        # result_dict[i]["test_size"] = x_test.shape[0]
 
-        result_dict[i]["class_report"] = classification_report(
-            y_pred=result_dict[i]["y_pred"], y_true=result_dict[i]["y_true"]
-        )
+        # result_dict[i]["class_report"] = classification_report(
+            # y_pred=result_dict[i]["y_pred"], y_true=result_dict[i]["y_true"]
+        # )
 
-        try:
-            result_dict[i]["roc-auc"] = roc_auc_score(
-                y_score=result_dict[i]["eta"][:, 1], y_true=y_test
-            )
+        # try:
+            # result_dict[i]["roc-auc"] = roc_auc_score(
+                # y_score=result_dict[i]["eta"][:, 1], y_true=y_test
+            # )
 
-        except ValueError as e:
-            result_dict[i]["roc-auc"] = None
-            print(e)
+        # except ValueError as e:
+            # result_dict[i]["roc-auc"] = None
+            # print(e)
         # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
 
-        print(result_dict[i]["class_report"])
-        print(f"roc-auc {result_dict[i]['roc-auc']}")
+        # print(result_dict[i]["class_report"])
+        # print(f"roc-auc {result_dict[i]['roc-auc']}")
 
         # enrichment metrics
-        validate(
-            labels=y_test,
-            pred_labels=result_dict[i]["y_pred"],
-            pred_scores=result_dict[i]["eta"][:, 1],
-        )
+        # validate(
+            # labels=y_test,
+            # pred_labels=result_dict[i]["y_pred"],
+            # pred_scores=result_dict[i]["eta"][:, 1],
+        # )
 
-    return result_dict
+    # return result_dict
 
 
 def main(
@@ -723,8 +747,11 @@ def driver():
         x_train, x_test, y_train, y_test = None, None, None, None        
         smiles_train, smiles_test = None, None
         if config.embedding == "molformer":
-            dataset = MolFormerDataset(path=f"/p/lustre2/jones289/molformer_embeddings/bbbp_molformer_embeddings.pt",
-                                    split_df=split_df)
+            # import ipdb
+            # ipdb.set_trace()
+            dataset = MolFormerDataset(path=f"{SCRATCH_DIR}/molformer_embeddings/bbbp_molformer_embeddings.pt",
+                                    split_df=split_df,
+                                    smiles_col="rdkitSmiles")
 
             x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
             smiles_train, smiles_test = dataset.smiles_train, dataset.smiles_test
@@ -745,6 +772,13 @@ def driver():
             x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
 
 
+
+        # this is really dumb, need to fix
+        train_dataset = TensorDataset(torch.from_numpy(x_train).int(), torch.from_numpy(y_train).int())
+        test_dataset = TensorDataset(torch.from_numpy(x_test).int(), torch.from_numpy(y_test).int())
+
+
+
         output_file = Path(
             f"{output_result_dir}/{exp_name}.pt"
         )
@@ -754,14 +788,9 @@ def driver():
             pass
         else:
             result_dict = main(
-                # root_data_p=root_data_p,
                 model=model,
-                x_train=x_train,
-                y_train=y_train,
-                x_test=x_test,
-                y_test=y_test,
-                smiles_train=smiles_train,
-                smiles_test=smiles_test,
+                train_dataset=train_dataset,
+                test_dataset=test_dataset
             )
 
             result_dict["smiles_train"] = smiles_train
@@ -804,8 +833,9 @@ def driver():
             )
 
             if config.embedding == "molformer":
-                dataset = MolFormerDataset(path=f"/p/lustre2/jones289/molformer_embeddings/sider-{task_idx}_molformer_embeddings.pt",
-                                        split_df=split_df)
+                dataset = MolFormerDataset(path=f"{SCRATCH_DIR}/molformer_embeddings/sider-{task_idx}_molformer_embeddings.pt",
+                                        split_df=split_df,
+                                        smiles_col="smiles")
 
                 x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
                 smiles_train, smiles_test = dataset.smiles_train, dataset.smiles_test
@@ -877,8 +907,9 @@ def driver():
 
 
         if config.embedding == "molformer":
-            dataset = MolFormerDataset(path="/p/lustre2/jones289/molformer_embeddings/clintox_molformer_embeddings.pt",
-                                       split_df=split_df)
+            dataset = MolFormerDataset(path="{SCRATCH_DIR}/molformer_embeddings/clintox_molformer_embeddings.pt",
+                                       split_df=split_df,
+                                       smiles_col="smiles")
 
             x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
 
@@ -999,10 +1030,10 @@ def driver():
 
                 elif config.embedding == "molformer":
 
-                    train_dataset = MolFormerDataset(path=f"/p/lustre2/jones289/molformer_embeddings/dude-{target_name}_random_train_molformer_embeddings.pt",
-                                       split_df=df)
-                    test_dataset = MolFormerDataset(path=f"/p/lustre2/jones289/molformer_embeddings/dude-{target_name}_random_test_molformer_embeddings.pt",
-                                       split_df=df)
+                    train_dataset = MolFormerDataset(path=f"{SCRATCH_DIR}/molformer_embeddings/dude-{target_name}_random_train_molformer_embeddings.pt",
+                                       split_df=df, smiles_col="smiles")
+                    test_dataset = MolFormerDataset(path=f"{SCRATCH_DIR}/molformer_embeddings/dude-{target_name}_random_test_molformer_embeddings.pt",
+                                       split_df=df, smiles_col="smiles")
 
                 result_dict = main(
                     model=model,
@@ -1086,9 +1117,11 @@ def driver():
                 df["split"] = ["train"] * len(df)
                 df.loc[test_idxs, "split"] = "test"
 
+                # import ipdb
+                # ipdb.set_trace()
                 if config.embedding == "ecfp":
                     dataset = ECFPDataset(path=lit_pcba_path/Path("full_smiles_with_labels.csv"),
-                                smiles_col="smiles", label_col="decoy",
+                                smiles_col="smiles", label_col="label",
                                 #   split_df=df,
                                 smiles=df["smiles"],
                                 split_df=df,
@@ -1096,43 +1129,44 @@ def driver():
                                 random_state=args.random_state, 
                                 ecfp_length=config.input_size,
                                 ecfp_radius=config.ecfp_radius,
-                                labels=df["decoy"].astype(int).values)
+                                labels=df["label"].astype(int).values)
 
                     x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
 
 
                 elif config.embedding == "molformer":
 
-                    dataset = MolFormerDataset(path=f"/p/lustre2/jones289/molformer_embeddings/lit-pcba-{target_name}_molformer_embeddings.pt",
-                            split_df=df)
+                    dataset = MolFormerDataset(path=f"{SCRATCH_DIR}/molformer_embeddings/lit-pcba-{target_name}_molformer_embeddings.pt",
+                            split_df=df,
+                            smiles_col="smiles")
 
                     x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
+                    x_train, x_test, y_train, y_test = torch.from_numpy(x_train), torch.from_numpy(x_test), torch.from_numpy(y_train), torch.from_numpy(y_test)
+                    
 
-                # import ipdb
-                # ipdb.set_trace()
 
-                train_dataset = TensorDataset(torch.from_numpy(x_train).int(), 
-                                              torch.from_numpy(y_train).int())
-                test_dataset = TensorDataset(torch.from_numpy(x_test).int(),
-                                            torch.from_numpy(y_test).int())
+
+                train_dataset = TensorDataset(x_train, y_train)
+                test_dataset = TensorDataset(x_test, y_test)
 
                 result_dict = main(
                     model=model,
                     train_dataset=train_dataset,
                     test_dataset=test_dataset
                 )
-
+                # import ipdb
+                # ipdb.set_trace()
                 # result_dict["smiles_train"] = dataset.smiles_train
                 # result_dict["smiles_test"] = dataset.smiles_test
-                # result_dict["x_train"] = train_dataset.x
-                # result_dict["x_test"] = test_dataset.x
-                # result_dict["y_train"] = train_dataset.y
-                # result_dict["y_test"] = test_dataset.y
+                result_dict["x_train"] = (train_dataset.tensors[0]).numpy()
+                result_dict["x_test"] = (test_dataset.tensors[0]).numpy()
+                result_dict["y_train"] = (train_dataset.tensors[1]).numpy()
+                result_dict["y_test"] = (test_dataset.tensors[1]).numpy()
 
                 result_dict["args"] = config
                 with open(output_file, "wb") as handle:
                     pickle.dump(result_dict, handle)
-
+                # torch.save(result_dict, output_file)
                 print(f"done. output file: {output_file}")
                 # '''
 

@@ -119,10 +119,11 @@ class SMILESDataset(Dataset):
 
 class MolFormerDataset(Dataset):
 
-    def __init__(self, path, split_df):
+    def __init__(self, path, split_df, smiles_col):
         super()
         self.path = path 
-
+        self.smiles_col = smiles_col
+        # self.label_col = label_col
         embeds = torch.load(path)
 
         x_train, x_test, y_train, y_test = [], [], [], []
@@ -166,11 +167,15 @@ class MolFormerDataset(Dataset):
         # import ipdb 
         # ipdb.set_trace()
 
-        self.smiles_train = split_df[split_df["split"] == "train"]["smiles"]
+        self.smiles_train = split_df[split_df["split"] == "train"][self.smiles_col]
 
-        self.smiles_test = split_df[split_df["split"] == "test"]["smiles"]
+        self.smiles_test = split_df[split_df["split"] == "test"][self.smiles_col]
         self.smiles = pd.concat([self.smiles_train, self.smiles_test])
 
+        self.x_train = torch.from_numpy(x_train).int()
+        self.x_test = torch.from_numpy(x_test).int()
+        self.y_train = torch.from_numpy(y_train).int()
+        self.y_test = torch.from_numpy(y_test).int()
 
 
     def __len__(self):
@@ -207,7 +212,7 @@ class ECFPDataset(Dataset):
         self.split_type = split_type
         self.ecfp_length = ecfp_length
         self.ecfp_radius = ecfp_radius
-        self.labels = torch.from_numpy(labels).int()
+        self.labels = labels
         
         
         self.fps = np.asarray([
@@ -224,11 +229,13 @@ class ECFPDataset(Dataset):
         self.smiles_train = self.smiles[self.split_df[self.split_df["split"] == "train"]["index"]]
         self.smiles_test = self.smiles[self.split_df[self.split_df["split"] == "test"]["index"]]
 
+        #todo: do this with a pool 
         self.x_train =  np.concatenate([
                 compute_fingerprint_from_smiles(x, length=self.ecfp_length, radius=self.ecfp_radius).reshape(1,-1)
                 for x in tqdm(self.smiles_train)
             ], axis=0)
-        
+
+        #todo: do this with a pool 
         self.x_test =  np.concatenate([
                 compute_fingerprint_from_smiles(x, length=self.ecfp_length, radius=self.ecfp_radius).reshape(1,-1)
                 for x in tqdm(self.smiles_test)
@@ -238,7 +245,10 @@ class ECFPDataset(Dataset):
         self.y_test = self.labels[self.split_df[self.split_df["split"] == "test"]["index"].values]
 
 
-
+        self.x_train = torch.from_numpy(self.x_train).int()
+        self.x_test = torch.from_numpy(self.x_test).int()
+        self.y_train = torch.from_numpy(self.y_train).int()
+        self.y_test = torch.from_numpy(self.y_test).int()
 
     def get_train_test_splits(self):
 
