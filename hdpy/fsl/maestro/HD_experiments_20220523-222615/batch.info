@@ -1,5 +1,0 @@
-bank: ncov2019
-host: pascal
-qos: expedite
-queue: pbatch
-type: slurm

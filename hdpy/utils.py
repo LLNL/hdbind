@@ -11,6 +11,11 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 import deepchem as dc
 from hdpy.ecfp import compute_fingerprint_from_smiles
+from hdpy.molehd.encode import tokenize_smiles
+# from hdpy.model import get_random_hv
+
+def get_random_hv(m, n):
+    return torch.bernoulli(torch.tensor([[0.5] * m] * n)).float()*2-1
 
 
 class timing_part:
@@ -87,181 +92,47 @@ def load_features(path:str, dataset:str):
     return features, labels
 
 
-def binarize(x):
-    return torch.where(x>0, 1.0, -1.0)
+def binarize(hv):
+    # return torch.where(x>0, 1.0, -1.0)
+    hv = torch.where(hv > 0, hv, -1).int()
+    hv = torch.where(hv <= 0, hv, 1).int()
 
-
-class CustomDataset(Dataset):
-    def __init__(self, features, labels):
-
-        self.features = features 
-        self.labels = labels 
-
-    def __len__(self):
-        return len(self.labels)
-
-    def __getitem__(self, idx):
-        return self.features[idx], self.labels[idx]
-    
+    return hv
 
 
 
 from torch.utils.data import Dataset
 
 
-class SMILESDataset(Dataset):
 
-    def __init__(self, split_df):
+def tok_seq_to_hv(tokens:list, D:int, item_mem:dict):
+    # hv = torch.zeros(D).int()
 
-        pass
+    hv = np.zeros(D).astype(int)
 
-
-
-class MolFormerDataset(Dataset):
-
-    def __init__(self, path, split_df, smiles_col):
-        super()
-        self.path = path 
-        self.smiles_col = smiles_col
-        # self.label_col = label_col
-        embeds = torch.load(path)
-
-        x_train, x_test, y_train, y_test = [], [], [], []
-
-        self.train_idxs, self.test_idxs = [], []
-        for group, group_df in split_df.groupby("split"):
-            split_idxs = group_df["index"].values
-
-            # embed_idxs is the index_values we stored when running the molformer extraction code
-
-            for idx in split_idxs:
-
-                embed_idx_mask = np.equal(idx, embeds["idxs"])
-                embed = embeds["embeds"][embed_idx_mask]
-                label = embeds["labels"][embed_idx_mask]
+    # for each token in the sequence, retrieve the hv corresponding to it
+    # then rotate the tensor elements by the position number the token
+    # occurs at in the sequence. add to (zero-initialized hv representing the 
+    for idx, token in enumerate(tokens):
+        token_hv = item_mem[token]
+        hv = hv + np.roll(token_hv, idx).astype(int)
 
 
-                if group == "train":
-                    # self.train_idxs = split_idxs
-                    x_train.append(embed)
-                    y_train.append(label)
-                else:
-                    # x_test.append(embeds["embeds"][idx])
-                    x_test.append(embed)
-                    y_test.append(label)
+    hv = np.where(hv > 0, hv, -1).astype(int)
+    hv = np.where(hv <= 0, hv, 1).astype(int)
 
-        x_train = np.concatenate(x_train)
-        x_test = np.concatenate(x_test)
-        y_train = np.concatenate(y_train).reshape(-1,1)
-        y_test = np.concatenate(y_test).reshape(-1,1)
-        
-
-        self.x = np.vstack([x_train, x_test])
-        self.y = np.vstack([y_train, y_test]).astype(int)
-
-
-        self.train_idxs = np.asarray(list(range(len(x_train))))
-        self.test_idxs = np.asarray(list(range(len(x_train), len(x_train)+len(x_test))))
-
-
-        # import ipdb 
-        # ipdb.set_trace()
-
-        self.smiles_train = split_df[split_df["split"] == "train"][self.smiles_col]
-
-        self.smiles_test = split_df[split_df["split"] == "test"][self.smiles_col]
-        self.smiles = pd.concat([self.smiles_train, self.smiles_test])
-
-        self.x_train = torch.from_numpy(x_train).int()
-        self.x_test = torch.from_numpy(x_test).int()
-        self.y_train = torch.from_numpy(y_train).int()
-        self.y_test = torch.from_numpy(y_test).int()
-
-
-    def __len__(self):
-        return self.y.shape[0]
-    
-    def __getitem__(self, idx):
-        return self.x[idx], self.y[idx]
-    
-
-    def get_train_test_splits(self):
-
-
-        # import ipdb
-        # ipdb.set_trace()
-        return self.x[self.train_idxs], self.x[self.test_idxs], self.y[self.train_idxs], self.y[self.test_idxs]
+    # binarize
+    # hv = binarize(hv)
+    # return hv
+    return hv
 
 
 
 
-class ECFPDataset(Dataset):
-
-    def __init__(self, path, smiles_col:str, label_col:str,
-                  split_df:pd.DataFrame, split_type:str, ecfp_length:int, 
-                  ecfp_radius:int, random_state:int, smiles:np.array, labels:list):
-        super()
-
-        # import pdb
-        # pdb.set_trace()
-        self.path = path
-        self.smiles_col = smiles_col
-        self.label_col = label_col
-        self.random_state = random_state
-        self.split_df = split_df
-        self.split_type = split_type
-        self.ecfp_length = ecfp_length
-        self.ecfp_radius = ecfp_radius
-        self.labels = labels
-        
-        
-        self.fps = np.asarray([
-                compute_fingerprint_from_smiles(x, length=ecfp_length, radius=ecfp_radius)
-                for x in tqdm(split_df[self.smiles_col].values.tolist())
-            ])
-
-        valid_idxs = np.array([idx for idx, x in enumerate(self.fps) if x is not None])
-
-        self.split_df = split_df.iloc[valid_idxs]
-
-        self.smiles = smiles
-
-        self.smiles_train = self.smiles[self.split_df[self.split_df["split"] == "train"]["index"]]
-        self.smiles_test = self.smiles[self.split_df[self.split_df["split"] == "test"]["index"]]
-
-        #todo: do this with a pool 
-        self.x_train =  np.concatenate([
-                compute_fingerprint_from_smiles(x, length=self.ecfp_length, radius=self.ecfp_radius).reshape(1,-1)
-                for x in tqdm(self.smiles_train)
-            ], axis=0)
-
-        #todo: do this with a pool 
-        self.x_test =  np.concatenate([
-                compute_fingerprint_from_smiles(x, length=self.ecfp_length, radius=self.ecfp_radius).reshape(1,-1)
-                for x in tqdm(self.smiles_test)
-            ], axis=0)
-
-        self.y_train = self.labels[self.split_df[self.split_df["split"] == "train"]["index"].values]
-        self.y_test = self.labels[self.split_df[self.split_df["split"] == "test"]["index"].values]
 
 
-        self.x_train = torch.from_numpy(self.x_train).int()
-        self.x_test = torch.from_numpy(self.x_test).int()
-        self.y_train = torch.from_numpy(self.y_train).int()
-        self.y_test = torch.from_numpy(self.y_test).int()
-
-    def get_train_test_splits(self):
-
-        return self.x_train, self.x_test, self.y_train, self.y_test
 
 
-    def __len__(self):
-
-        return self.x.shape[0]
-    
-    def __getitem__(self, idx):
-
-        return self.x[idx], self.y[idx]
 
 
 
@@ -316,3 +187,126 @@ def compute_splits(split_path:Path,
         split_df = pd.read_csv(split_path, index_col=0)
 
     return split_df
+
+import h5py
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
+
+
+def load_pdbbind_from_hdf(
+    hdf_path,
+    dataset_name,
+    train_split_path,
+    test_split_path,
+    bind_thresh,
+    no_bind_thresh,
+):
+
+    """
+    input: parameters (dataset name, threshold values, train/test splits) and h5 file containing data and binding measurements
+    output: numpy array with features
+    """
+
+    f = h5py.File(hdf_path, "r")
+
+    # need an argument for train split, need an argument for test split
+
+    train_df = pd.read_csv(train_split_path)
+    test_df = pd.read_csv(test_split_path)
+
+    train_ids = train_df["pdbid"].values.tolist()
+    test_ids = test_df["pdbid"].values.tolist()
+
+    train_list = []
+    test_list = []
+
+    for key in tqdm(list(f), total=len(list(f))):
+        if key in train_ids:
+            train_list.append(key)
+        elif key in test_ids:
+            test_list.append(key)
+        else:
+            print(f"key: {key} not contained in train or test split")
+            continue
+
+    train_data_list = []
+    train_label_list = []
+    for key in train_list:
+        affinity = f[key].attrs['affinity']
+
+        if affinity > bind_thresh:
+            train_label_list.append(1)
+        elif affinity < no_bind_thresh:
+            train_label_list.append(0)
+        else:
+
+            print(f"key: {key} has ambiguous label")
+            continue
+
+        
+        train_data_list.append(np.asarray(f[key][dataset_name]))
+            
+
+    test_data_list = []
+    test_label_list = []
+    for key in test_list:
+        affinity = f[key].attrs['affinity']
+
+        if affinity > bind_thresh:
+            test_label_list.append(1)
+        elif affinity < no_bind_thresh:
+            test_label_list.append(0)
+        else:
+
+            print(f"key: {key} has ambiguous label")
+            continue
+
+        test_data_list.append(np.asarray(f[key][dataset_name]))
+
+    return (np.asarray(train_data_list), np.asarray(train_label_list), np.asarray(test_data_list), np.asarray(test_label_list))
+def main():
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--hdf-path', help='path to input hdf file containing pdbbind data')    
+    parser.add_argument('--dataset-name', nargs='+', help='sequence of dataset names to use from the hdf-path dataset')
+    parser.add_argument('--train-split-path', help='path to list of pdbids corresponding to the training set')
+    parser.add_argument('--test-split-path', help='path to list of pdbids corresponding to the testing set')
+    parser.add_argument('--bind-thresh', type=float, help='threshold (lower) to use for determining binders from experimental measurement')
+    parser.add_argument('--no-bind-thresh', type=float, help='threshold (upper) to use for determining non-binders from experimental measurement')
+    parser.add_argument('--run-HD-benchmark', action='store_true')
+    args = parser.parse_args()
+
+    for dataset_name in args.dataset_name:
+        data = load_pdbbind_from_hdf(hdf_path=args.hdf_path, dataset_name=dataset_name, 
+                    train_split_path=args.train_split_path,
+                    test_split_path=args.test_split_path,
+                    bind_thresh=args.bind_thresh,
+                    no_bind_thresh=args.no_bind_thresh)
+
+        x_train, y_train, x_test, y_test = data
+
+        #import pdb
+        #pdb.set_trace()
+        if args.run_HD_benchmark:
+            from hdpy.tfHD import train_test_loop
+
+            train_test_loop(x_train.squeeze(), x_test.squeeze(), y_train, y_test, iterations=10, dimensions=10000, Q=10, K=2, batch_size=32, sim_metric='cos')
+
+    print(data)
+
+
+
+def convert_pdbbind_affinity_to_class_label(x, pos_thresh=8, neg_thresh=6):
+
+
+    if x < neg_thresh:
+        return 0
+    elif x > pos_thresh:
+        return 1
+    else:
+        return 2
+
+if __name__ == '__main__':
+    main()
