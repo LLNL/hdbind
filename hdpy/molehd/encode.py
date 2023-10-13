@@ -1,3 +1,10 @@
+################################################################################
+# Copyright (c) 2021-2023, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by D. Jones <djones@llnl.gov> and UCSD collaborators in listed in CONTRIB.md
+#
+# All rights reserved.
+################################################################################
 import torch
 from hdpy.model import HDModel
 from tqdm import tqdm 
@@ -86,11 +93,10 @@ def tokenize_smiles(smiles_list, tokenizer, ngram_order, num_workers=0):
         print("using Pre-trained SmilesPE Tokenizer")
         spe = SPE_Tokenizer(spe_vob)
 
-        with mp.Pool(mp.cpu_count()-2) as p:
+        with mp.Pool(num_workers) as p:
             toks = list(tqdm(p.imap(spe.tokenize, smiles_list), total=len(smiles_list))) 
             toks = [x.split(' ') for x in toks]
-            # import pdb 
-            # pdb.set_trace()
+
     else:
         if tokenizer == "atomwise":
             print("using atomwise tokenizer")
@@ -103,7 +109,7 @@ def tokenize_smiles(smiles_list, tokenizer, ngram_order, num_workers=0):
         else:
             raise NotImplementedError
 
-        with mp.Pool(mp.cpu_count()-2) as p:
+        with mp.Pool(num_workers) as p:
             toks = list(tqdm(p.imap(tokenizer_func, smiles_list), total=len(smiles_list)))
 
     return toks

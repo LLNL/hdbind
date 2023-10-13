@@ -1,3 +1,10 @@
+################################################################################
+# Copyright (c) 2021-2023, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by D. Jones <djones@llnl.gov> and UCSD collaborators in listed in CONTRIB.md
+#
+# All rights reserved.
+################################################################################
 from openbabel import pybel
 
 # as tf_bio package hasn't been updated in over 2 years, just porting the code here. it's originally at https://gitlab.com/cheminfIBB/tfbio/-/blob/master/tfbio/data.py

@@ -1,3 +1,10 @@
+################################################################################
+# Copyright (c) 2021-2023, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by D. Jones <djones@llnl.gov> and UCSD collaborators in listed in CONTRIB.md
+#
+# All rights reserved.
+################################################################################
 import time
 import torch
 # import pickle
@@ -7,19 +14,8 @@ import pandas as pd
 # from rdkit import Chem
 from torch.utils.data import Dataset
 from pathlib import Path
-from hdpy.utils import get_random_hv, tokenize_smiles, compute_fingerprint_from_smiles
-# class CustomDataset(Dataset):
-    # def __init__(self, features, labels):
-
-        # self.features = features 
-        # self.labels = labels 
-
-    # def __len__(self):
-        # return len(self.labels)
-
-    # def __getitem__(self, idx):
-        # return self.features[idx], self.labels[idx]
-    
+from hdpy.molehd.encode import tokenize_smiles
+from hdpy.utils import get_random_hv, compute_fingerprint_from_smiles
 
 
 class SMILESDataset(Dataset):
@@ -50,7 +46,7 @@ class SMILESDataset(Dataset):
         # train_encode_time = 0
 
         self.data_toks = tokenize_smiles(
-            self.smiles, tokenizer=self.tokenizer, ngram_order=self.ngram_order, num_workers=num_workers,
+            self.smiles, tokenizer=self.tokenizer, ngram_order=self.ngram_order, num_workers=self.num_workers,
         )
         
 

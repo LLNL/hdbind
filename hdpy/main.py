@@ -1,3 +1,10 @@
+################################################################################
+# Copyright (c) 2021-2023, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by D. Jones <djones@llnl.gov> and UCSD collaborators in listed in CONTRIB.md
+#
+# All rights reserved.
+################################################################################
 from cProfile import run
 import pickle
 import time
@@ -34,32 +41,6 @@ from torch.utils.data import TensorDataset
 from hdpy.model import TokenEncoder
 SCRATCH_DIR="/p/lustre2/jones289/"
 SCRATCH_DIR="/p/vast1/jones289/"
-'''
-# todo: should use a dataset object for this
-def compute_features_from_smiles(smiles, params):
-
-    # import ipdb
-    # ipdb.set_trace()
-    if params["feature_type"] == "ecfp":
-
-        feat = compute_fingerprint_from_smiles(
-            smiles=smiles, input_size=params["input_size"], radius=params["ecfp_radius"]
-        )
-
-        return feat
-
-    elif params["feature_type"] == "molformer":
-
-        # load from molformer embedding directory?
-        # todo: I need to use consistent splits so will need to load x_train and x_test simulaneously
-        embed_dir = f"/p/lustre2/jones289/molformer_embeddings/{args.dataset}_molformer_embeddings.pkl"
-
-        x = load_molformer_embeddings(embed_dir)
-        # import ipdb
-        # ipdb.set_trace()
-        return x[0]
-'''
-
 # seed the RNGs
 import random
 
@@ -101,22 +82,16 @@ def train(model, train_dataloader):
                 class_mask = y.squeeze() == class_idx
 
                 if isinstance(x, list):
-                    # import pdb
-                    # pdb.set_trace()
-                    # print(len(x))
-                    # if len(x) == 1:
-                        # import pdb
-                        # pdb.set_trace()
+
                     class_mask =class_mask.reshape(-1,1)
                     class_hvs = [model.encode(z) for z,w in zip(x, class_mask) if w == True]
                     if len(class_hvs) > 0:
                         class_hvs = torch.cat(class_hvs)
                         model.am[class_idx] += class_hvs.sum(dim=0)
 
-                        # do you want to binarize? I think its probably not a great idea for accuracy
+                        #todo: have option to binarize the am after each update? or after all updates? or maybe just in the HDC model can have a flag that uses the exact AM versus the binarized AM 
                 else:
                     model.am[class_idx] += model.encode(x[class_mask, :]).reshape(-1, config.D).sum(dim=0)
-        # '''
 
         learning_curve = []
         for epoch in range(config.epochs):
@@ -125,8 +100,7 @@ def train(model, train_dataloader):
             #TODO: initialize the associative memory with single pass training instead of the random initialization?
             for batch in tqdm(train_dataloader, desc=f"training-epoch {epoch}"):
                 x, y, hv = None, None, None
-                # import ipdb
-                # ipdb.set_trace()
+
                 if config.model == "molehd":
                     x = [x[0] for x in batch]
                     y = torch.from_numpy(np.array([x[1] for x in batch])).int()
@@ -145,13 +119,12 @@ def train(model, train_dataloader):
                 mistake_ct += sum(update_mask)
 
 
-                # print(update_mask)
 
                 if update_mask.shape[0] == 1 and update_mask == False:
                     continue
                 elif update_mask.shape[0] == 1 and update_mask == True:
-                    import ipdb
-                    ipdb.set_trace()
+                    # import ipdb
+                    # ipdb.set_trace()
                     model.am[int(update_mask)] += hv.reshape(-1)
                     model.am[int(~update_mask.bool())] -= hv.reshape(-1)
                 else:
@@ -174,11 +147,9 @@ def test(model, test_dataloader):
         target_list = []
         pred_list = []
         conf_list = []
-        # import pdb
-        # pdb.set_trace()
+
         for batch in tqdm(test_dataloader, desc="testing.."):
 
-            # pred_list = model.predict(hv_test)
 
             x, y, y_, hv, test_encode_end, test_encode_end = None, None, None, None, None, None
             if config.model == "molehd":
@@ -186,7 +157,6 @@ def test(model, test_dataloader):
 
                 y = torch.from_numpy(np.array([x[1] for x in batch])).int()
                 y = y.squeeze()
-                # hv = model.encode_batch(x)
                 test_encode_start = time.time()
                 hv = torch.cat([model.encode(z) for z in x])
                 test_encode_end = time.time()
@@ -213,8 +183,6 @@ def test(model, test_dataloader):
             conf_list.append(conf.cpu())
             conf_time_list.append(conf_test_end - conf_test_start)
 
-        # import pdb
-        # pdb.set_trace()
         return {
             "y_pred": torch.cat(pred_list),
             "y_true": torch.cat(target_list),
@@ -333,17 +301,6 @@ def run_hd_trial(
                                  persistent_workers=False,
                                  shuffle=False, collate_fn=collate_fn)
 
-    # import pdb
-    # pdb.set_trace()
-    # model.build_am()
-    
-
-        # subtract wrong_hvs from incorrect am element
-
-        # add wrong_hvs to correct am element
-        
-
-    # '''
     result_dict = {"trials": {}}
     
     for i in range(args.n_trials):
@@ -353,23 +310,11 @@ def run_hd_trial(
         # this should force each call of .fit to be different...I think..
         seed_rngs(args.random_state + i)
 
-        # result_dict[i] = {}
-
-        # time train inside of the funciton
-        # learning_curve, single_pass_train_time, retrain_time = train(
-            # hd_model,
-            # train_dataset_hvs,
-            # y_train,
-            # epochs=config.hd_retrain_epochs,
-        # )
-
         model, learning_curve, single_pass_train_time, retrain_time = train(model=model, train_dataloader=train_dataloader)
 
 
         trial_dict["hd_learning_curve"] = learning_curve
 
-        # import pdb
-        # pdb.set_trace()
         # time test inside of the funcion
         test_dict = test(model, test_dataloader)
 
@@ -396,8 +341,7 @@ def run_hd_trial(
         # result_dict[i]["test_size"] = test_dataset_hvs.shape[0]
 
 
-        # import ipdb 
-        # ipdb.set_trace()
+
         trial_dict["class_report"] = classification_report(
             y_pred=trial_dict["y_pred"], y_true=trial_dict["y_true"]
         )
@@ -1109,7 +1053,7 @@ def driver():
 
                     train_dataset = SMILESDataset(smiles=train_smiles, labels=train_labels, 
                                                   D=config.D, tokenizer=config.embedding, 
-                                                  ngram_order=config.ngram_order, num_workers=16,
+                                                  ngram_order=config.ngram_order, num_workers=32,
                                                   device=device)
                     # use the item_memory generated by the train_dataset as a seed for the test, then update both?
                     test_dataset = SMILESDataset(smiles=test_smiles, labels=test_labels, 
@@ -1125,23 +1069,39 @@ def driver():
 
                 # this only applies to the molformer and ecfp input cases
 
+                # import ipdb 
+                # ipdb.set_trace()
                 if config.embedding in ["molformer", "ecfp"]:
                     x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
                     if isinstance(x_train, np.ndarray):
                         x_train, x_test, y_train, y_test = torch.from_numpy(x_train), torch.from_numpy(x_test), torch.from_numpy(y_train), torch.from_numpy(y_test)
                     train_dataset = TensorDataset(x_train, y_train)
                     test_dataset = TensorDataset(x_test, y_test)
+                
 
-                result_dict = main(
-                    model=model,
-                    train_dataset=train_dataset,
-                    test_dataset=test_dataset
-                )
+                if output_file.exists():
+                    with open(output_file, "rb") as handle:
+                        result_dict = pickle.load(handle)
 
-                # result_dict["x_train"] = (train_dataset.tensors[0]).numpy()
-                # result_dict["x_test"] = (test_dataset.tensors[0]).numpy()
-                # result_dict["y_train"] = (train_dataset.tensors[1]).numpy()
-                # result_dict["y_test"] = (test_dataset.tensors[1]).numpy()
+                else:
+                    # continue
+                    result_dict = main(
+                        model=model,
+                        train_dataset=train_dataset,
+                        test_dataset=test_dataset
+                    )
+
+
+                # import ipdb
+                # ipdb.set_trace()
+                if config.model == "molehd":
+                    result_dict["y_train"] = (train_dataset.labels.values)
+                    result_dict["y_test"] = (test_dataset.labels.values)
+                else:
+                    # result_dict["x_train"] = (train_dataset.tensors[0]).numpy()
+                    # result_dict["x_test"] = (test_dataset.tensors[0]).numpy()
+                    result_dict["y_train"] = (train_dataset.tensors[1]).numpy()
+                    result_dict["y_test"] = (test_dataset.tensors[1]).numpy()
 
                 result_dict["args"] = config
                 with open(output_file, "wb") as handle:

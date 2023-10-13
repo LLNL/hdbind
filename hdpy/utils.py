@@ -1,3 +1,10 @@
+################################################################################
+# Copyright (c) 2021-2023, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by D. Jones <djones@llnl.gov> and UCSD collaborators in listed in CONTRIB.md
+#
+# All rights reserved.
+################################################################################
 import time
 import torch
 # import pickle
@@ -11,7 +18,6 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 import deepchem as dc
 from hdpy.ecfp import compute_fingerprint_from_smiles
-from hdpy.molehd.encode import tokenize_smiles
 # from hdpy.model import get_random_hv
 
 def get_random_hv(m, n):
