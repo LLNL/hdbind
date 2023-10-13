@@ -9,6 +9,7 @@ Repository for ``HD-Bind: Encoding of Molecular Structure with Low Precision, Hy
 - molehd/: contains implementations of the MoleHD (Ma et.al) SMILES-based encoding algorithms
 - prot_lig/: contains implementations of HDC encoding for protein drug interactions
 - selfies/: contains implementaions of encoding algorithms for SELFIES strings
+- configs/: contains configuration files for the various HDC models
 
 - argparser.py: contains logic for the arguments used to drive the programs in this project
 - data_utils.py: contains logic for dataloading 
