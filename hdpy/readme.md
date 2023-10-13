@@ -1,26 +1,26 @@
-# this is the root directory for hdpy
+# HDPY
 
-<!-- Use `main.py` as the main driver program -->
-
-<!-- `fsl` contains general code for HDC -->
-
-<!-- `rff-hdc` contains code for VSA variants -->
-
-<!-- in order to install, please use  -->
-<!-- > -->
-<!-- ... -->
+Repository for ``HD-Bind: Encoding of Molecular Structure with Low Precision, Hyperdimensional Binary Representations'' by Derek Jones, Jonathan E. Allen, Xiaohua Zhang, Behnam Khaleghi, Jaeyoung Kang, Weihong Xu, Niema Moshiri, Tajana S. Rosing
 
 
-<!-- to run the example: -->
-<!-- ``` -->
-<!-- python main.py --dataset dude --out-csv dude-rff-gvsa --model-list rff-gvsa --train-path-list ../../datasets/dude/deepchem_feats/try1/ecfp/train.npy --test-path-list ../../datasets/dude/deepchem_feats/try1/ecfp/test.npy --n-problems 1 --hidden-size 2048 --out-data-dir dude-rff-gvsa -->
-<!--  -->
-<!-- ``` -->
 
-The main file to run is ```hd_main.py```. The file ```hd_model.py``` contains details for the abstract HD implementation that is further specified by the ```mole_hd/``` and ```ecfp_hd/``` modules.
 
-the following bash scripts run the benchmarks:
+- ecfp/: contains implementations of ecfp encoding algorithms
+- molehd/: contains implementations of the MoleHD (Ma et.al) SMILES-based encoding algorithms
+- prot_lig/: contains implementations of HDC encoding for protein drug interactions
+- selfies/: contains implementaions of encoding algorithms for SELFIES strings
 
-	* run_moleculenet.sh
-	* run_litpcba.sh
-	* run_dude.sh
+- argparser.py: contains logic for the arguments used to drive the programs in this project
+- data_utils.py: contains logic for dataloading 
+- encode_utils.py: contains general encoding logic
+- main.py: driver program for HDBind experiments
+- metrics.py: contains logic for the various metrics used in the work
+- model.py: contains logic for the HDC model implementations themselves
+- run_timings.py: contains logic to estimate timing information for various processes such as ECFP computation
+- sdf_to_smiles.py: utility script to convert collections of molecules
+- utils.py: additional utility functions
+
+
+## Citation
+
+Jones, D., Allen, J. E., Zhang, X., Khaleghi, B., Kang, J., Xu, W., Moshiri, N., & Rosing, T. S. (2023, March 27). HD-Bind: Encoding of Molecular Structure with Low Precision, Hyperdimensional Binary Representations. arXiv. http://arxiv.org/abs/2303.15604
