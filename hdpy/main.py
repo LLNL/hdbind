@@ -11,33 +11,28 @@ import time
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
 import torch
+import ray
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import selfies as sf
 constrain_dict = sf.get_semantic_constraints()
-# import multiprocessing as mp
 import torch.multiprocessing as mp
 from hdpy.data_utils import MolFormerDataset, ECFPDataset, SMILESDataset
-# torch.multiprocessing.set_sharing_strategy("file_system")
 import deepchem as dc
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.metrics import roc_auc_score
 from pathlib import Path
-from sklearn.neural_network import MLPClassifier
 from rdkit import Chem
 from hdpy.ecfp.encode import ECFPEncoder
-from hdpy.model import RPEncoder
+from hdpy.model import RPEncoder, MLPClassifier
 from hdpy.molehd.encode import tokenize_smiles
 from hdpy.selfies.encode import SELFIESHDEncoder
 from hdpy.metrics import validate
 from hdpy.utils import compute_splits
-# from hdpy.selfies.encode import encode_smiles_as_selfie
-# import hdpy.parser as parser
 from torch.utils.data import TensorDataset
-# from hdpy.model import get_random_hv
 from hdpy.model import TokenEncoder
 SCRATCH_DIR="/p/lustre2/jones289/"
 SCRATCH_DIR="/p/vast1/jones289/"
@@ -54,6 +49,8 @@ def seed_rngs(seed: int):
 def collate_list_fn(data):
     return [x for x in data]
 
+
+# todo: this needs to be in the model.py
 def train(model, train_dataloader):
     
     with torch.no_grad():
@@ -137,6 +134,8 @@ def train(model, train_dataloader):
 
         return model, learning_curve, single_pass_train_time, retrain_time
 
+
+# todo: this needs to be in the model.py
 def test(model, test_dataloader):
 
     with torch.no_grad():
@@ -179,7 +178,7 @@ def test(model, test_dataloader):
 
             conf_test_start = time.time()
             conf = model.compute_confidence(hv)
-            conf_test_end = time.time() - conf_test_start
+            conf_test_end = time.time()
             conf_list.append(conf.cpu())
             conf_time_list.append(conf_test_end - conf_test_start)
 
@@ -369,9 +368,155 @@ def run_hd_trial(
     return result_dict
     
 
+from ray import train, tune
 
-# def run_sklearn_trial(smiles, labels, train_idxs, test_idxs):
-# def run_sklearn_trial(x_train, y_train, x_test, y_test):
+
+
+def train_mlp(params, train_dataloader, test_dataloader):
+
+    net = MLPClassifier(**params)
+
+    net = net.to(config.device)
+
+
+    step = 0
+    for epoch in range(config.epochs):
+        for batch in tqdm(train_dataloader, desc=f"epoch(step): {epoch}-{step} training MLP"):
+            
+            net.optimizer.zero_grad()
+
+            x, y = batch
+
+            y_ = net(x.float())
+
+            # import pdb
+            # pdb.set_trace()
+            loss = net.criterion(y_, y.squeeze().long())
+            loss.backward()
+
+            net.optimizer.step()
+
+            # print(loss.item())
+            # running_loss += loss.item()
+            step+=1
+
+
+    # print(running_loss/(step/len(batch)))
+
+    print("finished training")
+
+    test_time = 0.0
+    running_loss = 0.0
+
+    with torch.no_grad():
+
+        for batch in tqdm(test_dataloader, desc="testing MLP"):
+            
+            x, y = batch
+
+            test_start = time.time()
+            y_ = net(x.float())
+            test_end = time.time()
+            test_time += ((test_end - test_start)/x.shape[0])
+
+            # calculate the loss and add to running total
+            loss = net.criterion(y_, y.squeeze().long())
+            running_loss += loss.item() 
+
+
+    # this is the loss and the average of the average batch time to compute the prediction
+    tune.report(loss=running_loss/(step/len(batch)), test_time=test_time/len(test_dataloader))
+
+
+
+
+
+def run_mlp_trial(train_dataset, test_dataset):
+
+    from ray.tune.schedulers import ASHAScheduler
+    from ray import tune
+
+    param_dist= {
+        "layer_sizes": tune.choice([((config.input_size, 512), (512, 256), (256, 128), (128, 2)),
+                        ((config.input_size, 256),(256, 128), (128, 64), (64, 2)),
+                        ((config.input_size, 128), (128, 64), (64, 32), (32, 2)),
+
+                        ((config.input_size, 512), (512, 128), (128, 2)),
+                        ((config.input_size, 256), (256, 64), (64, 2)),
+                        ((config.input_size, 128), (128, 32), (32, 2)),
+
+                        ((config.input_size, 512), (512, 2)),
+                        ((config.input_size, 256), (256, 2)),
+                        ((config.input_size, 128), (128, 2))
+
+                        ]),
+        "lr": tune.choice([1e-3, 1e-2]), 
+        "activation": tune.choice([torch.nn.Tanh(), torch.nn.ReLU(), torch.nn.GELU()]),
+        "criterion": tune.choice([torch.nn.NLLLoss()]),
+        "optimizer": tune.choice([torch.optim.Adam, torch.optim.SGD]),
+        # "max_epochs": tune.choice([1, 5, 10])
+    }
+
+    train_dataloader = DataLoader(train_dataset, 
+                                  batch_size=args.batch_size, 
+                                  num_workers=args.num_workers,
+                                  persistent_workers=True,
+                                  shuffle=True)
+    test_dataloader = DataLoader(test_dataset, 
+                                 batch_size=args.batch_size,
+                                 num_workers=1,
+                                 persistent_workers=False,
+                                 shuffle=False)
+    scheduler = ASHAScheduler(
+        max_t=10,
+        grace_period=1,
+        reduction_factor=2
+    )
+
+
+    tuner = tune.Tuner(
+    tune.with_resources(
+        tune.with_parameters(train_mlp, train_dataloader=train_dataloader, test_dataloader=test_dataloader),
+        resources={"cpu": 2, "gpu": 1}
+    ),
+    tune_config=tune.TuneConfig(
+        metric="loss",
+        mode="min",
+        scheduler=scheduler,
+        num_samples=50,
+    ),
+        param_space=param_dist,
+    )
+    results = tuner.fit()
+
+
+    import ipdb
+    ipdb.set_trace()
+
+
+
+    # return running_loss / 
+
+
+
+
+
+
+
+
+
+
+
+    # net = MLPClassifier
+    # net.set_params(**params)
+
+    # from sklearn.model_selection import GridSearchCV
+
+    # gs = GridSearchCV(net, params, cv=3, verbose=2)
+
+    # gs.fit(x_train, y_train)
+
+
 
     # model = None
     # search = None
@@ -523,13 +668,19 @@ def main(
             train_dataset=train_dataset,
             test_dataset=test_dataset,
         )
-    else:
-        result_dict = run_sklearn_trial(
-            x_train=train_dataset.x, 
-            y_train=train_dataset.y,
-            x_test=test_dataset.x,
-            y_test=test_dataset.y
+    elif config.model in ["mlp"]:
+        result_dict = run_mlp_trial(
+            train_dataset=train_dataset,
+            test_dataset=test_dataset
         )
+    else:
+        # result_dict = run_sklearn_trial(
+            # x_train=train_dataset.x, 
+            # y_train=train_dataset.y,
+            # x_test=test_dataset.x,
+            # y_test=test_dataset.y
+        # )
+        raise NotImplementedError
 
     return result_dict
 
@@ -685,9 +836,6 @@ def driver():
 
             torch.save(result_dict, output_file)
 
-
-
-        
     elif args.dataset == "sider":
 
         df = pd.read_csv(
@@ -765,7 +913,6 @@ def driver():
                     "wb",
                 ) as handle:
                     pickle.dump(result_dict, handle)
-
 
     elif args.dataset == "clintox":
 

@@ -192,16 +192,10 @@ class TokenEncoder(HDModel):
     def encode(self, tokens:list):
 
         # tokens is a list of tokens that we will map to item_mem token hvs and produce the smiles hv
-        # import pdb
-        # pdb.set_trace()
         hv = torch.zeros(1, self.D).int()
 
-        #todo: try using a list comprehension instead
-
         batch_tokens = [torch.roll(self.item_mem[token], idx).reshape(1,-1) for idx, token in enumerate(tokens)]
-        # for idx, token_hv in enumerate(batch_tokens):
-            # token_hv = self.item_mem[token]
-            # hv = hv + torch.roll(token_hv, idx).int()
+
         hv = torch.vstack(batch_tokens).sum(dim=0).reshape(1,-1)
 
         # binarize
@@ -219,29 +213,14 @@ class TokenEncoder(HDModel):
         return torch.cat([self.encode(z) for z in token_list])
 
 
-
-
-
-
-
-
-
-
 class ECFPDataset(Dataset):
     def __init__(self, input_size:int, radius:float, D:int, num_classes:int, fp_list:list):
         super()
 
-        # self.smiles_list = smiles_list
-        # self.rp_encoder = RPEncoder(input_size=input_size, num_classes=num_classes, D=D)
-        # self.rp_encoder = rp_encoder
         self.input_size = input_size
         self.radius = radius
         self.D = D
         self.num_classes = num_classes
-        # self.smiles_list = smiles_list
-        # self.compute_fingerprint_from_smiles = compute_fingerprint_from_smiles
-        # import ipdb
-        # ipdb.set_trace()        
         self.ecfp_arr = torch.from_numpy(np.concatenate(fp_list)).reshape(-1, self.input_size)
         
 
@@ -249,23 +228,8 @@ class ECFPDataset(Dataset):
         return len(self.ecfp_arr)
 
     def __getitem__(self, idx):
-        # import ipdb 
-        # ipdb.set_trace()
-        # ecfp = torch.from_numpy(self.compute_fingerprint_from_smiles(smiles=self.smiles_list[idx],
-                                                    # radius=self.radius,
-                                                    # input_size=self.input_size))
-        # ecfp = self.ecfp_list[idx]
-        return self.ecfp_arr[idx]
-        # if ecfp is not None:
-            # print(ecfp)
-            # start = time.time()
-            # hv = self.rp_encoder.encode(ecfp)
-            # end = time.time()
 
-            # return hv, end-start
-        # else:
-            # self.smiles_list.pop(idx)
-            # return None
+        return self.ecfp_arr[idx]
 
 
 
@@ -386,47 +350,29 @@ class HD_Level_Classification(HDModel):
 # BENCHMARK MODELS
 
 # Fully connected neural network with one hidden layer
-class ClassifierNetwork(nn.Module):
-    def __init__(self, input_size, hidden_size, num_classes, lr):
-        super(ClassifierNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.tanh = nn.Tanh()
-        self.fc2 = nn.Linear(hidden_size, num_classes)
+class MLPClassifier(nn.Module):
+    def __init__(self, layer_sizes, lr, activation, criterion, optimizer):
+        super(MLPClassifier, self).__init__()
+        self.activation = activation
 
-        self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
+        self.fc_layers = torch.nn.Sequential() 
+        for idx, (input_size, output_size) in enumerate(layer_sizes):
+            
+            if idx < len(layer_sizes) - 1:
+                self.fc_layers.append(nn.Linear(input_size, output_size))
+                self.fc_layers.append(self.activation)
+            else:
+                self.fc_layers.append(nn.Linear(input_size, output_size))
+
+        self.criterion = criterion 
+        self.optimizer = optimizer(self.parameters(), lr=lr)
 
 
     def forward(self, x):
-        out = self.fc1(x)
-        out = self.tanh(out)
-        out = self.fc2(out).softmax(dim=1)
+
+        out = self.fc_layers(x)
+        out = torch.nn.LogSoftmax(dim=1)(out)
         return out
-
-
-    # def fit(self, x_train, y_train, num_epochs):
-
-        # cross entropy likes the long tensor so just do this once before training instead of multiple times
-        # y_train = y_train.long()
-
-        # Train the model
-
-        # train_dataloader = DataLoader(CustomDataset(x_train, y_train), batch_size=32)
-
-        # for batch in tqdm(train_dataloader, desc="training MLP..."):
-            # Forward pass
-            # features, labels = batch
-            # self.optimizer.zero_grad()
-            # outputs = self.forward(features)
-            # loss = self.criterion(outputs, labels)
-            # print(loss) 
-            # Backward and optimize
-            # loss.backward()
-            # self.optimizer.step()
-
-
-    def predict(self, features):
-        return self.forward(features)
 
 from sklearn.neighbors import KNeighborsClassifier
 
