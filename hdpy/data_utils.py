@@ -20,44 +20,43 @@ from hdpy.utils import get_random_hv, compute_fingerprint_from_smiles
 
 class SMILESDataset(Dataset):
 
-    def __init__(self, smiles:list, labels:list, D:int, tokenizer, ngram_order, num_workers=1, item_mem=None, device="cpu"):
+    def __init__(self, smiles:list, D:int, tokenizer, ngram_order, labels=None, num_workers=1, item_mem=None, device="cpu"):
+        '''
+            This reads in a list of smiles and labels, tokenizes the smiles, 
+            then yields these pairs. it also builds an item memory during
+            this process which can be accessed publicly. 
+        
+        '''
+
+
+
 
         self.smiles = smiles 
-        self.labels = labels
+        if labels is not None:
+            self.labels = torch.from_numpy(labels)
+        else:
+            self.labels=labels
         self.D = D
         self.tokenizer = tokenizer
         self.ngram_order = ngram_order
         self.num_workers = num_workers
         self.device = device
-        # self.split_df = split_df
 
-
-        # import pdb
-        # pdb.set_trace()
-
-
-        # self.y = self.split_df[self.label_col]
-        # self.smiles = smiles
-
-        # self.smiles_train = self.split_df[self.smiles_col][self.split_df[self.split_df["split"] == "train"]["index"]]
-        # self.smiles_test = self.split_df[self.smiles_col][self.split_df[self.split_df["split"] == "test"]["index"]]
-
-
-        # train_encode_time = 0
 
         self.data_toks = tokenize_smiles(
             self.smiles, tokenizer=self.tokenizer, ngram_order=self.ngram_order, num_workers=self.num_workers,
         )
         
 
-    # def build_item_memory(self, dataset_tokens):
         self.item_mem = item_mem
         if self.item_mem == None:
             self.item_mem = {}
 
-
+        self.item_mem_time = 0.0
         for tokens in tqdm(self.data_toks, desc="building item memory"):
 
+
+            token_start = time.time()
             tokens = list(set(tokens))
             # "empty" token?
             for token in tokens:
@@ -67,108 +66,50 @@ class SMILESDataset(Dataset):
                     token_hv = get_random_hv(self.D,1)
                     self.item_mem[token] = token_hv.to(self.device)
 
-        print(f"item memory formed with {len(self.item_mem.keys())} entries.")
+            token_end = time.time()
+            self.item_mem_time += (token_end - token_start)
+
+
+        self.item_mem_time = self.item_mem_time
+        print(f"item memory formed with {len(self.item_mem.keys())} entries in {self.item_mem_time} seconds.")
 
         
-        # import pdb
-        # pdb.set_trace()
-        # import multiprocessing as mp
-        # from functools import partial
-        # with mp.Pool(16) as pool:
-
-            # job_func = partial(tok_seq_to_hv, D=self.D, item_mem=self.item_mem)
-            # self.x = np.asarray(
-                    # list(tqdm(pool.imap(job_func, toks)))
-                # )
-
-        # import pdb 
-        # pdb.set_trace()
-        # dataset_hvs = []
-    
-        # for tokens in tqdm(toks, desc="computing hvs"):
-            # hv = torch.zeros(self.D).int()
-            # print(len(tokens))
-            # for each token in the sequence, retrieve the hv corresponding to it
-            # then rotate the tensor elements by the position number the token
-            # occurs at in the sequence. add to (zero-initialized hv representing the 
-            # for idx, token in enumerate(tokens):
-                # token_hv = self.item_mem[token]
-                # hv = hv + torch.roll(token_hv, idx).int()
-
-            # binarize
-            # hv = binarize(hv)
-            # dataset_hvs.append(hv)
-            # return hv
-
-
-        # dataset_hvs = torch.cat(dataset_hvs).int()
-
-        # import pdb
-        # pdb.set_trace()
-
-        # reduce toks to only the set of unique symbols, map these symbols torandom hypervectors (I have a function already defined for this),
-        # then this dataset will just yield the hv's directly instead of what molformer and ecfp are doing
-
-        # alternatively, we could map the symbols to some scheme that arrives at integer seqeunce representation that may be more comapact?
-
-        # model.build_item_memory(toks)
-        # train_encode_start = time.time()
-        # train_dataset_hvs = model.encode_dataset(train_toks)
-        # train_encode_time = time.time() - train_encode_start
-
-        # test_encode_start = time.time()
-        # test_dataset_hvs = model.encode_dataset(test_toks)
-        # test_encode_time = time.time() - test_encode_start
-
-        # train_dataset_hvs = torch.vstack(train_dataset_hvs).int()
-        # test_dataset_hvs = torch.vstack(test_dataset_hvs).int()
-
-
-
-        #todo: do this with a pool 
-        # self.x_train =  np.concatenate([
-                # compute_fingerprint_from_smiles(x, length=self.ecfp_length, radius=self.ecfp_radius).reshape(1,-1)
-                # for x in tqdm(self.smiles_train)
-            # ], axis=0)
-
-        #todo: do this with a pool 
-        # self.x_test =  np.concatenate([
-                # compute_fingerprint_from_smiles(x, length=self.ecfp_length, radius=self.ecfp_radius).reshape(1,-1)
-                # for x in tqdm(self.smiles_test)
-            # ], axis=0)
-
-        # self.y_train = self.split_df[self.label_col][self.split_df[self.split_df["split"] == "train"]["index"].values]
-        # self.y_test = self.split_df[self.label_col][self.split_df[self.split_df["split"] == "test"]["index"].values]
-
-
-        # self.x_train = torch.from_numpy(self.x_train).int()
-        # self.x_test = torch.from_numpy(self.x_test).int()
-        # self.y_train = torch.from_numpy(self.y_train).int()
-        # self.y_test = torch.from_numpy(self.y_test).int()
-
-    
     def __len__(self):
 
         return len(self.data_toks)
 
     def __getitem__(self, idx):
-        # hv = torch.zeros(self.D, dtype=int)
+
+        if self.labels == None:
+            return self.data_toks[idx]
+        else:
+            return self.data_toks[idx], self.labels[idx]
 
 
-        tokens = self.data_toks[idx]
+class RawECFPDataset(Dataset):
+    def __init__(self, input_size:int, radius:float, D:int, num_classes:int, fp_list:list):
+        super()
+        '''
+            This is just denoting the fact this dataset only yields ECFPs, not labels or etc...could probably merge this with a flag in the other case
+        '''
+        self.input_size = input_size
+        self.radius = radius
+        self.D = D
+        self.num_classes = num_classes
+        self.ecfp_arr = torch.from_numpy(np.concatenate(fp_list)).reshape(-1, self.input_size)
+        
 
-        # for each token in the sequence, retrieve the hv corresponding to it
-        # then rotate the tensor elements by the position number the token
-        # occurs at in the sequence. add to (zero-initialized hv representing the 
-        # for idx, token in enumerate(tokens):
-            # token_hv = self.item_mem[token]
-            # hv = hv + torch.roll(token_hv, idx).int()
+    def __len__(self):
+        return len(self.ecfp_arr)
 
-        # binarize
-        # hv = binarize(hv)
-        # return hv
-        return tokens, self.labels.values[idx]
-        # return tokens
+    def __getitem__(self, idx):
+
+        return self.ecfp_arr[idx]
+
+
+
+
+
 
 
 class ECFPDataset(Dataset):
@@ -273,6 +214,17 @@ class MolFormerDataset(Dataset):
 
         x_train = np.concatenate(x_train)
         x_test = np.concatenate(x_test)
+
+        # todo: preprocess the x_train and x_test
+        from sklearn.preprocessing import StandardScaler
+
+        std_scaler = StandardScaler()
+        std_scaler.fit(x_train)
+
+        x_train = std_scaler.transform(x_train)
+        x_test = std_scaler.transform(x_test)
+
+
         y_train = np.concatenate(y_train).reshape(-1,1)
         y_test = np.concatenate(y_test).reshape(-1,1)
         

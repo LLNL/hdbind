@@ -8,8 +8,8 @@
 from cProfile import run
 import pickle
 import time
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import RandomizedSearchCV
+# from sklearn.ensemble import RandomForestClassifier
+# from sklearn.model_selection import RandomizedSearchCV
 import torch
 import ray
 from tqdm import tqdm
@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import selfies as sf
 constrain_dict = sf.get_semantic_constraints()
-import torch.multiprocessing as mp
+# import torch.multiprocessing as mp
 from hdpy.data_utils import MolFormerDataset, ECFPDataset, SMILESDataset
 import deepchem as dc
 from torch.utils.data import DataLoader
@@ -25,7 +25,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.metrics import roc_auc_score
 from pathlib import Path
-from rdkit import Chem
+# from rdkit import Chem
 from hdpy.ecfp.encode import ECFPEncoder
 from hdpy.model import RPEncoder, MLPClassifier
 from hdpy.molehd.encode import tokenize_smiles
@@ -34,11 +34,15 @@ from hdpy.metrics import validate
 from hdpy.utils import compute_splits
 from torch.utils.data import TensorDataset
 from hdpy.model import TokenEncoder
-SCRATCH_DIR="/p/lustre2/jones289/"
-SCRATCH_DIR="/p/vast1/jones289/"
 # seed the RNGs
 import random
+from ray.tune.schedulers import ASHAScheduler
+from ray import tune
+from ray.air import Checkpoint, RunConfig
+from ray import train, tune
 
+SCRATCH_DIR="/p/lustre2/jones289/"
+SCRATCH_DIR="/p/vast1/jones289/"
 
 def seed_rngs(seed: int):
     random.seed(seed)
@@ -51,7 +55,7 @@ def collate_list_fn(data):
 
 
 # todo: this needs to be in the model.py
-def train(model, train_dataloader):
+def train_hdc(model, train_dataloader):
     
     with torch.no_grad():
         model = model.to(device)
@@ -136,7 +140,7 @@ def train(model, train_dataloader):
 
 
 # todo: this needs to be in the model.py
-def test(model, test_dataloader):
+def test_hdc(model, test_dataloader):
 
     with torch.no_grad():
         model = model.to(device)
@@ -191,7 +195,7 @@ def test(model, test_dataloader):
         }
 
 
-def run_hd_trial(
+def run_hd(
     model,
     train_dataset, 
     test_dataset,
@@ -309,13 +313,13 @@ def run_hd_trial(
         # this should force each call of .fit to be different...I think..
         seed_rngs(args.random_state + i)
 
-        model, learning_curve, single_pass_train_time, retrain_time = train(model=model, train_dataloader=train_dataloader)
+        model, learning_curve, single_pass_train_time, retrain_time = train_hdc(model=model, train_dataloader=train_dataloader)
 
 
         trial_dict["hd_learning_curve"] = learning_curve
 
         # time test inside of the funcion
-        test_dict = test(model, test_dataloader)
+        test_dict = test_hdc(model, test_dataloader)
 
         trial_dict["am"] = {
             0: model.am[0].cpu().numpy(),
@@ -368,73 +372,130 @@ def run_hd_trial(
     return result_dict
     
 
-from ray import train, tune
 
+def train_mlp(model, train_dataloader, epochs):
+    model = model.to(config.device)
 
-
-def train_mlp(params, train_dataloader, test_dataloader):
-
-    net = MLPClassifier(**params)
-
-    net = net.to(config.device)
-
-
+    forward_time = 0.0
+    loss_time = 0.0
+    backward_time = 0.0
     step = 0
-    for epoch in range(config.epochs):
-        for batch in tqdm(train_dataloader, desc=f"epoch(step): {epoch}-{step} training MLP"):
+
+    for epoch in range(epochs):
+        for batch in tqdm(train_dataloader, desc=f"training MLP epoch(step): {epoch}({step})"):
             
-            net.optimizer.zero_grad()
+            model.optimizer.zero_grad()
 
             x, y = batch
 
-            y_ = net(x.float())
+            x = x.to(config.device).float()
+            y = y.to(config.device).reshape(-1).long()
+
+            forward_start = time.time()
+            y_ = model(x)
+            forward_end = time.time()
 
             # import pdb
             # pdb.set_trace()
-            loss = net.criterion(y_, y.squeeze().long())
+            # print(y_.reshape(-1, 2).shape, y.squeeze().shape)
+            loss_start = time.time()
+            loss = model.criterion(y_.reshape(-1, 2), y)
+            loss_end = time.time()
+
+            backward_start = time.time()
             loss.backward()
+            backward_end = time.time()
 
-            net.optimizer.step()
+            model.optimizer.step()
 
-            # print(loss.item())
-            # running_loss += loss.item()
+
             step+=1
 
+            forward_time += (forward_end - forward_start)
+            loss_time += (loss_end - loss_start)
+            backward_time += (backward_end - backward_start)
 
-    # print(running_loss/(step/len(batch)))
+    return {"model": model,
+            "train_time": forward_time + loss_time + backward_time,
+            "forward_time": forward_time,
+            "loss_time": loss_time,
+            "backward_time": backward_time}
 
-    print("finished training")
 
-    test_time = 0.0
-    running_loss = 0.0
+def val_mlp(model, val_dataloader):
+
+    forward_time = 0.0
+    loss_time = 0.0
+    total_loss = 0.0
+
+    preds = []
+    targets = []
 
     with torch.no_grad():
-
-        for batch in tqdm(test_dataloader, desc="testing MLP"):
+        for batch in tqdm(val_dataloader, desc=f"validating MLP"):
             
             x, y = batch
+            targets.append(y)
 
-            test_start = time.time()
-            y_ = net(x.float())
-            test_end = time.time()
-            test_time += ((test_end - test_start)/x.shape[0])
+            x = x.to(config.device).float()
+            y = y.to(config.device).reshape(-1).long()
 
-            # calculate the loss and add to running total
-            loss = net.criterion(y_, y.squeeze().long())
-            running_loss += loss.item() 
+            forward_start = time.time()
+            y_ = model(x)
+            forward_end = time.time()
 
+            preds.append(y_)
+
+
+            loss_start = time.time()
+            loss = model.criterion(y_, y)
+            loss_end = time.time()
+
+            total_loss += loss.item()
+
+            forward_time += (forward_end - forward_start)
+            loss_time += (loss_end - loss_start)
+
+
+    preds = torch.cat(preds)
+    targets = torch.cat(targets)
+
+    return {"y_true": targets ,"y_pred": torch.argmax(preds, dim=1), "probs": preds, "loss": total_loss, "forward_time": forward_time, "loss_time": loss_time}
+
+
+def ray_mlp_job(params, train_dataloader, val_dataloader):
+
+    model = MLPClassifier(**params)
+
+    train_dict = train_mlp(model=model, train_dataloader=train_dataloader, epochs=5)
+    model = train_dict["model"]
+
+    val_dict = val_mlp(model=model, val_dataloader=val_dataloader)
+
+
+    loss = val_dict["loss"]/val_dict["y_pred"].shape[0]
+    val_time = val_dict["forward_time"]/val_dict["y_pred"].shape[0]
+
+
+    # checkpoint_dir = Path("/g/g13/jones289/workspace/hd-cuda-master/hdpy/mlp_checkpoints/")
+    # checkpoint_dir = Path("mlp_checkpoints/")
+    # if not checkpoint_dir.exists():
+        # checkpoint_dir.mkdir(parents=True)
+
+
+    # with tune.checkpoint_dir(checkpoint_dir) as tune_checkpoint_dir:
+        # torch.save(model.state_dict(), f"{tune_checkpoint_dir}/checkpoint.pt") # i think this needs to named uniquely?
+
+        # checkpoint = Checkpoint.from_directory(tune_checkpoint_dir)
 
     # this is the loss and the average of the average batch time to compute the prediction
-    tune.report(loss=running_loss/(step/len(batch)), test_time=test_time/len(test_dataloader))
+    # tune.report(loss=loss, val_time=val_time, checkpoint=checkpoint)
+    tune.report(loss=loss, val_time=val_time)
 
 
 
 
-
-def run_mlp_trial(train_dataset, test_dataset):
-
-    from ray.tune.schedulers import ASHAScheduler
-    from ray import tune
+def run_mlp(train_dataset, test_dataset):
 
     param_dist= {
         "layer_sizes": tune.choice([((config.input_size, 512), (512, 256), (256, 128), (128, 2)),
@@ -454,30 +515,42 @@ def run_mlp_trial(train_dataset, test_dataset):
         "activation": tune.choice([torch.nn.Tanh(), torch.nn.ReLU(), torch.nn.GELU()]),
         "criterion": tune.choice([torch.nn.NLLLoss()]),
         "optimizer": tune.choice([torch.optim.Adam, torch.optim.SGD]),
-        # "max_epochs": tune.choice([1, 5, 10])
     }
+
+
+    train_dataset, val_dataset = torch.utils.data.random_split(train_dataset, [.80, .20])
+
 
     train_dataloader = DataLoader(train_dataset, 
                                   batch_size=args.batch_size, 
                                   num_workers=args.num_workers,
                                   persistent_workers=True,
                                   shuffle=True)
+    
+    val_dataloader = DataLoader(val_dataset, 
+                                 batch_size=args.batch_size,
+                                 num_workers=1,
+                                 persistent_workers=False,
+                                 shuffle=False)
+    
     test_dataloader = DataLoader(test_dataset, 
                                  batch_size=args.batch_size,
                                  num_workers=1,
                                  persistent_workers=False,
                                  shuffle=False)
+
     scheduler = ASHAScheduler(
-        max_t=10,
+        max_t=5,
         grace_period=1,
-        reduction_factor=2
+        reduction_factor=2,
+        brackets=2,
     )
 
 
     tuner = tune.Tuner(
     tune.with_resources(
-        tune.with_parameters(train_mlp, train_dataloader=train_dataloader, test_dataloader=test_dataloader),
-        resources={"cpu": 2, "gpu": 1}
+        tune.with_parameters(ray_mlp_job, train_dataloader=train_dataloader, val_dataloader=val_dataloader),
+        resources={"cpu": 4, "gpu": 1}
     ),
     tune_config=tune.TuneConfig(
         metric="loss",
@@ -486,25 +559,83 @@ def run_mlp_trial(train_dataset, test_dataset):
         num_samples=50,
     ),
         param_space=param_dist,
+        run_config=RunConfig(verbose=1)
     )
     results = tuner.fit()
 
 
-    import ipdb
-    ipdb.set_trace()
+    # import ipdb
+    # ipdb.set_trace()
 
+
+    # get best model then run on full training set for config.num_epochs
+
+    best_params=results.get_best_result("loss", "min").config
+
+    print(f"best MLP params: {best_params}")
+
+
+    model = MLPClassifier(**best_params)
+
+
+    result_dict = {"best_params": best_params, "trials": {}}
+    for i in range(args.n_trials):
+
+
+        trial_dict = {}
+
+        train_dict = train_mlp(model=model, train_dataloader=train_dataloader, epochs=config.epochs)
+        test_dict = val_mlp(model=train_dict["model"], val_dataloader=test_dataloader)
+
+        # trial_dict = {}
+        seed = args.random_state + i
+        # this should force each call of .fit to be different...I think..
+        seed_rngs(seed)
+        # collect the best parameters and train on full training set, we capture timings wrt to the optimal configuration
+        # construct after seeding the rng
+
+        trial_dict["y_pred"] = test_dict["y_pred"].cpu()
+        trial_dict["eta"] = test_dict["probs"].cpu()
+        trial_dict["y_true"] = test_dict["y_true"]
+        trial_dict["train_time"] = train_dict["train_time"]
+        trial_dict["test_time"] = test_dict["forward_time"]
+        trial_dict["train_encode_time"] = None
+        trial_dict["test_encode_time"] = None 
+        trial_dict["encode_time"] = None 
+        trial_dict["train_size"] = len(train_dataset)
+        trial_dict["test_size"] = len(test_dataset)
+
+        trial_dict["class_report"] = classification_report(
+            y_pred=trial_dict["y_pred"], y_true=trial_dict["y_true"]
+        )
+
+        try:
+            trial_dict["roc-auc"] = roc_auc_score(
+                y_score=trial_dict["eta"][:, 1], y_true=trial_dict["y_true"]
+            )
+
+        except ValueError as e:
+            trial_dict["roc-auc"] = None
+            print(e)
+        # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
+
+        print(trial_dict["class_report"])
+        print(f"roc-auc {trial_dict['roc-auc']}")
+
+        # enrichment metrics
+        validate(
+            labels=trial_dict["y_true"],
+            pred_labels=trial_dict["y_pred"],
+            pred_scores=trial_dict["eta"][:, 1],
+        )
+        result_dict["trials"][i] = trial_dict
+    
+    return result_dict
+
+    # return the dict payload 
 
 
     # return running_loss / 
-
-
-
-
-
-
-
-
-
 
 
     # net = MLPClassifier
@@ -517,7 +648,7 @@ def run_mlp_trial(train_dataset, test_dataset):
     # gs.fit(x_train, y_train)
 
 
-
+def run_rf_trial(train_dataset, test_dataset):
     # model = None
     # search = None
 
@@ -550,37 +681,7 @@ def run_mlp_trial(train_dataset, test_dataset):
             # n_jobs=int(mp.cpu_count() - 1),
         # )
 
-    # elif config.model == "mlp":
-
-        # param_dist_dict = {
-            # "early_stopping": [True],
-            # "validation_fraction": [0.1, 0.2],
-            # "n_iter_no_change": [2],
-            # "alpha": [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2],
-            # "solver": ["adam"],
-            # "batch_size": np.linspace(8, 128, dtype=int),
-            # "activation": ["tanh", "relu"],
-            # "hidden_layer_sizes": [(512, 256, 128), (256, 128, 64), (128, 64, 32)],
-            # "verbose": [True],
-        # }
-
-        # tl;dr these are the "larger" datasets so set max_iter to a smaller value in that case
-        # if args.dataset in ["lit-pcba", "lit-pcba-ave", "dockstring"]:
-            # param_dist_dict["max_iter"] = [10]
-
-        # else:
-            # param_dist_dict["max_iter"] = [100]
-
-        # search = RandomizedSearchCV(
-            # MLPClassifier(),
-            # param_dist_dict,
-            # n_iter=10,
-            # cv=5,
-            # refit=False,
-            # scoring=scoring,
-            # verbose=True,
-            # n_jobs=int(mp.cpu_count() - 1),
-        # )
+    
 
     # else:
         # raise NotImplementedError("please supply valid model type")
@@ -654,6 +755,7 @@ def run_mlp_trial(train_dataset, test_dataset):
         # )
 
     # return result_dict
+    pass
 
 
 def main(
@@ -663,13 +765,13 @@ def main(
 ):
 
     if config.model in ["molehd", "selfies", "ecfp", "rp"]:
-        result_dict = run_hd_trial(
+        result_dict = run_hd(
             model=model,
             train_dataset=train_dataset,
             test_dataset=test_dataset,
         )
     elif config.model in ["mlp"]:
-        result_dict = run_mlp_trial(
+        result_dict = run_mlp(
             train_dataset=train_dataset,
             test_dataset=test_dataset
         )
@@ -748,8 +850,7 @@ def driver():
         x_train, x_test, y_train, y_test = None, None, None, None        
         smiles_train, smiles_test = None, None
         if config.embedding == "molformer":
-            # import ipdb
-            # ipdb.set_trace()
+
             dataset = MolFormerDataset(path=f"{SCRATCH_DIR}/molformer_embeddings/bbbp_molformer_embeddings.pt",
                                     split_df=split_df,
                                     smiles_col="rdkitSmiles")
@@ -807,11 +908,6 @@ def driver():
         else:
             raise NotImplementedError
 
-        # this is really dumb, need to fix
-
-        # output_file = Path(
-            # f"{output_result_dir}/{exp_name}.pt"
-        # )
         output_file = Path(
             f"{output_result_dir}/{exp_name}.{args.dataset}-{args.split_type}.{args.random_state}.pkl"
         )
@@ -825,12 +921,10 @@ def driver():
                 test_dataset=test_dataset
             )
 
-            # result_dict["smiles_train"] = smiles_train
-            # result_dict["smiles_test"] = smiles_test
-            # result_dict["x_train"] = x_train
-            # result_dict["x_test"] = x_test
-            # result_dict["y_train"] = y_train
-            # result_dict["y_test"] = y_test
+            result_dict["smiles_train"] = smiles_train
+            result_dict["smiles_test"] = smiles_test
+            result_dict["y_train"] = y_train
+            result_dict["y_test"] = y_test
 
             result_dict["args"] = config
 
@@ -900,12 +994,11 @@ def driver():
                     smiles_test=smiles_test,
                 )
 
-                # result_dict["smiles_train"] = smiles_train
-                # result_dict["smiles_test"] = smiles_test
-                # result_dict["x_train"] = x_train
-                # result_dict["x_test"] = x_test
-                # result_dict["y_train"] = y_train
-                # result_dict["y_test"] = y_test
+                result_dict["smiles_train"] = smiles_train
+                result_dict["smiles_test"] = smiles_test
+
+                result_dict["y_train"] = y_train
+                result_dict["y_test"] = y_test
 
                 result_dict["args"] = config
                 with open(
@@ -983,8 +1076,6 @@ def driver():
             raise NotImplementedError
 
 
-
-
         output_file = Path(
             f"{output_result_dir}/{exp_name}.pkl"
         )
@@ -1003,12 +1094,10 @@ def driver():
                 smiles_test=dataset.smiles_test,
             )
 
-            # result_dict["smiles_train"] = dataset.smiles_train
-            # result_dict["smiles_test"] = dataset.smiles_test
-            # result_dict["x_train"] = x_train
-            # result_dict["x_test"] = x_test
-            # result_dict["y_train"] = y_train
-            # result_dict["y_test"] = y_test
+            result_dict["smiles_train"] = dataset.smiles_train
+            result_dict["smiles_test"] = dataset.smiles_test
+            result_dict["y_train"] = y_train
+            result_dict["y_test"] = y_test
 
             result_dict["args"] = config
             with open(output_file, "wb") as handle:
@@ -1097,12 +1186,10 @@ def driver():
                     test_dataset=test_dataset
                 )
 
-                # result_dict["smiles_train"] = train_dataset.smiles
-                # result_dict["smiles_test"] = test_dataset.smiles
-                # result_dict["x_train"] = train_dataset.x
-                # result_dict["x_test"] = test_dataset.x
-                # result_dict["y_train"] = train_dataset.y
-                # result_dict["y_test"] = test_dataset.y
+                result_dict["smiles_train"] = train_dataset.smiles
+                result_dict["smiles_test"] = test_dataset.smiles
+                result_dict["y_train"] = train_dataset.y
+                result_dict["y_test"] = test_dataset.y
 
                 result_dict["args"] = config
                 with open(output_file, "wb") as handle:
@@ -1125,19 +1212,16 @@ def driver():
 
             target_name = lit_pcba_path.name
             
-            # if target_name != "ESR1_ago":
-                # continue
-            # '''
             output_file = Path(
             f"{output_result_dir}/{exp_name}.{args.dataset}-{target_name}.{args.random_state}.pkl"
         )
+            
 
             if output_file.exists():
                 # don't recompute if it's already been calculated
                 print(
                     f"output file: {output_file} for input file {lit_pcba_path} already exists. moving on to next target.."
                 )
-                pass
 
             else:
                 print(f"processing {lit_pcba_path}...")
@@ -1169,8 +1253,7 @@ def driver():
                 df["split"] = ["train"] * len(df)
                 df.loc[test_idxs, "split"] = "test"
 
-                # import ipdb
-                # ipdb.set_trace()
+
                 if config.embedding == "ecfp":
                     dataset = ECFPDataset(path=lit_pcba_path/Path("full_smiles_with_labels.csv"),
                                 smiles_col="smiles", label_col="label",
@@ -1216,22 +1299,18 @@ def driver():
 
                 # this only applies to the molformer and ecfp input cases
 
-                # import ipdb 
-                # ipdb.set_trace()
                 if config.embedding in ["molformer", "ecfp"]:
                     x_train, x_test, y_train, y_test = dataset.get_train_test_splits()
                     if isinstance(x_train, np.ndarray):
                         x_train, x_test, y_train, y_test = torch.from_numpy(x_train), torch.from_numpy(x_test), torch.from_numpy(y_train), torch.from_numpy(y_test)
                     train_dataset = TensorDataset(x_train, y_train)
                     test_dataset = TensorDataset(x_test, y_test)
-                
 
                 if output_file.exists():
                     with open(output_file, "rb") as handle:
                         result_dict = pickle.load(handle)
 
                 else:
-                    # continue
                     result_dict = main(
                         model=model,
                         train_dataset=train_dataset,
@@ -1239,21 +1318,30 @@ def driver():
                     )
 
 
-                # import ipdb
-                # ipdb.set_trace()
-                if config.model == "molehd":
-                    result_dict["y_train"] = (train_dataset.labels.values)
-                    result_dict["y_test"] = (test_dataset.labels.values)
-                else:
-                    # result_dict["x_train"] = (train_dataset.tensors[0]).numpy()
-                    # result_dict["x_test"] = (test_dataset.tensors[0]).numpy()
-                    result_dict["y_train"] = (train_dataset.tensors[1]).numpy()
-                    result_dict["y_test"] = (test_dataset.tensors[1]).numpy()
 
-                result_dict["args"] = config
-                with open(output_file, "wb") as handle:
-                    pickle.dump(result_dict, handle)
-                print(f"done. output file: {output_file}")
+
+
+                    if config.model == "molehd":
+                        result_dict["y_train"] = (train_dataset.labels.values)
+                        result_dict["y_test"] = (test_dataset.labels.values)
+                    else:
+
+                        result_dict["y_train"] = (train_dataset.tensors[1]).numpy()
+                        result_dict["y_test"] = (test_dataset.tensors[1]).numpy()
+
+
+                    result_dict["smiles_train"] = dataset.smiles_train
+                    result_dict["smiles_test"] = dataset.smiles_test
+
+
+                    result_dict["args"] = config
+
+                    # import pdb
+                    # pdb.set_trace()
+                    with open(output_file, "wb") as handle:
+                        pickle.dump(result_dict, handle)
+                    print(f"done. output file: {output_file}")
+
 
 
 if __name__ == "__main__":
@@ -1271,4 +1359,4 @@ if __name__ == "__main__":
 
     print(f"using device {device}")
 
-    driver()
+    drive

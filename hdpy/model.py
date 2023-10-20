@@ -10,7 +10,6 @@ import torch.nn as nn
 from tqdm import tqdm 
 import torchmetrics
 from torch.utils.data import Dataset
-# from hdpy.utils import CustomDataset
 import numpy as np
 
 
@@ -54,25 +53,8 @@ class HDModel(nn.Module):
     def encode(self, x):
         raise NotImplementedError("Please implement this function in a subclass")
 
-
-    # def encode_dataset(self, dataset):
-        # lets process batches instead of one by one
-        # dataset_hvs = []
-
-        # for datapoint in tqdm(dataset, desc="encoding dataset..."):
-            # dataset_hvs.append(self.encode(datapoint).reshape(1, -1)) 
-
-    
-        # torch.cat(dataset_hvs)
-
-
-        # return dataset_hvs
-
-
     def predict(self, enc_hvs):
-        # import ipdb
-        # ipdb.set_trace()
-        # preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().float(), torch.cat([x.reshape(1,-1) for x in self.am.values()]).float()), dim=1)
+
         preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().cuda().float(), self.am.clone().cuda().float()), dim=1)
         return preds
 
@@ -85,7 +67,6 @@ class HDModel(nn.Module):
     def compute_confidence(self, dataset_hvs):
 
         # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order 
-        # am_array = torch.concat([self.am[key].reshape(1,-1) for key in sorted(self.am.keys())], dim=0)
 
         # this torchmetrics function potentially edits in place so we make a clone
         sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone().cuda().float(), self.am.clone().cuda().float())
@@ -103,12 +84,9 @@ class HDModel(nn.Module):
         labels = labels[shuffle_idx].int()
 
         # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order 
-        # am_array = torch.concat([self.am[key].reshape(1,-1) for key in sorted(self.am.keys())], dim=0)
 
         mistakes = 0
 
-        # import pdb
-        # pdb.set_trace() 
         for hv, label in tqdm(zip(dataset_hvs, labels), total=len(dataset_hvs)):
         
             out = int(torch.argmax(torch.nn.CosineSimilarity()(hv.float(),self.am.float())))
@@ -157,7 +135,6 @@ class RPHDLightningModule(pl.LightningModule):
 class RPEncoder(HDModel):
     def __init__(self, input_size:int, D:int, num_classes:int):
         super(RPEncoder, self).__init__(D=D)
-        # super()
         self.rp_layer = nn.Linear(input_size, D, bias=False)
 
         init_rp_mat = torch.bernoulli(torch.tensor([[0.5] * input_size] * D)).float()*2-1
@@ -211,55 +188,6 @@ class TokenEncoder(HDModel):
     def encode_batch(self, token_list:list):
 
         return torch.cat([self.encode(z) for z in token_list])
-
-
-class ECFPDataset(Dataset):
-    def __init__(self, input_size:int, radius:float, D:int, num_classes:int, fp_list:list):
-        super()
-
-        self.input_size = input_size
-        self.radius = radius
-        self.D = D
-        self.num_classes = num_classes
-        self.ecfp_arr = torch.from_numpy(np.concatenate(fp_list)).reshape(-1, self.input_size)
-        
-
-    def __len__(self):
-        return len(self.ecfp_arr)
-
-    def __getitem__(self, idx):
-
-        return self.ecfp_arr[idx]
-
-
-
-class HD_Sparse_Classification(HDModel):
-    def __init__(self, input_size, D, density, num_classes):
-        super(HD_Sparse_Classification, self).__init__()
-        self.rp_layer = nn.Linear(input_size, D, bias=False)
-
-        init_rp_mat = torch.bernoulli(torch.tensor([[density] * input_size] * D)).float()
-        self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False)
-        
-        self.init_class_hvs = torch.zeros(num_classes, D).float().cuda()
-        # self.init_class_hvs = torch.sparse_coo_tensor(num_classes, D, (num_class)).cuda()
-
-
-
-    def RP_encoding(self, x):
-        out = self.rp_layer(x)
-        # out = torch.where(out>0, 1.0, -1.0)
-        return out
-
-    def encode(self, x):
-        return self.RP_encoding(x)
-
-    def init_class(self, x_train, train_labels):
-        out = self.RP_encoding(x_train)
-        for i in range(x_train.size()[0]):
-            self.init_class_hvs[train_labels[i]] += out[i]
-        # self.am = nn.parameter.Parameter(self.init_class_hvs, requires_grad=True)
-        self.am = self.init_class_hvs 
 
 
 class HD_Kron_Classification(HDModel):
