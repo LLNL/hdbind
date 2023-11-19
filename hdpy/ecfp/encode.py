@@ -28,7 +28,7 @@ class ECFPEncoder(Dataset):
         #data_path is a csv of smiles?
         self.smiles_list = smiles_list
         self.item_mem = None 
-
+        self.name="ecfp"
         # counter to maintain running average of latency
         # self.encode_time_list = []
 

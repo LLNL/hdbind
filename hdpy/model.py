@@ -11,6 +11,7 @@ from tqdm import tqdm
 import torchmetrics
 from torch.utils.data import Dataset
 import numpy as np
+import time
 
 
 class HDModel(nn.Module):
@@ -54,14 +55,20 @@ class HDModel(nn.Module):
         raise NotImplementedError("Please implement this function in a subclass")
 
     def predict(self, enc_hvs):
-
-        preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().cuda().float(), self.am.clone().cuda().float()), dim=1)
+        start = time.time()
+        # preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().cuda().float(), self.am.clone().cuda().float()), dim=1)
+        # preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().float(), self.am.clone().float()), dim=1)
+        preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.float(), self.am.float()), dim=1)
+        end = time.time()
+        # print((end-start)/enc_hvs.shape[0])
         return preds
 
-    def forward(self, x):
-
-        out = self.predict(x) 
-        return out
+    # def forward(self, x, encode_only=False):
+        
+        # if encode_only:
+            # out = self.forward(x)
+        # out = self.predict(x) 
+        # return out
 
 
     def compute_confidence(self, dataset_hvs):
@@ -69,7 +76,8 @@ class HDModel(nn.Module):
         # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order 
 
         # this torchmetrics function potentially edits in place so we make a clone
-        sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone().cuda().float(), self.am.clone().cuda().float())
+        # moving the self.am to cuda memory repeatedly seems wasteful
+        sims = torchmetrics.functional.pairwise_cosine_similarity(dataset_hvs.clone().float().cuda(), self.am.clone().float().cuda())
 
         eta = (sims[:, 1] - sims[:, 0]) * (1/4)
         eta = torch.add(eta, (1/2))
@@ -136,14 +144,13 @@ class RPEncoder(HDModel):
     def __init__(self, input_size:int, D:int, num_classes:int):
         super(RPEncoder, self).__init__(D=D)
         self.rp_layer = nn.Linear(input_size, D, bias=False)
-
         init_rp_mat = torch.bernoulli(torch.tensor([[0.5] * input_size] * D)).float()*2-1
         self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False)
 
         self.init_class_hvs = torch.zeros(num_classes, D).float()
 
         self.am = torch.zeros(2,self.D, dtype=int)
-
+        self.name = "rp"
 
 
     def encode(self, x):
@@ -153,7 +160,11 @@ class RPEncoder(HDModel):
         return hv 
 
 
+    def forward(self, x):
+        hv = self.rp_layer(x.float())
+        hv = torch.where(hv>0, 1.0, -1.0).int()
 
+        return hv
 
 class TokenEncoder(HDModel):
 

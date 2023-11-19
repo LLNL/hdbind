@@ -53,9 +53,7 @@ def seed_rngs(seed: int):
 def collate_list_fn(data):
     return [x for x in data]
 
-
-# todo: this needs to be in the model.py
-def train_hdc(model, train_dataloader):
+def train_hdc_no_encode(model, train_dataloader, device, num_epochs):
     
     with torch.no_grad():
         model = model.to(device)
@@ -67,7 +65,107 @@ def train_hdc(model, train_dataloader):
         
         for batch in tqdm(train_dataloader, desc=f"building AM with single-pass training.."):
 
-            if config.model == "molehd": 
+
+
+            x, y = batch
+            x = x.to("cuda")
+        
+
+
+            for class_idx in range(2): #binary classification
+
+                class_mask = y.squeeze() == class_idx
+
+                # if isinstance(x, list):
+
+                    # class_mask =class_mask.reshape(-1,1)
+                    # class_hvs = [model.encode(z) for z,w in zip(x, class_mask) if w == True]
+                    # if len(class_hvs) > 0:
+                        # class_hvs = torch.cat(class_hvs)
+                        # model.am[class_idx] += class_hvs.sum(dim=0)
+
+                        #todo: have option to binarize the am after each update? or after all updates? or maybe just in the HDC model can have a flag that uses the exact AM versus the binarized AM 
+                # else:
+                model.am[class_idx] += (x[class_mask, :]).reshape(-1, model.D).sum(dim=0)
+
+        learning_curve = []
+        train_encode_time_list = []
+
+        # import pdb
+        # pdb.set_trace()
+        for epoch in range(num_epochs):
+            
+            mistake_ct = 0
+            #TODO: initialize the associative memory with single pass training instead of the random initialization?
+
+
+            epoch_encode_time_total = 0
+            for batch in tqdm(train_dataloader, desc=f"training HDC epoch {epoch}"):
+                # x, y, hv = None, None, None
+
+                # if model.name == "molehd":
+                    # x = [x[0] for x in batch]
+                    # y = torch.from_numpy(np.array([x[1] for x in batch])).int()
+                    # y = y.squeeze().to(device)
+                    # encode_time_start = time.time()
+                    # hv = torch.cat([model.encode(z) for z in x])
+                    # encode_time_end = time.time()
+                    # epoch_encode_time_total += (encode_time_end - encode_time_start)
+
+                # else:
+                    # x, y = batch
+                    # x, y = x.to(device), y.squeeze().to(device)
+                    # encode_time_start = time.time()
+                    # hv = model.encode(x)
+                    # encode_time_end = time.time()
+                    # epoch_encode_time_total += (encode_time_end - encode_time_start)
+
+
+
+                # y_ = model.forward(hv)
+                hv, y = batch
+                hv = hv.to("cuda")
+                y = y.to("cuda")
+                y_ = model.predict(hv)
+                update_mask = torch.abs(y-y_).bool()
+                mistake_ct += sum(update_mask)
+
+
+
+                if update_mask.shape[0] == 1 and update_mask == False:
+                    continue
+                elif update_mask.shape[0] == 1 and update_mask == True:
+                    # import ipdb
+                    # ipdb.set_trace()
+                    model.am[int(update_mask)] += hv.reshape(-1)
+                    model.am[int(~update_mask.bool())] -= hv.reshape(-1)
+                else:
+                    for mistake_hv, mistake_label in zip(hv[update_mask], y[update_mask]):
+                        # print(mistake_hv.shape,mistake_label.shape)
+                        model.am[int(mistake_label)] += mistake_hv
+                        model.am[int(~mistake_label.bool())] -= mistake_hv
+
+            learning_curve.append(mistake_ct.cpu().numpy())
+            train_encode_time_list.append(epoch_encode_time_total)
+
+        return model, learning_curve, single_pass_train_time, retrain_time, np.sum(train_encode_time_list)/num_epochs
+
+
+# todo: this needs to be in the model.py
+def train_hdc(model, train_dataloader, device, num_epochs):
+    
+    with torch.no_grad():
+        model = model.to(device)
+        model.am = model.am.to(device)
+
+        single_pass_train_time, retrain_time = None, None
+
+        # build the associative memory with single-pass training
+        
+        for batch in tqdm(train_dataloader, desc=f"building AM with single-pass training.."):
+
+
+            if model.name == "molehd": 
                 x = [x[0] for x in batch]
 
                 y = torch.from_numpy(np.array([x[1] for x in batch])).int()
@@ -92,30 +190,44 @@ def train_hdc(model, train_dataloader):
 
                         #todo: have option to binarize the am after each update? or after all updates? or maybe just in the HDC model can have a flag that uses the exact AM versus the binarized AM 
                 else:
-                    model.am[class_idx] += model.encode(x[class_mask, :]).reshape(-1, config.D).sum(dim=0)
+                    model.am[class_idx] += model.encode(x[class_mask, :]).reshape(-1, model.D).sum(dim=0)
 
         learning_curve = []
-        for epoch in range(config.epochs):
+        train_encode_time_list = []
+
+        # import pdb
+        # pdb.set_trace()
+        for epoch in range(num_epochs):
             
             mistake_ct = 0
             #TODO: initialize the associative memory with single pass training instead of the random initialization?
-            for batch in tqdm(train_dataloader, desc=f"training-epoch {epoch}"):
+
+
+            epoch_encode_time_total = 0
+            for batch in tqdm(train_dataloader, desc=f"training HDC epoch {epoch}"):
                 x, y, hv = None, None, None
 
-                if config.model == "molehd":
+                if model.name == "molehd":
                     x = [x[0] for x in batch]
                     y = torch.from_numpy(np.array([x[1] for x in batch])).int()
                     y = y.squeeze().to(device)
+                    encode_time_start = time.time()
                     hv = torch.cat([model.encode(z) for z in x])
+                    encode_time_end = time.time()
+                    epoch_encode_time_total += (encode_time_end - encode_time_start)
 
                 else:
                     x, y = batch
                     x, y = x.to(device), y.squeeze().to(device)
+                    encode_time_start = time.time()
                     hv = model.encode(x)
-                
+                    encode_time_end = time.time()
+                    epoch_encode_time_total += (encode_time_end - encode_time_start)
 
-                y_ = model.forward(hv)
 
+
+                # y_ = model.forward(hv)
+                y_ = model.predict(hv)
                 update_mask = torch.abs(y-y_).bool()
                 mistake_ct += sum(update_mask)
 
@@ -135,12 +247,13 @@ def train_hdc(model, train_dataloader):
                         model.am[int(~mistake_label.bool())] -= mistake_hv
 
             learning_curve.append(mistake_ct.cpu().numpy())
+            train_encode_time_list.append(epoch_encode_time_total)
 
-        return model, learning_curve, single_pass_train_time, retrain_time
+        return model, learning_curve, single_pass_train_time, retrain_time, np.sum(train_encode_time_list)/num_epochs
 
 
 # todo: this needs to be in the model.py
-def test_hdc(model, test_dataloader):
+def test_hdc(model, test_dataloader, device):
 
     with torch.no_grad():
         model = model.to(device)
@@ -155,7 +268,7 @@ def test_hdc(model, test_dataloader):
 
 
             x, y, y_, hv, test_encode_end, test_encode_end = None, None, None, None, None, None
-            if config.model == "molehd":
+            if model == "molehd":
                 x = [x[0] for x in batch]
 
                 y = torch.from_numpy(np.array([x[1] for x in batch])).int()
@@ -171,7 +284,8 @@ def test_hdc(model, test_dataloader):
                 test_encode_end = time.time()
 
             test_forward_start = time.time()
-            y_ = model.forward(hv)
+            # y_ = model.forward(hv)
+            y_ = model.predict(hv)
             test_forward_end = time.time()
 
             target_list.append(y.cpu().reshape(-1,1))
@@ -192,6 +306,7 @@ def test_hdc(model, test_dataloader):
             "eta": torch.cat(conf_list),
             "test_time": np.sum(test_time_list),
             "conf_test_time": np.sum(conf_time_list),
+            "test_encode_time": np.sum(test_encode_time_list)
         }
 
 
@@ -373,8 +488,8 @@ def run_hd(
     
 
 
-def train_mlp(model, train_dataloader, epochs):
-    model = model.to(config.device)
+def train_mlp(model, train_dataloader, epochs, device):
+    model = model.to(device)
 
     forward_time = 0.0
     loss_time = 0.0
@@ -382,14 +497,14 @@ def train_mlp(model, train_dataloader, epochs):
     step = 0
 
     for epoch in range(epochs):
-        for batch in tqdm(train_dataloader, desc=f"training MLP epoch(step): {epoch}({step})"):
+        for batch in tqdm(train_dataloader, desc=f"training MLP epoch: {epoch}"):
             
             model.optimizer.zero_grad()
 
             x, y = batch
 
-            x = x.to(config.device).float()
-            y = y.to(config.device).reshape(-1).long()
+            x = x.to(device).float()
+            y = y.to(device).reshape(-1).long()
 
             forward_start = time.time()
             y_ = model(x)
@@ -422,7 +537,7 @@ def train_mlp(model, train_dataloader, epochs):
             "backward_time": backward_time}
 
 
-def val_mlp(model, val_dataloader):
+def val_mlp(model, val_dataloader, device):
 
     forward_time = 0.0
     loss_time = 0.0
@@ -437,8 +552,8 @@ def val_mlp(model, val_dataloader):
             x, y = batch
             targets.append(y)
 
-            x = x.to(config.device).float()
-            y = y.to(config.device).reshape(-1).long()
+            x = x.to(device).float()
+            y = y.to(device).reshape(-1).long()
 
             forward_start = time.time()
             y_ = model(x)
@@ -459,8 +574,9 @@ def val_mlp(model, val_dataloader):
 
     preds = torch.cat(preds)
     targets = torch.cat(targets)
-
-    return {"y_true": targets ,"y_pred": torch.argmax(preds, dim=1), "probs": preds, "loss": total_loss, "forward_time": forward_time, "loss_time": loss_time}
+    # import pdb
+    # pdb.set_trace()
+    return {"y_true": targets.to('cpu') ,"y_pred": torch.argmax(preds, dim=1).to('cpu'), "eta": preds.reshape(-1,2).to('cpu'), "loss": total_loss, "forward_time": forward_time, "loss_time": loss_time}
 
 
 def ray_mlp_job(params, train_dataloader, val_dataloader):
@@ -609,6 +725,8 @@ def run_mlp(train_dataset, test_dataset):
             y_pred=trial_dict["y_pred"], y_true=trial_dict["y_true"]
         )
 
+        # import pdb
+        # pdb.set_trace()
         try:
             trial_dict["roc-auc"] = roc_auc_score(
                 y_score=trial_dict["eta"][:, 1], y_true=trial_dict["y_true"]
@@ -791,7 +909,6 @@ def driver():
 
 
     # todo: ngram order and tokenizer only apply to some models, don't need to have in the exp_name
-    exp_name = f"{Path(args.config).stem}"
     if config.model == "molehd":
         model = TokenEncoder(D=config.D, num_classes=2)
         # will update item_mem after processing input data
@@ -803,13 +920,13 @@ def driver():
     elif config.model == "ecfp":
 
         model = ECFPEncoder(D=config.D)
-
+        
     elif config.model == "rp":
 
         assert config.input_size is not None
         assert config.D is not None
         model = RPEncoder(input_size=config.input_size, D=config.D, num_classes=2)
-
+        
     else:
         # if using sklearn or pytorch non-hd model
         model = None
@@ -1311,14 +1428,26 @@ def driver():
                         result_dict = pickle.load(handle)
 
                 else:
-                    result_dict = main(
-                        model=model,
-                        train_dataset=train_dataset,
-                        test_dataset=test_dataset
-                    )
 
+                    with torch.profiler.profile(
+                        activities=[
+                            # torch.profiler.ProfilerActivity.CPU,
+                            torch.profiler.ProfilerActivity.CUDA,
+                        ], 
+                        # record_shapes=True, 
+                        with_stack=True,
+                        profile_memory=True,
+                    ) as p:
+                        result_dict = main(
+                            model=model,
+                            train_dataset=train_dataset,
+                            test_dataset=test_dataset
+                        )
+                    print(p.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
 
-
+                    p.export_chrome_trace(f"{output_result_dir}/{exp_name}.{args.dataset}-{target_name}.{args.random_state}.json")
+                    # p.export_stacks(f"{output_result_dir}/{exp_name}.{args.dataset}-{target_name}.{args.random_state}_cpu_stacks.txt", "self_cpu_time_total")
+                    p.export_stacks(f"{output_result_dir}/{exp_name}.{args.dataset}-{target_name}.{args.random_state}_cuda_stacks.txt", "self_cuda_time_total")
 
 
                     if config.model == "molehd":
@@ -1359,4 +1488,9 @@ if __name__ == "__main__":
 
     print(f"using device {device}")
 
-    drive
+
+
+    exp_name = f"{Path(args.config).stem}"
+    
+    driver()
+

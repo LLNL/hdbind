@@ -21,6 +21,7 @@ class SMILESHDEncoder(HDModel):
 
         # "D" is the dimension of the encoded representation
         self.D = D
+        self.name = "molehd"
 
     def build_item_memory(self, dataset_tokens):
         self.item_mem = {}
@@ -70,6 +71,7 @@ class SMILESHDEncoder(HDModel):
 
 def tokenize_smiles(smiles_list, tokenizer, ngram_order, num_workers=0):
 
+    print(num_workers)
     tokenizer_func = None
     toks = None
 
@@ -79,7 +81,6 @@ def tokenize_smiles(smiles_list, tokenizer, ngram_order, num_workers=0):
     if num_workers == 0:
         spe = SPE_Tokenizer(spe_vob)
 
-
         for smiles in smiles_list:
             toks = spe.tokenize(smiles)
             toks = [x.split(' ') for x in toks]
@@ -88,28 +89,30 @@ def tokenize_smiles(smiles_list, tokenizer, ngram_order, num_workers=0):
         
         return toks
 
-
-    if tokenizer == "bpe":
-        print("using Pre-trained SmilesPE Tokenizer")
-        spe = SPE_Tokenizer(spe_vob)
-
-        with mp.Pool(num_workers) as p:
-            toks = list(tqdm(p.imap(spe.tokenize, smiles_list), total=len(smiles_list))) 
-            toks = [x.split(' ') for x in toks]
-
     else:
-        if tokenizer == "atomwise":
-            print("using atomwise tokenizer")
-            tokenizer_func = atomwise_tokenizer
 
-        elif tokenizer == "ngram":
-            print("using kmer (n-gram) tokenizer")
-            tokenizer_func = functools.partial(kmer_tokenizer, ngram=ngram_order)
+
+        if tokenizer == "bpe":
+            print("using Pre-trained SmilesPE Tokenizer")
+            spe = SPE_Tokenizer(spe_vob)
+
+            with mp.Pool(num_workers) as p:
+                toks = list(tqdm(p.imap(spe.tokenize, smiles_list), total=len(smiles_list), desc="tokeninze SMILES (BPE)")) 
+                toks = [x.split(' ') for x in toks]
 
         else:
-            raise NotImplementedError
+            if tokenizer == "atomwise":
+                print("using atomwise tokenizer")
+                tokenizer_func = atomwise_tokenizer
 
-        with mp.Pool(num_workers) as p:
-            toks = list(tqdm(p.imap(tokenizer_func, smiles_list), total=len(smiles_list)))
+            elif tokenizer == "ngram":
+                print("using kmer (n-gram) tokenizer")
+                tokenizer_func = functools.partial(kmer_tokenizer, ngram=ngram_order)
 
-    return toks
+            else:
+                raise NotImplementedError
+
+            with mp.Pool(num_workers) as p:
+                toks = list(tqdm(p.imap(tokenizer_func, smiles_list), total=len(smiles_list), desc="tokenize SMILES ({tokenizer})"))
+
+        return toks

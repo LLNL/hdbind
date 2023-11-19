@@ -7,15 +7,12 @@
 ################################################################################
 import time
 import torch
-# import pickle
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-# from rdkit import Chem
 from torch.utils.data import Dataset
-from pathlib import Path
 from hdpy.molehd.encode import tokenize_smiles
-from hdpy.utils import get_random_hv, compute_fingerprint_from_smiles
+from hdpy.utils import get_random_hv
 
 
 class SMILESDataset(Dataset):
@@ -27,9 +24,6 @@ class SMILESDataset(Dataset):
             this process which can be accessed publicly. 
         
         '''
-
-
-
 
         self.smiles = smiles 
         if labels is not None:
@@ -53,8 +47,8 @@ class SMILESDataset(Dataset):
             self.item_mem = {}
 
         self.item_mem_time = 0.0
-        for tokens in tqdm(self.data_toks, desc="building item memory"):
-
+        # for tokens in tqdm(self.data_toks, desc="building item memory"):
+        for tokens in self.data_toks:
 
             token_start = time.time()
             tokens = list(set(tokens))
@@ -71,7 +65,7 @@ class SMILESDataset(Dataset):
 
 
         self.item_mem_time = self.item_mem_time
-        print(f"item memory formed with {len(self.item_mem.keys())} entries in {self.item_mem_time} seconds.")
+        # print(f"item memory formed with {len(self.item_mem.keys())} entries in {self.item_mem_time} seconds.")
 
         
     def __len__(self):
@@ -216,13 +210,13 @@ class MolFormerDataset(Dataset):
         x_test = np.concatenate(x_test)
 
         # todo: preprocess the x_train and x_test
-        from sklearn.preprocessing import StandardScaler
+        # from sklearn.preprocessing import StandardScaler
 
-        std_scaler = StandardScaler()
-        std_scaler.fit(x_train)
+        # std_scaler = StandardScaler()
+        # std_scaler.fit(x_train)
 
-        x_train = std_scaler.transform(x_train)
-        x_test = std_scaler.transform(x_test)
+        # x_train = std_scaler.transform(x_train)
+        # x_test = std_scaler.transform(x_test)
 
 
         y_train = np.concatenate(y_train).reshape(-1,1)

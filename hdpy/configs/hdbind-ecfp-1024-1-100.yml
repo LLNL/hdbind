@@ -1,0 +1,7 @@
+device: cuda:0
+model: rp
+embedding: ecfp
+input_size: 1024
+ecfp_radius: 1
+D: 100
+epochs: 10

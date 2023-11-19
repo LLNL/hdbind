@@ -17,8 +17,11 @@ from pathlib import Path
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import deepchem as dc
-from hdpy.ecfp import compute_fingerprint_from_smiles
-# from hdpy.model import get_random_hv
+import h5py
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
+
 
 def get_random_hv(m, n):
     return torch.bernoulli(torch.tensor([[0.5] * m] * n)).float()*2-1
@@ -43,28 +46,9 @@ class timing_part:
 
 
 def load_molformer_embeddings(embed_path):
-    # with open(embed_path, "rb") as handle:
     data = torch.load(embed_path)
     return data['embeds'], data['labels']
-    # rep_list = []
-    # label_list = []
-    # time_list = []
 
-    # for batch_idx, batch in enumerate(data):
-        # batch_reps = batch[0]
-        # import pdb
-        # pdb.set_trace()
- 
-        # reps = torch.cat([batch_reps[x].mean(dim=1) for x in range(len(batch_reps))], dim=0)
-        # rep_list.append(reps)
-        # label_list.append(torch.cat([torch.from_numpy(np.asarray(x)) for x in batch[2]]))
-                            
-        # time = sum(batch[1]) / sum([batch[0][x].shape[0] for x in range(len(batch[0]))])
-            
-        # time_list.append(time)
-            
-    # return torch.cat(rep_list, dim=0), torch.cat(label_list, dim=0), time_list
-    
 
 
 def load_features(path:str, dataset:str):
@@ -133,18 +117,6 @@ def tok_seq_to_hv(tokens:list, D:int, item_mem:dict):
     return hv
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 def compute_splits(split_path:Path, 
                    random_state:int, 
                    split_type:str, 
@@ -194,10 +166,7 @@ def compute_splits(split_path:Path,
 
     return split_df
 
-import h5py
-import pandas as pd
-import numpy as np
-from tqdm import tqdm
+
 
 
 def load_pdbbind_from_hdf(
