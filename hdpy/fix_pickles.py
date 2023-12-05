@@ -2,20 +2,18 @@ import argparse
 import pickle
 from tqdm import tqdm
 
-def main():
 
+def main():
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument("--input-path")
     parser.add_argument("--prefix", default="")
 
     args = parser.parse_args()
 
-
-    from pathlib import Path 
+    from pathlib import Path
 
     for path in tqdm(list(Path(args.input_path).glob(f"{args.prefix}*.pkl"))):
-        
         with open(path, "rb") as handle:
             data = pickle.load(handle)
 
@@ -26,10 +24,9 @@ def main():
             data.pop("x_test")
         with open(path, "wb") as handle:
             pickle.dump(data, handle)
-        
+
         del data
 
+
 if __name__ == "__main__":
-
-
     main()

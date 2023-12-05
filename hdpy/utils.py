@@ -7,10 +7,12 @@
 ################################################################################
 import time
 import torch
+import random
 # import pickle
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
+
 # from rdkit import Chem
 from torch.utils.data import Dataset
 from pathlib import Path
@@ -22,9 +24,16 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
+def seed_rngs(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
+
+def collate_list_fn(data):
+    return [x for x in data]
 def get_random_hv(m, n):
-    return torch.bernoulli(torch.tensor([[0.5] * m] * n)).float()*2-1
+    return torch.bernoulli(torch.tensor([[0.5] * m] * n)).float() * 2 - 1
 
 
 class timing_part:
@@ -47,12 +56,10 @@ class timing_part:
 
 def load_molformer_embeddings(embed_path):
     data = torch.load(embed_path)
-    return data['embeds'], data['labels']
+    return data["embeds"], data["labels"]
 
 
-
-def load_features(path:str, dataset:str):
-
+def load_features(path: str, dataset: str):
     features, labels = None, None
     data = np.load(path)
 
@@ -60,24 +67,23 @@ def load_features(path:str, dataset:str):
         # map the experimental -logki/kd value to a discrete category
         features = data[:, :-1]
         labels = data[:, -1]
-        labels = np.asarray([convert_pdbbind_affinity_to_class_label(x) for x in labels])
-
+        labels = np.asarray(
+            [convert_pdbbind_affinity_to_class_label(x) for x in labels]
+        )
 
         binary_label_mask = labels != 2
 
         return features[binary_label_mask], labels[binary_label_mask]
 
     elif dataset == "dude":
-
         features = data[:, :-1]
         labels = data[:, -1]
-              
-        labels = 1- labels
+
+        labels = 1 - labels
     else:
         raise NotImplementedError("specify a valid supported dataset type")
 
-
-    # import ipdb 
+    # import ipdb
     # ipdb.set_trace()
     return features, labels
 
@@ -90,23 +96,20 @@ def binarize(hv):
     return hv
 
 
-
 from torch.utils.data import Dataset
 
 
-
-def tok_seq_to_hv(tokens:list, D:int, item_mem:dict):
+def tok_seq_to_hv(tokens: list, D: int, item_mem: dict):
     # hv = torch.zeros(D).int()
 
     hv = np.zeros(D).astype(int)
 
     # for each token in the sequence, retrieve the hv corresponding to it
     # then rotate the tensor elements by the position number the token
-    # occurs at in the sequence. add to (zero-initialized hv representing the 
+    # occurs at in the sequence. add to (zero-initialized hv representing the
     for idx, token in enumerate(tokens):
         token_hv = item_mem[token]
         hv = hv + np.roll(token_hv, idx).astype(int)
-
 
     hv = np.where(hv > 0, hv, -1).astype(int)
     hv = np.where(hv <= 0, hv, 1).astype(int)
@@ -117,56 +120,56 @@ def tok_seq_to_hv(tokens:list, D:int, item_mem:dict):
     return hv
 
 
-def compute_splits(split_path:Path, 
-                   random_state:int, 
-                   split_type:str, 
-                   df:pd.DataFrame, 
-                   smiles_col:str):
-
+def compute_splits(
+    split_path: Path,
+    random_state: int,
+    split_type: str,
+    df: pd.DataFrame,
+    smiles_col: str,
+    label_col: str,
+):
     # reset the index of the dataframe
     df = df.reset_index()
 
-
-    split_df = None    
+    split_df = None
     if not split_path.exists():
-            print(f"computing split file: {split_path}")
-            if split_type == "random":
-                train_idxs, test_idxs = train_test_split(
-                    list(range(len(df))), random_state=random_state
-                )
+        print(f"computing split file: {split_path}")
+        if split_type == "random":
+            train_idxs, test_idxs = train_test_split(
+                list(range(len(df))), random_state=random_state
+            )
 
-            elif split_type == "scaffold":
+        elif split_type == "scaffold":
+            scaffoldsplitter = dc.splits.ScaffoldSplitter()
+            idxs = np.array(list(range(len(df))))
 
-                scaffoldsplitter = dc.splits.ScaffoldSplitter()
-                idxs = np.array(list(range(len(df))))
-
-                dataset = dc.data.DiskDataset.from_numpy(
-                    X=idxs, w=np.zeros(len(df)), ids=df[smiles_col]
-                )
-                train_data, test_data = scaffoldsplitter.train_test_split(dataset)
-
-                train_idxs = train_data.X
-                test_idxs = test_data.X
-
+            dataset = dc.data.DiskDataset.from_numpy(
+                X=idxs, y=df[label_col], ids=df[smiles_col].values
+            )
 
             # import ipdb
             # ipdb.set_trace()
-            # create the train/test column
-            train_df = df.loc[train_idxs]
-            test_df = df.loc[test_idxs]
-            train_df["split"] = ["train"] * len(train_df)
-            test_df["split"] = ["test"] * len(test_df)
+            train_data, test_data = scaffoldsplitter.train_test_split(dataset)
 
-            split_df = pd.concat([train_df, test_df])
-            split_df.to_csv(split_path, index=True)
+            train_idxs = train_data.X
+            test_idxs = test_data.X
+
+        # import ipdb
+        # ipdb.set_trace()
+        # create the train/test column
+        train_df = df.loc[train_idxs]
+        test_df = df.loc[test_idxs]
+        train_df["split"] = ["train"] * len(train_df)
+        test_df["split"] = ["test"] * len(test_df)
+
+        split_df = pd.concat([train_df, test_df])
+        split_df.to_csv(split_path, index=True)
 
     else:
         print(f"split path: {split_path} exists. loading.")
         split_df = pd.read_csv(split_path, index_col=0)
 
     return split_df
-
-
 
 
 def load_pdbbind_from_hdf(
@@ -177,7 +180,6 @@ def load_pdbbind_from_hdf(
     bind_thresh,
     no_bind_thresh,
 ):
-
     """
     input: parameters (dataset name, threshold values, train/test splits) and h5 file containing data and binding measurements
     output: numpy array with features
@@ -208,74 +210,108 @@ def load_pdbbind_from_hdf(
     train_data_list = []
     train_label_list = []
     for key in train_list:
-        affinity = f[key].attrs['affinity']
+        affinity = f[key].attrs["affinity"]
 
         if affinity > bind_thresh:
             train_label_list.append(1)
         elif affinity < no_bind_thresh:
             train_label_list.append(0)
         else:
-
             print(f"key: {key} has ambiguous label")
             continue
 
-        
         train_data_list.append(np.asarray(f[key][dataset_name]))
-            
 
     test_data_list = []
     test_label_list = []
     for key in test_list:
-        affinity = f[key].attrs['affinity']
+        affinity = f[key].attrs["affinity"]
 
         if affinity > bind_thresh:
             test_label_list.append(1)
         elif affinity < no_bind_thresh:
             test_label_list.append(0)
         else:
-
             print(f"key: {key} has ambiguous label")
             continue
 
         test_data_list.append(np.asarray(f[key][dataset_name]))
 
-    return (np.asarray(train_data_list), np.asarray(train_label_list), np.asarray(test_data_list), np.asarray(test_label_list))
-def main():
+    return (
+        np.asarray(train_data_list),
+        np.asarray(train_label_list),
+        np.asarray(test_data_list),
+        np.asarray(test_label_list),
+    )
 
+
+def main():
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--hdf-path', help='path to input hdf file containing pdbbind data')    
-    parser.add_argument('--dataset-name', nargs='+', help='sequence of dataset names to use from the hdf-path dataset')
-    parser.add_argument('--train-split-path', help='path to list of pdbids corresponding to the training set')
-    parser.add_argument('--test-split-path', help='path to list of pdbids corresponding to the testing set')
-    parser.add_argument('--bind-thresh', type=float, help='threshold (lower) to use for determining binders from experimental measurement')
-    parser.add_argument('--no-bind-thresh', type=float, help='threshold (upper) to use for determining non-binders from experimental measurement')
-    parser.add_argument('--run-HD-benchmark', action='store_true')
+    parser.add_argument(
+        "--hdf-path", help="path to input hdf file containing pdbbind data"
+    )
+    parser.add_argument(
+        "--dataset-name",
+        nargs="+",
+        help="sequence of dataset names to use from the hdf-path dataset",
+    )
+    parser.add_argument(
+        "--train-split-path",
+        help="path to list of pdbids corresponding to the training set",
+    )
+    parser.add_argument(
+        "--test-split-path",
+        help="path to list of pdbids corresponding to the testing set",
+    )
+    parser.add_argument(
+        "--bind-thresh",
+        type=float,
+        help="threshold (lower) to use for determining binders from experimental measurement",
+    )
+    parser.add_argument(
+        "--no-bind-thresh",
+        type=float,
+        help="threshold (upper) to use for determining non-binders from experimental measurement",
+    )
+    parser.add_argument("--run-HD-benchmark", action="store_true")
     args = parser.parse_args()
 
     for dataset_name in args.dataset_name:
-        data = load_pdbbind_from_hdf(hdf_path=args.hdf_path, dataset_name=dataset_name, 
-                    train_split_path=args.train_split_path,
-                    test_split_path=args.test_split_path,
-                    bind_thresh=args.bind_thresh,
-                    no_bind_thresh=args.no_bind_thresh)
+        data = load_pdbbind_from_hdf(
+            hdf_path=args.hdf_path,
+            dataset_name=dataset_name,
+            train_split_path=args.train_split_path,
+            test_split_path=args.test_split_path,
+            bind_thresh=args.bind_thresh,
+            no_bind_thresh=args.no_bind_thresh,
+        )
 
         x_train, y_train, x_test, y_test = data
 
-        #import pdb
-        #pdb.set_trace()
+        # import pdb
+        # pdb.set_trace()
         if args.run_HD_benchmark:
             from hdpy.tfHD import train_test_loop
 
-            train_test_loop(x_train.squeeze(), x_test.squeeze(), y_train, y_test, iterations=10, dimensions=10000, Q=10, K=2, batch_size=32, sim_metric='cos')
+            train_test_loop(
+                x_train.squeeze(),
+                x_test.squeeze(),
+                y_train,
+                y_test,
+                iterations=10,
+                dimensions=10000,
+                Q=10,
+                K=2,
+                batch_size=32,
+                sim_metric="cos",
+            )
 
     print(data)
 
 
-
 def convert_pdbbind_affinity_to_class_label(x, pos_thresh=8, neg_thresh=6):
-
-
     if x < neg_thresh:
         return 0
     elif x > pos_thresh:
@@ -283,5 +319,6 @@ def convert_pdbbind_affinity_to_class_label(x, pos_thresh=8, neg_thresh=6):
     else:
         return 2
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

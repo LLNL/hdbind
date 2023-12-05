@@ -7,7 +7,7 @@
 ################################################################################
 import torch
 from hdpy.model import HDModel
-from tqdm import tqdm 
+from tqdm import tqdm
 from SmilesPE.pretokenizer import atomwise_tokenizer, kmer_tokenizer
 import multiprocessing as mp
 import functools
@@ -15,7 +15,6 @@ from SmilesPE.tokenizer import SPE_Tokenizer, codecs
 
 
 class SMILESHDEncoder(HDModel):
-
     def __init__(self, D):
         super(SMILESHDEncoder, self).__init__(D=D)
 
@@ -31,7 +30,6 @@ class SMILESHDEncoder(HDModel):
 
         print("building item memory")
         for tokens in tqdm(dataset_tokens):
-
             tokens = list(set(tokens))
             # "empty" token?
             for token in tokens:
@@ -44,14 +42,12 @@ class SMILESHDEncoder(HDModel):
         print(f"item memory formed with {len(self.item_mem.keys())} entries.")
 
     def draw_random_hv(self):
-        hv = torch.bernoulli(torch.empty(self.D).uniform_(0,1))
-        hv = torch.where(hv > 0 , hv, -1).int() 
+        hv = torch.bernoulli(torch.empty(self.D).uniform_(0, 1))
+        hv = torch.where(hv > 0, hv, -1).int()
 
         return hv
 
-
     def encode(self, tokens):
-
         # tokens is a list of tokens, i.e. it corresponds to 1 sample
 
         hv = torch.zeros(self.D).int()
@@ -60,45 +56,49 @@ class SMILESHDEncoder(HDModel):
             token_hv = self.item_mem[token]
             hv = hv + torch.roll(token_hv, idx).int()
 
-
         # binarize
         hv = torch.where(hv > 0, hv, -1).int()
         hv = torch.where(hv <= 0, hv, 1).int()
         return hv
 
     def tokenize_smiles(self, smiles_list, tokenizer, ngram_order):
-        return tokenize_smiles(smiles_list=smiles_list, tokenizer=tokenizer, ngram_order=ngram_order)
+        return tokenize_smiles(
+            smiles_list=smiles_list, tokenizer=tokenizer, ngram_order=ngram_order
+        )
+
 
 def tokenize_smiles(smiles_list, tokenizer, ngram_order, num_workers=0):
-
     print(num_workers)
     tokenizer_func = None
     toks = None
 
     tok_list = []
 
-    spe_vob = codecs.open('/p/vast1/jones289/hd_bind_datasets/SPE_ChEMBL.txt')
+    spe_vob = codecs.open("/p/vast1/jones289/hd_bind_datasets/SPE_ChEMBL.txt")
     if num_workers == 0:
         spe = SPE_Tokenizer(spe_vob)
 
         for smiles in smiles_list:
             toks = spe.tokenize(smiles)
-            toks = [x.split(' ') for x in toks]
+            toks = [x.split(" ") for x in toks]
             tok_list.extend(toks)
 
-        
         return toks
 
     else:
-
-
         if tokenizer == "bpe":
             print("using Pre-trained SmilesPE Tokenizer")
             spe = SPE_Tokenizer(spe_vob)
 
             with mp.Pool(num_workers) as p:
-                toks = list(tqdm(p.imap(spe.tokenize, smiles_list), total=len(smiles_list), desc="tokeninze SMILES (BPE)")) 
-                toks = [x.split(' ') for x in toks]
+                toks = list(
+                    tqdm(
+                        p.imap(spe.tokenize, smiles_list),
+                        total=len(smiles_list),
+                        desc="tokeninze SMILES (BPE)",
+                    )
+                )
+                toks = [x.split(" ") for x in toks]
 
         else:
             if tokenizer == "atomwise":
@@ -113,6 +113,12 @@ def tokenize_smiles(smiles_list, tokenizer, ngram_order, num_workers=0):
                 raise NotImplementedError
 
             with mp.Pool(num_workers) as p:
-                toks = list(tqdm(p.imap(tokenizer_func, smiles_list), total=len(smiles_list), desc="tokenize SMILES ({tokenizer})"))
+                toks = list(
+                    tqdm(
+                        p.imap(tokenizer_func, smiles_list),
+                        total=len(smiles_list),
+                        desc="tokenize SMILES ({tokenizer})",
+                    )
+                )
 
         return toks

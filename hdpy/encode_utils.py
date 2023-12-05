@@ -12,6 +12,7 @@ import tensorflow as tf
 import multiprocessing as mp
 from hdpy.utils import timing_part
 
+
 # Base hypervectors
 def create_random_hypervector(D):
     """
@@ -22,6 +23,7 @@ def create_random_hypervector(D):
     assert D % 2 == 0
     hv[D // 2 :] = -1.0
     return hv[np.random.permutation(D)]
+
 
 # what is the purpose of the code below? is this padding an array to conform to the expected batch_size?
 # if so then this should be called padding, this isn't clear
@@ -35,46 +37,59 @@ def create_dummy_for_batch(x, batch_size):
     return np.vstack((x, dummy))
 
 
-
 # 2. Encode with Tensorflow
 # Note: The performance of TF is largely dependent upon the implementation
 # This version (maybe final one) shows the best perf with scalability
 # among multiple different variants tried
-def encode_tf(N, Q, level_hvs, id_hvs, feature_matrix, batch_size, tf_device_str:str, return_time:bool,
-				verbose=False):
+def encode_tf(
+    N,
+    Q,
+    level_hvs,
+    id_hvs,
+    feature_matrix,
+    batch_size,
+    tf_device_str: str,
+    return_time: bool,
+    verbose=False,
+):
     assert N % batch_size == 0
 
-    with tf.device(tf_device_str): 
+    with tf.device(tf_device_str):
         # encode_sample is the encoding method
         """
-            tf.reduce_sum is being applied over the axis=1 dimension, so level_hvs has shape N by encoding_dim
+        tf.reduce_sum is being applied over the axis=1 dimension, so level_hvs has shape N by encoding_dim
 
-            tf.scalar_mul(
-                            Q, tf.gather(feature_matrix, tf.range(i, i + batch_size))
-                        ),
+        tf.scalar_mul(
+                        Q, tf.gather(feature_matrix, tf.range(i, i + batch_size))
+                    ),
 
-            gathers a batch from the feature_matrix, then multiplies the elements by Q
+        gathers a batch from the feature_matrix, then multiplies the elements by Q
 
-            tf.cast converts the result to another type, in this case tf.int32, which for floats should just take the integer part of the number
+        tf.cast converts the result to another type, in this case tf.int32, which for floats should just take the integer part of the number
 
-            tf.cast(tf.scalar_mul(Q, tf.gather(feature_matrix, tf.range(i, i + batch_size))), tf.int32,)
-            appears to be computing a set of indices that are used to "gather" vectors from level_hvs, i.e.
-            its computing which quantization level each hypervector belongs to
+        tf.cast(tf.scalar_mul(Q, tf.gather(feature_matrix, tf.range(i, i + batch_size))), tf.int32,)
+        appears to be computing a set of indices that are used to "gather" vectors from level_hvs, i.e.
+        its computing which quantization level each hypervector belongs to
 
-            i.e. level_hvs is a map from quantization level to what are random hypervectors...
+        i.e. level_hvs is a map from quantization level to what are random hypervectors...
 
-            the outer level call of tf.reduce_sum appears to be summing over the feature_dimension...i.e. the resulting array from the 
-            inner-most logic produces a tensor of shape BATCH_SIZE by FEATURE_SIZE by ENCODING_DIM, and after mapping the features(?) to a 
-            quantization level HV, sums up the elements over the feature_dimension, producing a matrix of shape BATCH_SIZE by ENCODING DIM
+        the outer level call of tf.reduce_sum appears to be summing over the feature_dimension...i.e. the resulting array from the
+        inner-most logic produces a tensor of shape BATCH_SIZE by FEATURE_SIZE by ENCODING_DIM, and after mapping the features(?) to a
+        quantization level HV, sums up the elements over the feature_dimension, producing a matrix of shape BATCH_SIZE by ENCODING DIM
 
-            does this make sense to do for the dataset?
+        does this make sense to do for the dataset?
         """
 
         encode_sample = lambda i: tf.reduce_sum(
             input_tensor=tf.multiply(
                 tf.gather(
                     level_hvs,
-                    tf.cast(tf.scalar_mul(Q, tf.gather(feature_matrix, tf.range(i, i + batch_size))), tf.int32,),
+                    tf.cast(
+                        tf.scalar_mul(
+                            Q, tf.gather(feature_matrix, tf.range(i, i + batch_size))
+                        ),
+                        tf.int32,
+                    ),
                 ),
                 id_hvs,
             ),
@@ -101,7 +116,7 @@ def encode_tf(N, Q, level_hvs, id_hvs, feature_matrix, batch_size, tf_device_str
                 encodings = tf.reshape(
                     tf_hv_matrix_final.stack(),
                     (feature_matrix.shape[0], level_hvs.shape[1]),
-                    )
+                )
 
             if return_time:
                 return encodings, timing_context.total_time
@@ -112,8 +127,7 @@ def encode_tf(N, Q, level_hvs, id_hvs, feature_matrix, batch_size, tf_device_str
             print(e)
 
 
-
-def encode_batch(x, D, Q, batch_size, tf_device_str:str, return_time:bool):
+def encode_batch(x, D, Q, batch_size, tf_device_str: str, return_time: bool):
     # F is the size of the feature dimension
     F = x.shape[1]
 
@@ -133,7 +147,6 @@ def encode_batch(x, D, Q, batch_size, tf_device_str:str, return_time:bool):
         level_hvs.append(level_hv[np.random.permutation(D)])
     level_hvs = np.array(level_hvs, dtype=np.float32)
 
-
     """
     the code below is shifiting the array in a circular direction (where end element becomes first element and all others shift either
     right if `f` is positive or to the left if `f` is negative)
@@ -146,8 +159,16 @@ def encode_batch(x, D, Q, batch_size, tf_device_str:str, return_time:bool):
     # pad x_train and x_test
     x = create_dummy_for_batch(x, batch_size)
 
-
-    x_h = encode_tf(x.shape[0], Q, level_hvs, id_hvs, x, batch_size, tf_device_str=tf_device_str, return_time=return_time)
+    x_h = encode_tf(
+        x.shape[0],
+        Q,
+        level_hvs,
+        id_hvs,
+        x,
+        batch_size,
+        tf_device_str=tf_device_str,
+        return_time=return_time,
+    )
 
     # if return_time=True, then encode_tf will return two values so we have to unpack those tuples
     if return_time:
@@ -160,18 +181,11 @@ def encode_batch(x, D, Q, batch_size, tf_device_str:str, return_time:bool):
     if return_time:
         return encodings, encode_time
     else:
-        return encodings 
+        return encodings
 
 
-
-
-
-
-
-
-
-#TODO (derek): rename this function as encode_train_test
-def encode(x_train, x_test, D, Q, batch_size, tf_device_str:str, return_time:bool):
+# TODO (derek): rename this function as encode_train_test
+def encode(x_train, x_test, D, Q, batch_size, tf_device_str: str, return_time: bool):
     # F is the size of the feature dimension
     F = x_train.shape[1]
 
@@ -191,7 +205,6 @@ def encode(x_train, x_test, D, Q, batch_size, tf_device_str:str, return_time:boo
         level_hvs.append(level_hv[np.random.permutation(D)])
     level_hvs = np.array(level_hvs, dtype=np.float32)
 
-
     """
     the code below is shifiting the array in a circular direction (where end element becomes first element and all others shift either
     right if `f` is positive or to the left if `f` is negative)
@@ -207,24 +220,45 @@ def encode(x_train, x_test, D, Q, batch_size, tf_device_str:str, return_time:boo
     N_test = x_test.shape[0]
     x_test = create_dummy_for_batch(x_test, batch_size)
 
-
-    x_train_h = encode_tf(x_train.shape[0], Q, level_hvs, id_hvs, x_train, batch_size, tf_device_str=tf_device_str, return_time=return_time)
-    x_test_h = encode_tf(x_test.shape[0], Q, level_hvs, id_hvs, x_test, batch_size, tf_device_str=tf_device_str, return_time=return_time)
+    x_train_h = encode_tf(
+        x_train.shape[0],
+        Q,
+        level_hvs,
+        id_hvs,
+        x_train,
+        batch_size,
+        tf_device_str=tf_device_str,
+        return_time=return_time,
+    )
+    x_test_h = encode_tf(
+        x_test.shape[0],
+        Q,
+        level_hvs,
+        id_hvs,
+        x_test,
+        batch_size,
+        tf_device_str=tf_device_str,
+        return_time=return_time,
+    )
 
     # if return_time=True, then encode_tf will return two values so we have to unpack those tuples
     if return_time:
         x_train_h, train_encode_time = x_train_h
         x_test_h, test_encode_time = x_test_h
 
-    train_test_encodings = tf.slice(x_train_h, [0, 0], [N, -1]), tf.slice(x_test_h, [0, 0], [N_test, -1])
+    train_test_encodings = tf.slice(x_train_h, [0, 0], [N, -1]), tf.slice(
+        x_test_h, [0, 0], [N_test, -1]
+    )
 
     if return_time:
         return train_test_encodings, train_encode_time, test_encode_time
     else:
-        return train_test_encodings 
+        return train_test_encodings
 
 
-def encode_single(x, D, Q, batch_size, tf_device_str:str, return_time:bool, verbose=False):
+def encode_single(
+    x, D, Q, batch_size, tf_device_str: str, return_time: bool, verbose=False
+):
     # F is the size of the feature dimension
     F = x.shape[1]
 
@@ -244,7 +278,6 @@ def encode_single(x, D, Q, batch_size, tf_device_str:str, return_time:bool, verb
         level_hvs.append(level_hv[np.random.permutation(D)])
     level_hvs = np.array(level_hvs, dtype=np.float32)
 
-
     """
     the code below is shifiting the array in a circular direction (where end element becomes first element and all others shift either
     right if `f` is positive or to the left if `f` is negative)
@@ -258,8 +291,17 @@ def encode_single(x, D, Q, batch_size, tf_device_str:str, return_time:bool, verb
     N = x.shape[0]
     x = create_dummy_for_batch(x, batch_size)
 
-    x_h = encode_tf(x.shape[0], Q, level_hvs, id_hvs, x, batch_size, tf_device_str=tf_device_str, return_time=return_time,
-    				verbose=verbose)
+    x_h = encode_tf(
+        x.shape[0],
+        Q,
+        level_hvs,
+        id_hvs,
+        x,
+        batch_size,
+        tf_device_str=tf_device_str,
+        return_time=return_time,
+        verbose=verbose,
+    )
 
     # if return_time=True, then encode_tf will return two values so we have to unpack those tuples
     if return_time:
@@ -269,6 +311,3 @@ def encode_single(x, D, Q, batch_size, tf_device_str:str, return_time:bool, verb
         return x_h, encode_time
     else:
         return x_h
-
-
-

@@ -26,11 +26,12 @@ def get_parser():
         required=True,
     )
 
-
     parser.add_argument("--split-type", choices=["random", "scaffold"], required=True)
     # use the model argument to lookup the respective config file
     # parser.add_argument("--model", choices=["smiles-pe", "selfies", "ecfp", "rp", "rf", "mlp"])
-    parser.add_argument("--config", help="path to config file containing model information")
+    parser.add_argument(
+        "--config", help="path to config file containing model information"
+    )
     parser.add_argument(
         "--n-trials", type=int, default=1, help="number of trials to perform"
     )
@@ -42,10 +43,9 @@ def get_parser():
 
     return parser
 
+
 def parse_args():
-
     parser = get_parser()
-
 
     args = parser.parse_args()
     print(f"args: {args}")
@@ -53,11 +53,8 @@ def parse_args():
 
 
 def get_config(args):
-
-    with open(args.config, 'r') as f:
-
+    with open(args.config, "r") as f:
         config = yaml.load(f, Loader=SafeLoader)
         config = argparse.Namespace(**config)
         print(f"config: {config}")
     return config
-

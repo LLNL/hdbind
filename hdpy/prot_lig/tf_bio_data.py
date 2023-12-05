@@ -84,7 +84,6 @@ class Featurizer:
         smarts_properties=None,
         smarts_labels=None,
     ):
-
         """Creates Featurizer with specified types of features. Elements of a
         feature vector will be in a following order: atom type encoding
         (defined by atom_codes), Pybel atomic properties (defined by
@@ -317,7 +316,7 @@ class Featurizer:
 
         features = np.zeros((len(molecule.atoms), len(self.__PATTERNS)))
 
-        for (pattern_id, pattern) in enumerate(self.__PATTERNS):
+        for pattern_id, pattern in enumerate(self.__PATTERNS):
             atoms_with_prop = (
                 np.array(list(*zip(*pattern.findall(molecule))), dtype=int) - 1
             )
@@ -471,7 +470,7 @@ for a1 in range(3):
         ROTATIONS.append(rotation_matrix(axis, theta))
 
 # about each face diagonal - 6 rotations
-for (a1, a2) in combinations(range(3), 2):
+for a1, a2 in combinations(range(3), 2):
     axis = np.zeros(3)
     axis[[a1, a2]] = 1.0
     theta = pi
@@ -603,7 +602,6 @@ def make_grid(coords, features, grid_resolution=1.0, max_dist=10.0):
 
 
 def featurize_pybel_complex(ligand_mol, pocket_mol):
-
     featurizer = Featurizer()
     charge_idx = featurizer.FEATURE_NAMES.index("partialcharge")
 
@@ -613,12 +611,10 @@ def featurize_pybel_complex(ligand_mol, pocket_mol):
     if not (
         ligand_features[:, charge_idx] != 0
     ).any():  # ensures that partial charge on all atoms is non-zero?
-
         raise RuntimeError("invalid charges for the ligand")
     # get processed pocket features
     pocket_coords, pocket_features = featurizer.get_features(pocket_mol, molcode=-1)
     if not (pocket_features[:, charge_idx] != 0).any():
-
         raise RuntimeError("invalid charges for the pocket")
     # center the coordinates on the ligand coordinates
     centroid_ligand = ligand_coords.mean(axis=0)
@@ -637,7 +633,6 @@ def featurize_pybel_complex(ligand_mol, pocket_mol):
 
 
 def featurize_pybel_complex_md(ligand_mol, pocket_mol):
-
     # NOTE: I'm not going to enforce the charge criteria in this case...
 
     featurizer = Featurizer()
