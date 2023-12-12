@@ -15,9 +15,10 @@ from hdpy.molehd.encode import tokenize_smiles
 from hdpy.utils import get_random_hv
 from hdpy.ecfp import compute_fingerprint_from_smiles
 from sklearn.preprocessing import Normalizer
+import multiprocessing as mp
 
 
-
+# todo: remove SMILESDataset that attempts to split the dataset
 class SMILESDataset(Dataset):
     def __init__(
         self,
@@ -111,6 +112,55 @@ class RawECFPDataset(Dataset):
         return self.ecfp_arr[idx]
 
 
+# TODO: rename to ECFP dataset
+class ECFPFromSMILESDataset(Dataset):
+    def __init__(
+        self,
+        smiles: np.ndarray, 
+        labels: np.ndarray,
+        ecfp_length: int,
+        ecfp_radius: int,
+    ):
+        super()
+
+        self.smiles = smiles
+        self.labels = labels
+        self.ecfp_length = ecfp_length
+        self.ecfp_radius = ecfp_radius
+
+        # todo: do this with a pool
+        # self.fps = np.asarray(
+            # [
+                # compute_fingerprint_from_smiles(
+                    # x, length=ecfp_length, radius=ecfp_radius
+                # )
+                # for x in tqdm(smiles)
+            # ]
+        # )
+
+        from functools import partial
+
+        fp_job = partial(compute_fingerprint_from_smiles, length=ecfp_length, radius=ecfp_radius)
+        with mp.Pool(int(mp.cpu_count()/2)) as pool:
+            result = list(tqdm(pool.imap(fp_job, smiles)))
+            pool.close()
+            pool.join()
+
+        valid_idxs = np.array([idx for idx, x in enumerate(result) if x is not None])
+        self.fps = torch.from_numpy(np.asarray([x for x in result if x is not None])).int()
+
+        self.smiles = self.smiles[valid_idxs]
+        self.labels = torch.from_numpy(self.labels[valid_idxs])
+
+
+    def __len__(self):
+        return self.fps.shape[0]
+
+    def __getitem__(self, idx):
+        return self.fps[idx], self.labels[idx]
+
+
+# TODO: deprecate and remove 
 class ECFPDataset(Dataset):
     def __init__(
         self,

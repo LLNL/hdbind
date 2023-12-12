@@ -1,6 +1,7 @@
+device: cuda:0
 model: rp
 embedding: ecfp
 ecfp_length: 1024
-ecfp_radius: 2 
-D: 10000
+ecfp_radius: 1
+D: 100000
 epochs: 10

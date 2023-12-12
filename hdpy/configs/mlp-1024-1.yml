@@ -1,6 +1,6 @@
 model: mlp
 embedding: ecfp
-input_size: 1024
+ecfp_length: 1024
 ecfp_radius: 1
 ngram_order:
 D: 10000

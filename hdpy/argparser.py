@@ -18,6 +18,9 @@ def get_parser():
             "bbbp",
             "sider",
             "clintox",
+            "hiv",
+            "bace",
+            "tox21",
             "dude",
             "lit-pcba",
             "lit-pcba-ave",
@@ -26,7 +29,9 @@ def get_parser():
         required=True,
     )
 
-    parser.add_argument("--split-type", choices=["random", "scaffold"], required=True)
+    parser.add_argument("--split-type", 
+                        choices=["random", "scaffold", "ave"], 
+                        required=True)
     # use the model argument to lookup the respective config file
     # parser.add_argument("--model", choices=["smiles-pe", "selfies", "ecfp", "rp", "rf", "mlp"])
     parser.add_argument(

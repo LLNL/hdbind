@@ -1,6 +1,6 @@
 model: rp
 embedding: ecfp
-input_size: 1024
+ecfp_length: 1024
 ecfp_radius: 4 
 D: 10000
 epochs: 10

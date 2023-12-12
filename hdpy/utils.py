@@ -143,9 +143,15 @@ def compute_splits(
             scaffoldsplitter = dc.splits.ScaffoldSplitter()
             idxs = np.array(list(range(len(df))))
 
-            dataset = dc.data.DiskDataset.from_numpy(
-                X=idxs, y=df[label_col], ids=df[smiles_col].values
-            )
+            #todo: if dataset
+            if label_col is None:
+                dataset = dc.data.DiskDataset.from_numpy(
+                    X=idxs, y=np.zeros(len(idxs), 1), ids=df[smiles_col].values
+                )
+            else:
+                dataset = dc.data.DiskDataset.from_numpy(
+                    X=idxs, y=df[label_col], ids=df[smiles_col].values
+                )
 
             # import ipdb
             # ipdb.set_trace()
