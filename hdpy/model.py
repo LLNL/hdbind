@@ -493,6 +493,8 @@ def test_hdc(model, test_dataloader, device):
                 hv = torch.cat([model.encode(z) for z in x])
                 test_encode_end = time.time()
             else:
+                # import pdb
+                # pdb.set_trace()
                 x, y = batch
                 x, y = x.to(device), y.squeeze().to(device)
                 test_encode_start = time.time()

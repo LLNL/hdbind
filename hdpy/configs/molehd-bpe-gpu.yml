@@ -1,0 +1,8 @@
+model: molehd
+embedding: bpe 
+input_size: 
+ecfp_radius:
+ngram_order:
+D: 10000
+epochs: 10
+device: cuda 

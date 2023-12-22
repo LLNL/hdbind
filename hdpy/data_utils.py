@@ -177,8 +177,7 @@ class ECFPDataset(Dataset):
     ):
         super()
 
-        # import pdb
-        # pdb.set_trace()
+
         self.path = path
         self.smiles_col = smiles_col
         self.label_col = label_col
@@ -211,7 +210,7 @@ class ECFPDataset(Dataset):
             self.split_df[self.split_df["split"] == "test"]["index"]
         ]
 
-        # todo: do this with a pool
+        # todo: do this with a pool?
         self.x_train = np.concatenate(
             [
                 compute_fingerprint_from_smiles(
@@ -222,7 +221,7 @@ class ECFPDataset(Dataset):
             axis=0,
         )
 
-        # todo: do this with a pool
+        # todo: do this with a pool?
         self.x_test = np.concatenate(
             [
                 compute_fingerprint_from_smiles(
@@ -237,8 +236,7 @@ class ECFPDataset(Dataset):
             self.split_df[self.split_df["split"] == "train"]["index"].values
         ]
 
-        # import pdb
-        # pdb.set_trace()
+
         self.smiles_train = self.smiles[
             self.split_df[self.split_df["split"] == "train"]["index"].values
         ]
@@ -267,8 +265,6 @@ class MolFormerDataset(Dataset):
         super()
         self.path = path
         self.smiles_col = smiles_col
-        self.normalizer = Normalizer()
-        # self.label_col = label_col
         embeds = torch.load(path)
 
 
@@ -287,16 +283,13 @@ class MolFormerDataset(Dataset):
                 label = embeds["labels"][embed_idx_mask]
 
                 if group == "train":
-                    # self.train_idxs = split_idxs
                     x_train.append(embed)
                     y_train.append(label)
                 else:
-                    # x_test.append(embeds["embeds"][idx])
                     x_test.append(embed)
                     y_test.append(label)
 
-        # x_train = self.normalizer.transform(np.concatenate(x_train))
-        # x_test = self.normalizer.transform(np.concatenate(x_test))
+
         x_train = np.concatenate(x_train)
         x_test = np.concatenate(x_test)
 
@@ -312,9 +305,6 @@ class MolFormerDataset(Dataset):
         self.test_idxs = np.asarray(
             list(range(len(x_train), len(x_train) + len(x_test)))
         )
-
-        # import ipdb
-        # ipdb.set_trace()
 
         self.smiles_train = split_df[split_df["split"] == "train"][self.smiles_col]
 

@@ -22,7 +22,7 @@ from hdpy.selfies.encode import SELFIESHDEncoder
 from hdpy.utils import compute_splits
 from hdpy.model import TokenEncoder
 from deepchem.molnet import load_bace_classification
-
+from torch.utils.data import TensorDataset
 # SCRATCH_DIR = "/p/lustre2/jones289/"
 SCRATCH_DIR = "/p/vast1/jones289/"
 
@@ -39,6 +39,8 @@ def main(
             config=config,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
+            n_trials=args.n_trials,
+            random_state=args.random_state,
             train_dataset=train_dataset,
             test_dataset=test_dataset,
         )
@@ -248,12 +250,15 @@ def driver():
             model.item_mem = train_dataset.item_mem
 
         elif config.embedding == "molformer":
-            # raise NotImplementedError
-            dataset = MolFormerDataset(
-                        path=f"{SCRATCH_DIR}/molformer_embeddings/{config.dataset}-{target_name}_molformer_embeddings.pt",
-                        split_df=df,
-                        smiles_col="smiles",
-                    )
+
+            train_data = np.load(f"{SCRATCH_DIR}/molformer_embeddings/molnet/{args.dataset}/train_N-Step-Checkpoint_3_30000.npy")
+            test_data = np.load(f"{SCRATCH_DIR}/molformer_embeddings/molnet/{args.dataset}/test_N-Step-Checkpoint_3_30000.npy")
+
+
+            train_dataset = TensorDataset(torch.from_numpy(train_data[:, :768]).float(), 
+                                          torch.from_numpy(train_data[:, (768+target_idx)]).float())
+            test_dataset = TensorDataset(torch.from_numpy(test_data[:, :768]).float(), 
+                                         torch.from_numpy(test_data[:, (768+target_idx)]).float())
 
         else:
             raise NotImplementedError
