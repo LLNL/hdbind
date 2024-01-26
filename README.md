@@ -1,9 +1,6 @@
-# HDPY
+# hdpy 
 
 Repository for ``HD-Bind: Encoding of Molecular Structure with Low Precision, Hyperdimensional Binary Representations'' by Derek Jones, Jonathan E. Allen, Xiaohua Zhang, Behnam Khaleghi, Jaeyoung Kang, Weihong Xu, Niema Moshiri, Tajana S. Rosing
-
-
-
 
 - ecfp/: contains implementations of ecfp encoding algorithms
 - molehd/: contains implementations of the MoleHD (Ma et.al) SMILES-based encoding algorithms
@@ -20,6 +17,32 @@ Repository for ``HD-Bind: Encoding of Molecular Structure with Low Precision, Hy
 - run_timings.py: contains logic to estimate timing information for various processes such as ECFP computation
 - sdf_to_smiles.py: utility script to convert collections of molecules
 - utils.py: additional utility functions
+
+
+
+# Getting started
+
+In order to install the required dependencies, please first install [anaconda](https://docs.anaconda.com/free/anaconda/install/index.html) or [miniconda](https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html).
+
+
+To install the hdpy repository
+
+> conda create --name hdpy --file hdpy_env.yml
+
+To run the [MoleculeNet] training and testing script:
+
+> python main_molnet.py --dataset tox21 --split-type scaffold --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-molformer.yml
+
+To run the [LIT-PCBA] training and testing script:
+
+> python main_lit_pcba.py --dataset lit-pcba --split-type ave --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-molformer.yml
+
+
+
+
+# Getting Involved
+
+Contact Derek Jones for any questions/collaboration to expand the project! djones@llnl.gov, wdjones@ucsd.edu
 
 
 ## Citation

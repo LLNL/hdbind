@@ -24,7 +24,7 @@ from hdpy.model import TokenEncoder
 from deepchem.molnet import load_bace_classification
 from torch.utils.data import TensorDataset
 # SCRATCH_DIR = "/p/lustre2/jones289/"
-SCRATCH_DIR = "/p/vast1/jones289/"
+SCRATCH_DIR = "/p/vast1/jones289"
 
 
 
@@ -259,6 +259,21 @@ def driver():
                                           torch.from_numpy(train_data[:, (768+target_idx)]).float())
             test_dataset = TensorDataset(torch.from_numpy(test_data[:, :768]).float(), 
                                          torch.from_numpy(test_data[:, (768+target_idx)]).float())
+
+        elif config.embedding == "molclr":
+
+            # we're just using the GIN model always 
+
+            train_data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/molnet/{args.dataset}/train_{target_name}.npy")
+            test_data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/molnet/{args.dataset}/test_{target_name}.npy")
+
+            from sklearn.preprocessing import normalize
+
+            train_dataset = TensorDataset(torch.from_numpy(normalize(train_data[:, :-1], norm="l2", axis=0)).float(), 
+                                          torch.from_numpy(train_data[:, -1]).float())
+            test_dataset = TensorDataset(torch.from_numpy(normalize(test_data[:, :-1], norm="l2", axis=0)).float(), 
+                                         torch.from_numpy(test_data[:, -1]).float())
+
 
         else:
             raise NotImplementedError
