@@ -2,7 +2,7 @@ model: molehd
 embedding: bpe 
 input_size: 
 ecfp_radius:
-ngram_order:
+ngram_order: 2
 D: 10000
 epochs: 10
 device: cpu

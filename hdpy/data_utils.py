@@ -122,7 +122,8 @@ class ECFPFromSMILESDataset(Dataset):
         ecfp_radius: int,
     ):
         super()
-
+        # import pdb
+        # pdb.set_trace()
         self.smiles = smiles
         self.labels = labels
         self.ecfp_length = ecfp_length
@@ -142,7 +143,7 @@ class ECFPFromSMILESDataset(Dataset):
 
         fp_job = partial(compute_fingerprint_from_smiles, length=ecfp_length, radius=ecfp_radius)
         with mp.Pool(int(mp.cpu_count()/2)) as pool:
-            result = list(tqdm(pool.imap(fp_job, smiles)))
+            result = list(tqdm(pool.imap(fp_job, smiles), total=len(smiles)))
             pool.close()
             pool.join()
 

@@ -22,6 +22,13 @@ def main():
 
             data.pop("x_train")
             data.pop("x_test")
+
+
+        if len(list(set(data.keys()).intersection(set(["smiles_train", "smiles_test"])))) > 0:
+            print(data.keys())
+
+            data.pop("x_train")
+            data.pop("x_test")
         with open(path, "wb") as handle:
             pickle.dump(data, handle)
 

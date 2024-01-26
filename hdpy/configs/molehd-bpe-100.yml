@@ -3,6 +3,6 @@ embedding: bpe
 input_size: 
 ecfp_radius:
 ngram_order: 2
-D: 10000
+D: 100
 epochs: 10
-device: cuda 
+device: cpu

@@ -23,6 +23,7 @@ from ray.air import Checkpoint, RunConfig
 from ray import train, tune
 from hdpy.metrics import validate
 
+
 class HDModel(nn.Module):
     def __init__(self, D: int):
         super(HDModel, self).__init__()
@@ -645,9 +646,9 @@ def run_mlp(config,batch_size, num_workers,n_trials, random_state, train_dataset
         # collect the best parameters and train on full training set, we capture timings wrt to the optimal configuration
         # construct after seeding the rng
 
-        trial_dict["y_pred"] = test_dict["y_pred"].cpu()
-        trial_dict["eta"] = test_dict["eta"].cpu()
-        trial_dict["y_true"] = test_dict["y_true"]
+        trial_dict["y_pred"] = test_dict["y_pred"].cpu().numpy()
+        trial_dict["eta"] = test_dict["eta"].cpu().numpy()
+        trial_dict["y_true"] = test_dict["y_true"].numpy() # these were being saved as torch arrays, may slow down notebooks
         trial_dict["train_time"] = train_dict["train_time"]
         trial_dict["test_time"] = test_dict["forward_time"]
         trial_dict["train_encode_time"] = None
@@ -927,6 +928,7 @@ def run_hd(
             trial_dict["roc-auc"] = None
             print(e)
         # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
+
 
         print(trial_dict["class_report"])
         print(f"roc-auc {trial_dict['roc-auc']}")

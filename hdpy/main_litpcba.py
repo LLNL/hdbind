@@ -11,7 +11,8 @@ from cProfile import run
 # import time
 import torch
 import random
-
+import time
+random.seed(time.time())
 # import ray
 from tqdm import tqdm
 import numpy as np
@@ -112,10 +113,10 @@ def driver():
     smiles_featurizer = dc.feat.DummyFeaturizer()
 
     # if args.split_type == "random":
-    lit_pcba_data_p = Path("/p/vast1/jones289/lit_pcba/lit_pcba_full_data/")
+    # lit_pcba_data_p = Path("/p/vast1/jones289/lit_pcba/lit_pcba_full_data/")
     lit_pcba_ave_p = Path("/p/vast1/jones289/lit_pcba/AVE_unbiased")
 
-    target_list = list(lit_pcba_data_p.glob("*/"))
+    target_list = list(lit_pcba_ave_p.glob("*/"))
 
     random.shuffle(target_list)
     for target_path in tqdm(target_list):
@@ -131,10 +132,11 @@ def driver():
             smiles_train, smiles_test, y_train, y_test = None, None, None, None
 
             df = pd.read_csv(
-                target_path.parent.parent
-                / target_path.parent
-                / Path(target_path.name)
-                / Path("full_smiles_with_labels.csv")
+                target_path / Path("full_data.csv")
+                # target_path.parent.parent
+                # / target_path.parent
+                # / Path(target_path.name)
+                # / Path("full_smiles_with_labels.csv")
             )
             # import pdb
             # pdb.set_trace()
@@ -160,32 +162,42 @@ def driver():
                 df["split"] = ["train"] * len(df)
                 df.loc[test_idxs, "split"] = "test"
 
-                smiles_train = df["smiles"][df[df["split"] == "train"]["index"]]
-                smiles_test = df["smiles"][df[df["split"] == "test"]["index"]]
+                train_df = df[df["split"] == "train"]
+                test_df = df[df["split"] == "test"]
+
+
+                smiles_train = (df["0"][df[df["split"] == "train"]["index"]]).values
+                smiles_test = (df["0"][df[df["split"] == "test"]["index"]]).values
 
                 y_train = (df["label"][df[df["split"] == "train"]["index"]]).values
                 y_test = (df["label"][df[df["split"] == "test"]["index"]]).values
 
             else:
                 train_df = pd.read_csv(
-                    lit_pcba_ave_p / Path(f"{target_name}/smiles_train.csv"),
-                    header=None,
+                    # lit_pcba_ave_p / Path(f"{target_name}/smiles_train.csv"),
+                    lit_pcba_ave_p / Path(f"{target_name}/train_data.csv"),
                 )
-                smiles_train = train_df[0].values
+                smiles_train = train_df['0'].values
 
                 test_df = pd.read_csv(
-                    lit_pcba_ave_p / Path(f"{target_name}/smiles_test.csv"), header=None
+                    # lit_pcba_ave_p / Path(f"{target_name}/smiles_test.csv"), header=None
+                    lit_pcba_ave_p / Path(f"{target_name}/test_data.csv")
                 )
-                smiles_test = test_df[0].values
 
-                train_df = pd.merge(df, pd.DataFrame({"smiles": smiles_train}))
+                #todo: there may be an issue with how smiles_test is being saved for molformer
+                smiles_test = test_df['0'].values
+
+                # train_df = pd.merge(df, pd.DataFrame({"smiles": smiles_train}))
                 y_train = train_df["label"].values
-                test_df = pd.merge(df, pd.DataFrame({"smiles": smiles_test}))
+                # test_df = pd.merge(df, pd.DataFrame({"smiles": smiles_test}))
                 y_test = test_df["label"].values
                 # import pdb
                 # pdb.set_trace()
 
+            # import pdb
+            # pdb.set_trace()
             if config.embedding == "ecfp":
+
                 train_dataset = ECFPFromSMILESDataset(
                     smiles=smiles_train,
                     labels=y_train,
@@ -226,53 +238,91 @@ def driver():
                 train_dataset.item_mem = test_dataset.item_mem
                 model.item_mem = train_dataset.item_mem
 
-            elif config.embedding == "molformer":
-                molformer_path = Path(
-                    "molformer_embedding_N-Step-Checkpoint_3_30000.npy"
-                )
-                data_path = target_path / molformer_path
+            elif config.embedding in ["molformer", "molformer-ecfp-combo"]:
 
-                data = np.load(data_path)
+                if args.split_type == "random":
+                    # import `pdb
+                    # pdb.set_trace()
 
-                # import pdb
-                # pdb.set_trace()
+                    full_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                    "molformer_embedding_N-Step-Checkpoint_3_30000_full.npy"
+                    )
+                    if config.embedding == "molformer-ecfp-combo":
+                        print("loading combo model")
+                        full_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                        f"molformer_embedding_ecfp_{config.ecfp_length}_{config.ecfp_radius}_N-Step-Checkpoint_3_30000_full.npy"
+                        )
 
-                train_idxs = train_df["index"].values
-                test_idxs = test_df["index"].values
 
-                train_dataset = TensorDataset(
-                    torch.from_numpy(data[train_idxs, :-1]).float(),
-                    torch.from_numpy(data[train_idxs, -1]).int(),
-                )
-                test_dataset = TensorDataset(
-                    torch.from_numpy(data[test_idxs, :-1]).float(),
-                    torch.from_numpy(data[test_idxs, -1]).int(),
-                )
+                    data = np.load(full_molformer_path)
 
-                # smiles_labels_path = Path("full_smiles_with_labels.csv")
-                # df = pd.read_csv(smiles_labels_path)
+                    # data = load_full_data_molformer_embeddings() # this file should align with the full_data.csv
+                    train_data = data[train_df["index"].values, :]
+                    test_data = data[test_df["index"].values, :]
 
-                # if random split
+                    # raise NotImplementedError
+                    # x_train = norm.fit_transform(train_data[:, :-1]) # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
+                    x_train = train_data[:, :-1] # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
+                    y_train = train_data[:, -1]
 
-                # if ave split
+                    # x_test = norm.fit_transform(test_data[:, :-1])
+                    x_test = test_data[:, :-1]
+                    y_test = test_data[:, -1]
 
-                # if args.split_type == "random":
-                # raise NotImplementedError
-                # dataset = MolFormerDataset(
-                # path=f"{SCRATCH_DIR}/molformer_embeddings/{config.dataset}-{target_name}_molformer_embeddings.pt",
-                # split_df=df,
-                # smiles_col="smiles",
-                # )
-                # train_data = np.load(f"{SCRATCH_DIR}/molformer_embeddings/molnet/{args.dataset}/train_N-Step-Checkpoint_3_30000.npy")
-                # test_data = np.load(f"{SCRATCH_DIR}/molformer_embeddings/molnet/{args.dataset}/test_N-Step-Checkpoint_3_30000.npy")
+                    train_dataset = TensorDataset(
+                        torch.from_numpy(x_train).float(),
+                        torch.from_numpy(y_train).int(),
+                    )
+                    test_dataset = TensorDataset(
+                        torch.from_numpy(x_test).float(),
+                        torch.from_numpy(y_test).int(),
+                    )
 
-                # train_dataset = TensorDataset(torch.from_numpy(train_data[:, :768]).float(),
-                #   torch.from_numpy(train_data).float())
-                # test_dataset = TensorDataset(torch.from_numpy(test_data).float(),
-                #  torch.from_numpy(test_data).float())
-                # else:
-                # pass
-                # raise NotImplementedError
+                else:
+                    train_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                    "molformer_embedding_N-Step-Checkpoint_3_30000_train.npy"
+                    )
+
+                    test_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                    "molformer_embedding_N-Step-Checkpoint_3_30000_test.npy"
+                    )
+
+                    if config.embedding == "molformer-ecfp-combo":
+                        print("loading combo model")
+                        train_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                        f"molformer_embedding_ecfp_{config.ecfp_length}_{config.ecfp_radius}_N-Step-Checkpoint_3_30000_train.npy"
+                        )
+                        test_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                        f"molformer_embedding_ecfp_{config.ecfp_length}_{config.ecfp_radius}_N-Step-Checkpoint_3_30000_test.npy"
+                        )
+
+
+                    train_data = np.load(train_molformer_path)
+                    test_data = np.load(test_molformer_path)
+
+                    # train_idxs = train_df["index"].values
+                    # test_idxs = test_df["index"].values
+
+                    from sklearn.preprocessing import Normalizer
+
+                    norm = Normalizer(norm="l2")
+
+                    # x_train = norm.fit_transform(train_data[:, :-1]) # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
+                    x_train = train_data[:, :-1] # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
+                    y_train = train_data[:, -1]
+
+                    # x_test = norm.fit_transform(test_data[:, :-1])
+                    x_test = test_data[:, :-1]
+                    y_test = test_data[:, -1]
+
+                    train_dataset = TensorDataset(
+                        torch.from_numpy(x_train).float(),
+                        torch.from_numpy(y_train).int(),
+                    )
+                    test_dataset = TensorDataset(
+                        torch.from_numpy(x_test).float(),
+                        torch.from_numpy(y_test).int(),
+                    )
             else:
                 raise NotImplementedError
 
@@ -280,6 +330,8 @@ def driver():
                 model=model, train_dataset=train_dataset, test_dataset=test_dataset
             )
 
+            # import pdb
+            # pdb.set_trace()
             result_dict["smiles_train"] = smiles_train
             result_dict["smiles_test"] = smiles_test
             result_dict["y_train"] = y_train

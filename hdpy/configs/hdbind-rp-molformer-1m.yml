@@ -1,0 +1,8 @@
+device: "cuda:0"
+model: rp
+embedding: molformer 
+ecfp_length:
+ecfp_radius: 
+input_size: 768
+D: 1000000
+epochs: 10
