@@ -29,15 +29,16 @@ To install the hdpy repository
 
 > conda create --name hdpy --file hdpy_env.yml
 
-To run the [MoleculeNet] training and testing script:
+
+
+To run the [MoleculeNet](https://moleculenet.org/) training and testing script:
 
 > python main_molnet.py --dataset tox21 --split-type scaffold --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-molformer.yml
 
-To run the [LIT-PCBA] training and testing script:
+
+To run the [LIT-PCBA](https://drugdesign.unistra.fr/LIT-PCBA/) training and testing script:
 
 > python main_lit_pcba.py --dataset lit-pcba --split-type ave --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-molformer.yml
-
-
 
 
 # Getting Involved
