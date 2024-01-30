@@ -1,4 +1,10 @@
-#from hdpy.data_utils.feat import compute_fingerprint
+################################################################################
+# Copyright (c) 2021-2024, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by D. Jones <djones@llnl.gov> and UCSD collaborators in listed in CONTRIB.md
+#
+# All rights reserved.
+################################################################################
 from tqdm import tqdm
 import pandas as pd
 from pathlib import Path
