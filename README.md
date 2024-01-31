@@ -26,11 +26,19 @@ In order to install the required dependencies, please first install [anaconda](h
 
 
 
-To install the hdpy repository from YAML:
+To install hdpy (from root directory):
 
 > conda create --name hdpy --file hdpy_env_release.yml
 
-Separeately you can do the following: 
+> python -m pip install . 
+
+
+
+
+
+## Separately installing dependencies
+
+Separately you can do the following: 
 
 Install the [deepchem](https://github.com/deepchem/deepchem) library 
 
@@ -59,11 +67,11 @@ Next, SELFIES
 
 
 
-
+## Running the benchmarks
 
 To run the [MoleculeNet](https://moleculenet.org/) training and testing script:
 
-> python main_molnet.py --dataset tox21 --split-type scaffold --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-ecfp.yml
+> python main_molnet.py --dataset bbbp --split-type scaffold --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-ecfp-1024-1.yml
 
 
 To run the [LIT-PCBA](https://drugdesign.unistra.fr/LIT-PCBA/) training and testing script:
