@@ -25,7 +25,32 @@ Repository for ``HD-Bind: Encoding of Molecular Structure with Low Precision, Hy
 In order to install the required dependencies, please first install [anaconda](https://docs.anaconda.com/free/anaconda/install/index.html) or [miniconda](https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html).
 
 
-To install the hdpy repository
+Next, install the [deepchem](https://github.com/deepchem/deepchem) library 
+
+#> conda install -c conda-forge deepchem #using conda but can refer to the docs for your specific install 
+> pip install --pre deepchem #conda install doesn't work currently, use nightly build
+
+Next, install [PyTorch](https://pytorch.org/). This project does not make use of torchvision or torchaudio so we'll skip that (feel free to do so if inclined)
+> conda install pytorch pytorch-cuda=12.1 -c pytorch -c nvidia
+
+Next, install [rdkit](https://www.rdkit.org/docs/Install.html#cross-platform-using-conda)
+> conda install -c conda-forge rdkit
+
+
+Next, ray 
+> pip install ray==2.7.0rc0 
+
+Next, SmilesPE
+> pip install SmilesPE 
+
+Next, SELFIES
+
+> pip install selfies
+
+
+
+
+To install the hdpy repository from YAML:
 
 > conda create --name hdpy --file hdpy_env.yml
 
@@ -33,12 +58,12 @@ To install the hdpy repository
 
 To run the [MoleculeNet](https://moleculenet.org/) training and testing script:
 
-> python main_molnet.py --dataset tox21 --split-type scaffold --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-molformer.yml
+> python main_molnet.py --dataset tox21 --split-type scaffold --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-ecfp.yml
 
 
 To run the [LIT-PCBA](https://drugdesign.unistra.fr/LIT-PCBA/) training and testing script:
 
-> python main_lit_pcba.py --dataset lit-pcba --split-type ave --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-molformer.yml
+> python main_litpcba.py --dataset lit-pcba --split-type ave --n-trials 10 --random-state 5 --batch-size 128 --num-workers 8 --config configs/hdbind-rp-ecfp-1024-1.yml
 
 
 # Getting Involved

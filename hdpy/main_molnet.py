@@ -10,15 +10,15 @@ import torch
 import numpy as np
 import pandas as pd
 import random
-import selfies as sf
-constrain_dict = sf.get_semantic_constraints()
+#import selfies as sf
+#constrain_dict = sf.get_semantic_constraints()
 from hdpy.data_utils import MolFormerDataset, ECFPFromSMILESDataset, SMILESDataset
 import deepchem as dc
 from deepchem.molnet import load_hiv, load_tox21, load_bace_classification, load_sider
 from pathlib import Path
 from hdpy.ecfp.encode import ECFPEncoder
 from hdpy.model import RPEncoder, run_mlp, run_hd
-from hdpy.selfies.encode import SELFIESHDEncoder
+from hdpy.selfies_enc.encode import SELFIESHDEncoder
 from hdpy.utils import compute_splits
 from hdpy.model import TokenEncoder
 from deepchem.molnet import load_bace_classification
@@ -97,32 +97,45 @@ def driver():
     
     if args.dataset == "bbbp":
 
+        # default splitter is scaffold
+        dataset = dc.molnet.load_bbbp(splitter="scaffold")
 
-        smiles_col = "rdkitSmiles"
-        label_col = "p_np"
-        target_list = [label_col]
-        df = pd.read_csv(
-            "/g/g13/jones289/workspace/hd-cuda-master/datasets/moleculenet/BBBPMoleculesnetMOE3D_rdkitSmilesInchi.csv"
-        )
+        target_list = dataset[0]
+        smiles_train = dataset[1][0].ids
+        smiles_test = dataset[1][1].ids
+        y_train = dataset[1][0].y.reshape(-1,1)
+        y_test = dataset[1][1].y.reshape(-1,1) 
 
-        split_path = Path(
-            f"{output_result_dir}/{args.dataset}.{args.split_type}.{args.random_state}.train_test_split.csv"
-        )
+        # smiles_col = "rdkitSmiles"
+        # label_col = "p_np"
+        # target_list = [label_col]
+        # df = pd.read_csv(
+            # "/g/g13/jones289/workspace/hd-cuda-master/datasets/moleculenet/BBBPMoleculesnetMOE3D_rdkitSmilesInchi.csv"
+        # )
 
-        split_df = compute_splits(
-            split_path=split_path,
-            random_state=args.random_state,
-            split_type=args.split_type,
-            df=df,
-            smiles_col=smiles_col,
-            label_col=label_col
-        )
+        # split_path = Path(
+            # f"{output_result_dir}/{args.dataset}.{args.split_type}.{args.random_state}.train_test_split.csv"
+        # )
 
-        smiles_train = (split_df[split_df.loc[:, "split"] == "train"][smiles_col]).values
-        smiles_test = (split_df[split_df.loc[:, "split"] == "test"][smiles_col]).values
+        # import pdb
+        # split_df = compute_splits(
+            # split_path=split_path,
+            # random_state=args.random_state,
+            # split_type=args.split_type,
+            # df=df,
+            # smiles_col=smiles_col,
+            # label_col=label_col
+        # )
 
-        y_train = (split_df[split_df.loc[:, "split"] == "train"][label_col]).values.reshape(-1,len(target_list)) 
-        y_test = (split_df[split_df.loc[:, "split"] == "test"][label_col]).values.reshape(-1,len(target_list))
+        # smiles_train = (split_df[split_df.loc[:, "split"] == "train"][smiles_col]).values
+        # smiles_test = (split_df[split_df.loc[:, "split"] == "test"][smiles_col]).values
+
+        # y_train = (split_df[split_df.loc[:, "split"] == "train"][label_col]).values.reshape(-1,len(target_list)) 
+        # y_test = (split_df[split_df.loc[:, "split"] == "test"][label_col]).values.reshape(-1,len(target_list))
+
+        # target_list = 
+        # smiles_train, smiles_test, y_train, y_test = load_bbbp()
+
 
     elif args.dataset == "sider":
         sider_dataset = load_sider()
@@ -138,33 +151,15 @@ def driver():
         
     elif args.dataset == "clintox":
 
-        smiles_col="smiles"
-        label_col="CT_TOX"
-        target_list = [label_col]
-        df = pd.read_csv(
-            "/g/g13/jones289/workspace/hd-cuda-master/datasets/moleculenet/clintox-cleaned.csv"
-        )
+        dataset = dc.molnet.load_clintox(splitter="scaffold")
 
-        # some of the smiles (6) for clintox dataset are not able to be converted to fingerprints, so skip them for all cases
+        target_list = dataset[0] 
+        smiles_train = dataset[1][0].ids
+        smiles_test = dataset[1][1].ids
 
-        split_path = Path(
-            f"{output_result_dir}/{args.dataset}.{args.split_type}.{args.random_state}.train_test_split.csv"
-        )
+        y_train = dataset[1][0].y
+        y_test = dataset[1][1].y
 
-        split_df = compute_splits(
-            split_path=split_path,
-            random_state=args.random_state,
-            split_type=args.split_type,
-            df=df,
-            smiles_col=smiles_col,
-            label_col=label_col,
-        )
-        
-        smiles_train = (split_df[split_df.loc[:, "split"] == "train"][smiles_col]).values
-        smiles_test = (split_df[split_df.loc[:, "split"] == "test"][smiles_col]).values
-
-        y_train = (split_df[split_df.loc[:, "split"] == "train"][label_col]).values.reshape(-1,len(target_list)) 
-        y_test = (split_df[split_df.loc[:, "split"] == "test"][label_col]).values.reshape(-1,len(target_list))
 
     elif args.dataset == "bace":
 

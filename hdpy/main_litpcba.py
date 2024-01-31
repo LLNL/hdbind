@@ -33,7 +33,7 @@ from torch.utils.data import TensorDataset
 from pathlib import Path
 from hdpy.ecfp.encode import ECFPEncoder
 from hdpy.model import RPEncoder, run_mlp, run_hd
-from hdpy.selfies.encode import SELFIESHDEncoder
+from hdpy.selfies_enc.encode import SELFIESHDEncoder
 from hdpy.model import TokenEncoder
 
 SCRATCH_DIR = "/p/vast1/jones289/"
