@@ -25,7 +25,14 @@ Repository for ``HD-Bind: Encoding of Molecular Structure with Low Precision, Hy
 In order to install the required dependencies, please first install [anaconda](https://docs.anaconda.com/free/anaconda/install/index.html) or [miniconda](https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html).
 
 
-Next, install the [deepchem](https://github.com/deepchem/deepchem) library 
+
+To install the hdpy repository from YAML:
+
+> conda create --name hdpy --file hdpy_env_release.yml
+
+Separeately you can do the following: 
+
+Install the [deepchem](https://github.com/deepchem/deepchem) library 
 
 #> conda install -c conda-forge deepchem #using conda but can refer to the docs for your specific install 
 > pip install --pre deepchem #conda install doesn't work currently, use nightly build
@@ -50,9 +57,7 @@ Next, SELFIES
 
 
 
-To install the hdpy repository from YAML:
 
-> conda create --name hdpy --file hdpy_env.yml
 
 
 
