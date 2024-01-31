@@ -2,7 +2,6 @@ name: hdpy_release_env
 channels:
   - conda-forge
   - omnia
-  - https://ftp.osuosl.org/pub/open-ce/current
   - nvidia
   - pytorch
   - rdkit
@@ -270,4 +269,3 @@ dependencies:
       - werkzeug==3.0.1
       - wrapt==1.14.1
       - yarl==1.9.4
-prefix: /usr/workspace/wsa/jones289/anaconda3/envs/hdpy_release_env
