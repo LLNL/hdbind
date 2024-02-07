@@ -8,6 +8,7 @@
 from cProfile import run
 import torch
 import numpy as np
+import pickle
 import pandas as pd
 import random
 #import selfies as sf
@@ -91,51 +92,44 @@ def driver():
 
     result_dict = None
     roc_values = [] # some datasets contain multiple targets, store these values then print at end
-
+    std_values = []
 
     smiles_featurizer = dc.feat.DummyFeaturizer()
-    
+    target_list, smiles_train, smiles_test, y_train, y_test = [], None, None, None, None 
     if args.dataset == "bbbp":
 
-        # default splitter is scaffold
-        dataset = dc.molnet.load_bbbp(splitter="scaffold")
+        # the version of deepchem I'm using has issues with this function so I'm running it elsewhere first then running in the common env
+        cache_path = Path("bbbp_scaffold_dataset.pkl")
+        dataset = None
 
-        target_list = dataset[0]
-        smiles_train = dataset[1][0].ids
-        smiles_test = dataset[1][1].ids
-        y_train = dataset[1][0].y.reshape(-1,1)
-        y_test = dataset[1][1].y.reshape(-1,1) 
+        if not cache_path.exists():
+            # default splitter is scaffold
+            dataset = dc.molnet.load_bbbp()
 
-        # smiles_col = "rdkitSmiles"
-        # label_col = "p_np"
-        # target_list = [label_col]
-        # df = pd.read_csv(
-            # "/g/g13/jones289/workspace/hd-cuda-master/datasets/moleculenet/BBBPMoleculesnetMOE3D_rdkitSmilesInchi.csv"
-        # )
 
-        # split_path = Path(
-            # f"{output_result_dir}/{args.dataset}.{args.split_type}.{args.random_state}.train_test_split.csv"
-        # )
+            target_list = dataset[0]
+            smiles_train = dataset[1][0].ids
+            smiles_test = dataset[1][1].ids
+            y_train = dataset[1][0].y.reshape(-1,1)
+            y_test = dataset[1][1].y.reshape(-1,1)
+            with open(cache_path, "wb") as handle:
+
+                pickle.dump((target_list, 
+                            smiles_train,
+                            smiles_test,
+                            y_train,
+                            y_test), handle)
+
+        else:
+            with open(cache_path, "rb") as handle:
+                data = pickle.load(handle)
+            target_list, smiles_train, smiles_test, y_train, y_test = data
+
+
+ 
 
         # import pdb
-        # split_df = compute_splits(
-            # split_path=split_path,
-            # random_state=args.random_state,
-            # split_type=args.split_type,
-            # df=df,
-            # smiles_col=smiles_col,
-            # label_col=label_col
-        # )
-
-        # smiles_train = (split_df[split_df.loc[:, "split"] == "train"][smiles_col]).values
-        # smiles_test = (split_df[split_df.loc[:, "split"] == "test"][smiles_col]).values
-
-        # y_train = (split_df[split_df.loc[:, "split"] == "train"][label_col]).values.reshape(-1,len(target_list)) 
-        # y_test = (split_df[split_df.loc[:, "split"] == "test"][label_col]).values.reshape(-1,len(target_list))
-
-        # target_list = 
-        # smiles_train, smiles_test, y_train, y_test = load_bbbp()
-
+        # pdb.set_trace()
 
     elif args.dataset == "sider":
         sider_dataset = load_sider()
@@ -151,14 +145,49 @@ def driver():
         
     elif args.dataset == "clintox":
 
-        dataset = dc.molnet.load_clintox(splitter="scaffold")
+        # dataset = dc.molnet.load_clintox(splitter="scaffold")
 
-        target_list = dataset[0] 
-        smiles_train = dataset[1][0].ids
-        smiles_test = dataset[1][1].ids
+        # target_list = dataset[0] 
+        # smiles_train = dataset[1][0].ids
+        # smiles_test = dataset[1][1].ids
 
-        y_train = dataset[1][0].y
-        y_test = dataset[1][1].y
+        # y_train = dataset[1][0].y
+        # y_test = dataset[1][1].y
+
+
+
+        # the version of deepchem I'm using has issues with this function so I'm running it elsewhere first then running in the common env
+        cache_path = Path("clintox_scaffold_dataset.pkl")
+        dataset = None
+
+        if not cache_path.exists():
+            # default splitter is scaffold
+            dataset = dc.molnet.load_clintox(splitter="scaffold")
+
+
+            target_list = dataset[0]
+            smiles_train = dataset[1][0].ids
+            smiles_test = dataset[1][1].ids
+            y_train = dataset[1][0].y.reshape(len(smiles_train), -1)
+            y_test = dataset[1][1].y.reshape(len(smiles_test), -1)
+            with open(cache_path, "wb") as handle:
+
+                pickle.dump((target_list, 
+                            smiles_train,
+                            smiles_test,
+                            y_train,
+                            y_test), handle)
+
+        else:
+            with open(cache_path, "rb") as handle:
+                data = pickle.load(handle)
+            target_list, smiles_train, smiles_test, y_train, y_test = data
+
+
+        # import pdb
+        # pdb.set_trace()
+
+
 
 
     elif args.dataset == "bace":
@@ -298,8 +327,9 @@ def driver():
             print(f"done. output file: {output_file}")
 
         roc_values.append(np.mean([value["roc-auc"] for value in result_dict["trials"].values()]))
+        std_values.append(np.std([value["roc-auc"] for value in result_dict["trials"].values()]))
 
-    print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.std(roc_values)})")
+    print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.mean(std_values)})")
 
 
 if __name__ == "__main__":
@@ -307,6 +337,9 @@ if __name__ == "__main__":
 
     # args contains things that are unique to a specific run
     args = argparser.parse_args()
+
+    if args.split_type != "scaffold":
+        print(f"{args.split_type} not supported for this dataset! please use scaffold for molnet")
     # config contains general information about the model/data processing
     config = argparser.get_config(args)
 
