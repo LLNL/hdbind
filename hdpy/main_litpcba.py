@@ -18,11 +18,11 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import selfies as sf
-
+from sklearn.preprocessing import normalize
 constrain_dict = sf.get_semantic_constraints()
 from hdpy.data_utils import MolFormerDataset, ECFPFromSMILESDataset, SMILESDataset
 import deepchem as dc
-
+# from sklearn.preprocessing import normalize
 # from deepchem.molnet import load_hiv, load_tox21, load_bace_classification, load_sider
 # from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
@@ -305,7 +305,7 @@ def driver():
 
                     from sklearn.preprocessing import Normalizer
 
-                    norm = Normalizer(norm="l2")
+                    # norm = Normalizer(norm="l2")
 
                     # x_train = norm.fit_transform(train_data[:, :-1]) # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
                     x_train = train_data[:, :-1] # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
@@ -323,6 +323,36 @@ def driver():
                         torch.from_numpy(x_test).float(),
                         torch.from_numpy(y_test).int(),
                     )
+            
+            
+            elif config.embedding == "molclr": 
+                # we're just using the GIN model always 
+                if args.split_type == "random":
+                    # raise NotImplementedError
+
+                    data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/lit-pcba/full_{target_name}.npy")
+                    
+                    train_data = data[train_df["index"].values, :]
+                    test_data = data[test_df["index"].values, :]
+
+                    train_dataset = TensorDataset(torch.from_numpy(normalize(train_data[:, :-1], norm="l2", axis=0)).float(), 
+                                                torch.from_numpy(train_data[:, -1]).float())
+                    
+                    test_dataset = TensorDataset(torch.from_numpy(normalize(test_data[:, :-1], norm="l2", axis=0)).float(), 
+                                                torch.from_numpy(test_data[:, -1]).float())
+                else:
+                    train_data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/lit-pcba/train_{target_name}.npy")
+                    test_data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/lit-pcba/test_{target_name}.npy")
+
+                    # from sklearn.preprocessing import normalize
+
+                    train_dataset = TensorDataset(torch.from_numpy(normalize(train_data[:, :-1], norm="l2", axis=0)).float(), 
+                                                torch.from_numpy(train_data[:, -1]).float())
+                    test_dataset = TensorDataset(torch.from_numpy(normalize(test_data[:, :-1], norm="l2", axis=0)).float(), 
+                                                torch.from_numpy(test_data[:, -1]).float())
+
+
+            
             else:
                 raise NotImplementedError
 

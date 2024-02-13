@@ -9,27 +9,20 @@ from cProfile import run
 import torch
 import numpy as np
 import pickle
-import pandas as pd
 import random
-#import selfies as sf
-#constrain_dict = sf.get_semantic_constraints()
-from hdpy.data_utils import MolFormerDataset, ECFPFromSMILESDataset, SMILESDataset
 import deepchem as dc
 from deepchem.molnet import load_hiv, load_tox21, load_bace_classification, load_sider
 from pathlib import Path
+from sklearn.preprocessing import normalize
+from hdpy.data_utils import ECFPFromSMILESDataset, SMILESDataset
 from hdpy.ecfp.encode import ECFPEncoder
-from hdpy.model import RPEncoder, run_mlp, run_hd
+from hdpy.model import RPEncoder, TokenEncoder, run_mlp, run_hd
 from hdpy.selfies_enc.encode import SELFIESHDEncoder
-from hdpy.utils import compute_splits
-from hdpy.model import TokenEncoder
-from deepchem.molnet import load_bace_classification
 from torch.utils.data import TensorDataset
-# SCRATCH_DIR = "/p/lustre2/jones289/"
+
 SCRATCH_DIR = "/p/vast1/jones289"
 
-
-
-def main(
+def main(args, config,
     model,
     train_dataset,
     test_dataset,
@@ -126,11 +119,6 @@ def driver():
             target_list, smiles_train, smiles_test, y_train, y_test = data
 
 
- 
-
-        # import pdb
-        # pdb.set_trace()
-
     elif args.dataset == "sider":
         sider_dataset = load_sider()
 
@@ -144,17 +132,6 @@ def driver():
         y_test = sider_dataset[1][1].y
         
     elif args.dataset == "clintox":
-
-        # dataset = dc.molnet.load_clintox(splitter="scaffold")
-
-        # target_list = dataset[0] 
-        # smiles_train = dataset[1][0].ids
-        # smiles_test = dataset[1][1].ids
-
-        # y_train = dataset[1][0].y
-        # y_test = dataset[1][1].y
-
-
 
         # the version of deepchem I'm using has issues with this function so I'm running it elsewhere first then running in the common env
         cache_path = Path("clintox_scaffold_dataset.pkl")
@@ -182,12 +159,6 @@ def driver():
             with open(cache_path, "rb") as handle:
                 data = pickle.load(handle)
             target_list, smiles_train, smiles_test, y_train, y_test = data
-
-
-        # import pdb
-        # pdb.set_trace()
-
-
 
 
     elif args.dataset == "bace":
@@ -291,7 +262,6 @@ def driver():
             train_data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/molnet/{args.dataset}/train_{target_name}.npy")
             test_data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/molnet/{args.dataset}/test_{target_name}.npy")
 
-            from sklearn.preprocessing import normalize
 
             train_dataset = TensorDataset(torch.from_numpy(normalize(train_data[:, :-1], norm="l2", axis=0)).float(), 
                                           torch.from_numpy(train_data[:, -1]).float())
@@ -313,7 +283,7 @@ def driver():
             result_dict = torch.load(output_file)
 
         else:
-            result_dict = main(
+            result_dict = main(args=args, config=config,
                     model=model, train_dataset=train_dataset, test_dataset=test_dataset
                 )
 
@@ -340,6 +310,7 @@ if __name__ == "__main__":
 
     if args.split_type != "scaffold":
         print(f"{args.split_type} not supported for this dataset! please use scaffold for molnet")
+        assert args.split_type == "scaffold"
     # config contains general information about the model/data processing
     config = argparser.get_config(args)
 

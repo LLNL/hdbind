@@ -122,33 +122,6 @@ class HDModel(nn.Module):
             self.train_step(train_features=x_train, train_labels=y_train, lr=lr)
 
 
-"""
-import pytorch_lightning as pl
-class RPHDLightningModule(pl.LightningModule):
-
-    def __init__(self, D:int, input_size:int, num_classes:int, init_type="uniform"):
-
-        super()
-        self.D = D
-        self.input_size=input_size
-        self.num_classes=num_classes
-        self.rp_layer = nn.Linear(input_size, D, bias=False)
-
-        if init_type == "uniform":
-            init_rp_mat = torch.bernoulli(torch.tensor([[0.5] * input_size] * D)).float()*2-1
-            self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False)
-
-            self.init_class_hvs = torch.zeros(num_classes, D).float()
-
-
-    def forward(self, x):
-                
-        hv = self.rp_layer(x.float())
-        hv = torch.where(hv>0, 1.0, -1.0)
-        return hv
-"""
-
-
 class RPEncoder(HDModel):
     def __init__(self, input_size: int, D: int, num_classes: int):
         super(RPEncoder, self).__init__(D=D)
@@ -164,12 +137,12 @@ class RPEncoder(HDModel):
         self.name = "rp"
 
     def encode(self, x):
-        hv = self.rp_layer(x.float())
+        hv = self.rp_layer(x)
         hv = torch.where(hv > 0, 1.0, -1.0).int()
         return hv
 
     def forward(self, x):
-        hv = self.rp_layer(x.float())
+        hv = self.rp_layer(x)
         hv = torch.where(hv > 0, 1.0, -1.0).int()
 
         return hv
