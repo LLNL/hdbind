@@ -1,7 +1,8 @@
-model: mlp
+model: mlp-small
 embedding: ecfp
 ecfp_length: 1024
 ecfp_radius: 1
+input_size: 1024
 ngram_order:
 D: 10000
 # epochs: 10

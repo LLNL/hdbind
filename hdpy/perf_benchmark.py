@@ -37,8 +37,8 @@ def main(config, args, dim_frac):
         y_test = test_dataset.y
 
 
-    
-    n_comps = int(768 * dim_frac) 
+    n_comps=config.input_size 
+    # n_comps = int(768 * dim_frac)
     
     if config.model == "rp":
         model = RPEncoder(input_size=n_comps, 
@@ -53,7 +53,14 @@ def main(config, args, dim_frac):
                                 activation=torch.nn.GELU(),
                                 criterion=torch.nn.NLLLoss(),
                                 optimizer=torch.optim.Adam)
- 
+
+    elif config.model == "mlp-small":
+        model = MLPClassifier(layer_sizes=((n_comps, 128), (128, 2)),
+                                lr=1e-3, 
+                                activation=torch.nn.GELU(),
+                                criterion=torch.nn.NLLLoss(),
+                                optimizer=torch.optim.Adam)
+
 
     torch.cuda.reset_peak_memory_stats(device=None)
     print(f"gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
@@ -142,7 +149,7 @@ def main(config, args, dim_frac):
         for batch in tqdm(loader):
             # import pdb
             # pdb.set_trace()
-            if config.model == "mlp":
+            if config.model == "mlp" or config.model == "mlp-small":
                 batch = batch[0].reshape(1,1,-1).float()
             else:
                 batch = batch[0].reshape(1,-1)
@@ -168,16 +175,16 @@ def main(config, args, dim_frac):
 
 
 if __name__ == "__main__":
-    import argparser
+    import hdpy.hdc_args as hdc_args
 
     # args contains things that are unique to a specific run
-    args = argparser.parse_args()
+    args = hdc_args.parse_args()
 
     if args.split_type != "scaffold":
         print(f"{args.split_type} not supported for this dataset! please use scaffold for molnet")
         assert args.split_type == "scaffold"
     # config contains general information about the model/data processing
-    config = argparser.get_config(args)
+    config = hdc_args.get_config(args)
 
     if config.device == "cpu":
         device = "cpu"

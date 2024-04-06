@@ -3,4 +3,4 @@ embedding: ecfp
 ecfp_length: 1024
 ecfp_radius: 4 
 D: 10000
-epochs: 10
+# epochs: 10

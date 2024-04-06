@@ -16,7 +16,7 @@ from pathlib import Path
 from sklearn.preprocessing import normalize
 from hdpy.data_utils import ECFPFromSMILESDataset, SMILESDataset
 from hdpy.ecfp.encode import ECFPEncoder
-from hdpy.model import RPEncoder, TokenEncoder, run_mlp, run_hd
+from hdpy.model import RPEncoder, TokenEncoder, run_mlp, run_hd, get_model
 from hdpy.selfies_enc.encode import SELFIESHDEncoder
 from torch.utils.data import TensorDataset
 
@@ -31,6 +31,7 @@ def main(args, config,
         result_dict = run_hd(
             model=model,
             config=config,
+            epochs=args.epochs,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             n_trials=args.n_trials,
@@ -38,8 +39,8 @@ def main(args, config,
             train_dataset=train_dataset,
             test_dataset=test_dataset,
         )
-    elif config.model in ["mlp"]:
-        result_dict = run_mlp(config=config, batch_size=args.batch_size,
+    elif config.model in ["mlp", "mlp-small"]:
+        result_dict = run_mlp(config=config, batch_size=args.batch_size, epochs=args.epochs,
                               num_workers=args.num_workers, n_trials=args.n_trials,
                               random_state=args.random_state,
                               train_dataset=train_dataset, test_dataset=test_dataset)
@@ -52,24 +53,8 @@ def main(args, config,
 def driver():
     train_dataset, test_dataset = None, None
     # todo: ngram order and tokenizer only apply to some models, don't need to have in the exp_name
-    if config.model == "molehd":
-        model = TokenEncoder(D=config.D, num_classes=2)
-        # will update item_mem after processing input data
 
-    elif config.model == "selfies":
-        model = SELFIESHDEncoder(D=config.D)
-
-    elif config.model == "ecfp":
-        model = ECFPEncoder(D=config.D)
-
-    elif config.model == "rp":
-        # assert config.ecfp_length is not None
-        assert config.D is not None
-        model = RPEncoder(input_size=config.input_size, D=config.D, num_classes=2)
-
-    else:
-        # if using sklearn or pytorch non-hd model
-        model = None
+    model = get_model(config)
 
     if config.model in ["smiles-pe", "selfies", "ecfp", "rp"]:
         # transfer the model to GPU memory
@@ -303,16 +288,17 @@ def driver():
 
 
 if __name__ == "__main__":
-    import argparser
+    import hdpy.hdc_args as hdc_args
 
     # args contains things that are unique to a specific run
-    args = argparser.parse_args()
+    args = hdc_args.parse_args()
 
+    assert args.split_type is not None and args.dataset is not None
     if args.split_type != "scaffold":
         print(f"{args.split_type} not supported for this dataset! please use scaffold for molnet")
         assert args.split_type == "scaffold"
     # config contains general information about the model/data processing
-    config = argparser.get_config(args)
+    config = hdc_args.get_config(args)
 
     if config.device == "cpu":
         device = "cpu"

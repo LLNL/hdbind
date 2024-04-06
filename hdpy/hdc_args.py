@@ -26,12 +26,10 @@ def get_parser():
             "lit-pcba-ave",
             "dockstring",
         ],
-        required=True,
     )
 
     parser.add_argument("--split-type", 
-                        choices=["random", "scaffold", "ave"], 
-                        required=True)
+                        choices=["random", "scaffold", "ave"])
     # use the model argument to lookup the respective config file
     # parser.add_argument("--model", choices=["smiles-pe", "selfies", "ecfp", "rp", "rf", "mlp"])
     parser.add_argument(
@@ -45,6 +43,7 @@ def get_parser():
     parser.add_argument("--random-state", type=int, default=0)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--num-workers", type=int, default=0)
+    parser.add_argument("--epochs", type=int, default=10)
 
     return parser
 

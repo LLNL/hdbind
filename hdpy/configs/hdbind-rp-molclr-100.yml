@@ -5,4 +5,4 @@ ecfp_length:
 ecfp_radius: 
 input_size: 512
 D: 100
-epochs: 10
+# epochs: 10

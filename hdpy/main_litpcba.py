@@ -6,35 +6,21 @@
 # All rights reserved.
 ################################################################################
 from cProfile import run
-
-# import pickle
-# import time
 import torch
 import random
 import time
 random.seed(time.time())
-# import ray
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import selfies as sf
 from sklearn.preprocessing import normalize
 constrain_dict = sf.get_semantic_constraints()
-from hdpy.data_utils import MolFormerDataset, ECFPFromSMILESDataset, SMILESDataset
-import deepchem as dc
-# from sklearn.preprocessing import normalize
-# from deepchem.molnet import load_hiv, load_tox21, load_bace_classification, load_sider
-# from torch.utils.data import DataLoader
+from hdpy.data_utils import ECFPFromSMILESDataset, SMILESDataset
 from sklearn.model_selection import train_test_split
-
-# from sklearn.metrics import classification_report
-# from sklearn.metrics import roc_auc_score
 from torch.utils.data import TensorDataset
 from pathlib import Path
-from hdpy.ecfp.encode import ECFPEncoder
-from hdpy.model import RPEncoder, run_mlp, run_hd
-from hdpy.selfies_enc.encode import SELFIESHDEncoder
-from hdpy.model import TokenEncoder
+from hdpy.model import run_mlp, run_hdc, get_model
 
 SCRATCH_DIR = "/p/vast1/jones289/"
 
@@ -45,9 +31,10 @@ def main(
     test_dataset,
 ):
     if config.model in ["molehd", "selfies", "ecfp", "rp"]:
-        result_dict = run_hd(
+        result_dict = run_hdc(
             model=model,
             config=config,
+            epochs=args.epochs,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             n_trials=args.n_trials,
@@ -59,6 +46,7 @@ def main(
         result_dict = run_mlp(
             config=config,
             batch_size=args.batch_size,
+            epochs=args.epochs,
             num_workers=args.num_workers,
             n_trials=args.n_trials,
             random_state=args.random_state,
@@ -73,25 +61,8 @@ def main(
 
 def driver():
     train_dataset, test_dataset = None, None
-    # todo: ngram order and tokenizer only apply to some models, don't need to have in the exp_name
-    if config.model == "molehd":
-        model = TokenEncoder(D=config.D, num_classes=2)
-        # will update item_mem after processing input data
 
-    elif config.model == "selfies":
-        model = SELFIESHDEncoder(D=config.D)
-
-    elif config.model == "ecfp":
-        model = ECFPEncoder(D=config.D)
-
-    elif config.model == "rp":
-        # assert config.ecfp_length is not None
-        assert config.D is not None
-        model = RPEncoder(input_size=config.input_size, D=config.D, num_classes=2)
-
-    else:
-        # if using sklearn or pytorch non-hd model
-        model = None
+    model = get_model(config) 
 
     if config.model in ["smiles-pe", "selfies", "ecfp", "rp"]:
         # transfer the model to GPU memory
@@ -110,10 +81,7 @@ def driver():
         []
     )  # some datasets contain multiple targets, store these values then print at end
 
-    smiles_featurizer = dc.feat.DummyFeaturizer()
 
-    # if args.split_type == "random":
-    # lit_pcba_data_p = Path("/p/vast1/jones289/lit_pcba/lit_pcba_full_data/")
     lit_pcba_ave_p = Path("/p/vast1/jones289/lit_pcba/AVE_unbiased")
 
     target_list = list(lit_pcba_ave_p.glob("*/"))
@@ -121,8 +89,9 @@ def driver():
     random.shuffle(target_list)
     for target_path in tqdm(target_list):
         target_name = target_path.name
+        
         output_file = Path(
-            f"{output_result_dir}/{exp_name}.{args.dataset}-{target_path.name}-{args.split_type}.{args.random_state}.pkl"
+            f"{output_result_dir}/{exp_name}.{args.dataset}-{target_path.name}-{args.split_type}.{args.random_state}-{args.n_trials}-{args.batch_size}-{args.num_workers}-{args.epochs}.pkl"
         )
         if output_file.exists():
             print(f"output_file: {output_file} exists. skipping.")
@@ -133,25 +102,13 @@ def driver():
 
             df = pd.read_csv(
                 target_path / Path("full_data.csv")
-                # target_path.parent.parent
-                # / target_path.parent
-                # / Path(target_path.name)
-                # / Path("full_smiles_with_labels.csv")
             )
-            # import pdb
-            # pdb.set_trace()
-            # df["smiles"] = df[0]
+            
             df["index"] = df.index
-
-            # import pdb
-            # pdb.set_trace()
 
             # load the smiles strings, if split type is ave then the split has already been computed, other wise load the
             # corresponding file and do the split
             if args.split_type == "random":
-                # raise NotImplementedError
-
-                # df = pd.read_csv(target_path / Path("full_smiles_with_labels.csv"))
 
                 _, test_idxs = train_test_split(
                     list(range(len(df))),
@@ -174,28 +131,20 @@ def driver():
 
             else:
                 train_df = pd.read_csv(
-                    # lit_pcba_ave_p / Path(f"{target_name}/smiles_train.csv"),
                     lit_pcba_ave_p / Path(f"{target_name}/train_data.csv"),
                 )
                 smiles_train = train_df['0'].values
 
                 test_df = pd.read_csv(
-                    # lit_pcba_ave_p / Path(f"{target_name}/smiles_test.csv"), header=None
                     lit_pcba_ave_p / Path(f"{target_name}/test_data.csv")
                 )
 
                 #todo: there may be an issue with how smiles_test is being saved for molformer
                 smiles_test = test_df['0'].values
 
-                # train_df = pd.merge(df, pd.DataFrame({"smiles": smiles_train}))
                 y_train = train_df["label"].values
-                # test_df = pd.merge(df, pd.DataFrame({"smiles": smiles_test}))
                 y_test = test_df["label"].values
-                # import pdb
-                # pdb.set_trace()
 
-            # import pdb
-            # pdb.set_trace()
             if config.embedding == "ecfp":
 
                 train_dataset = ECFPFromSMILESDataset(
@@ -241,8 +190,7 @@ def driver():
             elif config.embedding in ["molformer", "molformer-ecfp-combo"]:
 
                 if args.split_type == "random":
-                    # import `pdb
-                    # pdb.set_trace()
+
 
                     full_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
                     "molformer_embedding_N-Step-Checkpoint_3_30000_full.npy"
@@ -256,16 +204,13 @@ def driver():
 
                     data = np.load(full_molformer_path)
 
-                    # data = load_full_data_molformer_embeddings() # this file should align with the full_data.csv
                     train_data = data[train_df["index"].values, :]
                     test_data = data[test_df["index"].values, :]
 
-                    # raise NotImplementedError
-                    # x_train = norm.fit_transform(train_data[:, :-1]) # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
-                    x_train = train_data[:, :-1] # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
+                    
+                    x_train = train_data[:, :-1] 
                     y_train = train_data[:, -1]
 
-                    # x_test = norm.fit_transform(test_data[:, :-1])
                     x_test = test_data[:, :-1]
                     y_test = test_data[:, -1]
 
@@ -300,18 +245,9 @@ def driver():
                     train_data = np.load(train_molformer_path)
                     test_data = np.load(test_molformer_path)
 
-                    # train_idxs = train_df["index"].values
-                    # test_idxs = test_df["index"].values
-
-                    from sklearn.preprocessing import Normalizer
-
-                    # norm = Normalizer(norm="l2")
-
-                    # x_train = norm.fit_transform(train_data[:, :-1]) # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
-                    x_train = train_data[:, :-1] # according to sklearn docs, calling fit does nothing and this is the preferred way of doing things...
+                    x_train = train_data[:, :-1] 
                     y_train = train_data[:, -1]
 
-                    # x_test = norm.fit_transform(test_data[:, :-1])
                     x_test = test_data[:, :-1]
                     y_test = test_data[:, -1]
 
@@ -328,7 +264,6 @@ def driver():
             elif config.embedding == "molclr": 
                 # we're just using the GIN model always 
                 if args.split_type == "random":
-                    # raise NotImplementedError
 
                     data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/lit-pcba/full_{target_name}.npy")
                     
@@ -344,8 +279,6 @@ def driver():
                     train_data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/lit-pcba/train_{target_name}.npy")
                     test_data = np.load(f"{SCRATCH_DIR}/molclr_embeddings/lit-pcba/test_{target_name}.npy")
 
-                    # from sklearn.preprocessing import normalize
-
                     train_dataset = TensorDataset(torch.from_numpy(normalize(train_data[:, :-1], norm="l2", axis=0)).float(), 
                                                 torch.from_numpy(train_data[:, -1]).float())
                     test_dataset = TensorDataset(torch.from_numpy(normalize(test_data[:, :-1], norm="l2", axis=0)).float(), 
@@ -360,8 +293,6 @@ def driver():
                 model=model, train_dataset=train_dataset, test_dataset=test_dataset
             )
 
-            # import pdb
-            # pdb.set_trace()
             result_dict["smiles_train"] = smiles_train
             result_dict["smiles_test"] = smiles_test
             result_dict["y_train"] = y_train
@@ -379,12 +310,13 @@ def driver():
 
 
 if __name__ == "__main__":
-    import argparser
+    import hdpy.hdc_args as hdc_args
 
     # args contains things that are unique to a specific run
-    args = argparser.parse_args()
+    args = hdc_args.parse_args()
+    assert args.split_type is not None and args.dataset is not None
     # config contains general information about the model/data processing
-    config = argparser.get_config(args)
+    config = hdc_args.get_config(args)
 
     if config.device == "cpu":
         device = "cpu"
