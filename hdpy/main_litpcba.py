@@ -89,10 +89,17 @@ def driver():
     random.shuffle(target_list)
     for target_path in tqdm(target_list):
         target_name = target_path.name
-        
+
+        dataset = args.dataset
+
+        if dataset == "lit-pcba-ave":
+            dataset = "lit-pcba"
+
         output_file = Path(
-            f"{output_result_dir}/{exp_name}.{args.dataset}-{target_path.name}-{args.split_type}.{args.random_state}-{args.n_trials}-{args.batch_size}-{args.num_workers}-{args.epochs}.pkl"
+            # f"{output_result_dir}/{exp_name}.{args.dataset}-{target_path.name}-{args.split_type}.{args.random_state}-{args.n_trials}-{args.batch_size}-{args.num_workers}-{args.epochs}.pkl"
+            f"{output_result_dir}/{exp_name}.{dataset}-{target_path.name}-{args.split_type}.{args.random_state}.pkl"
         )
+        print(f"{output_file}\t{output_file.exists()}")
         if output_file.exists():
             print(f"output_file: {output_file} exists. skipping.")
             result_dict = torch.load(output_file)

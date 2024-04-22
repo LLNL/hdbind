@@ -35,9 +35,9 @@ class ECFPEncoder(Dataset):
 
         ecfp = self.compute_fingerprint_from_smiles(self.smiles_list[idx])
         if ecfp is not None:
-            start = time.time()
+            # start = time.time()
             hv = self.encode(ecfp)
-            end = time.time()
+            # end = time.time()
 
             return hv
         else:

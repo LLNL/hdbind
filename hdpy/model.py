@@ -133,7 +133,8 @@ class RPEncoder(HDModel):
 
         self.init_class_hvs = torch.zeros(num_classes, D).float()
 
-        self.am = torch.zeros(2, self.D, dtype=int)
+        # self.am = torch.zeros(2, self.D, dtype=int)
+        self.am = torch.nn.parameter.Paramter(torch.zeros(2, self.D, dtype=int), requires_grad=False)
         self.name = "rp"
 
     def encode(self, x):
@@ -849,8 +850,7 @@ def val_mlp(model, val_dataloader, device):
 
     preds = torch.cat(preds)
     targets = torch.cat(targets)
-    # import pdb
-    # pdb.set_trace()
+
     return {
         "y_true": targets.to("cpu"),
         "y_pred": torch.argmax(preds, dim=1).to("cpu"),
@@ -897,6 +897,8 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
         "optimizer": tune.choice([torch.optim.Adam, torch.optim.SGD]),
     }
 
+
+    '''
     train_dataset, val_dataset = torch.utils.data.random_split(
         train_dataset, [0.80, 0.20]
     )
@@ -925,8 +927,63 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
         shuffle=False,
     )
 
+    full_train_dataloader = DataLoader(
+        torch.utils.data.ConcatDataset([train_dataset, val_dataset]),
+        batch_size=batch_size,
+        num_workers=num_workers,
+        persistent_workers=True,
+        shuffle=True,
+    )
+    '''
+
+    from torch.utils.data import DataLoader, SubsetRandomSampler
+    from sklearn.model_selection import StratifiedShuffleSplit
+
+    # Assume you have a PyTorch dataset named 'dataset' and corresponding labels 'labels'
 
 
+
+    # Define the number of splits and the train/validation split ratio
+    n_splits = 1  # You can change this according to your requirement
+    test_size = 0.2  # Ratio of validation data
+
+    # Initialize Stratified Shuffle Split
+    stratified_splitter = StratifiedShuffleSplit(n_splits=n_splits, test_size=test_size, random_state=42)
+
+    # Get indices for train and validation sets
+    train_indices, val_indices = next(stratified_splitter.split(np.zeros(len(train_dataset.tensors[1])), train_dataset.tensors[1]))
+
+    # Define samplers
+    train_sampler = SubsetRandomSampler(train_indices)
+    val_sampler = SubsetRandomSampler(val_indices)
+
+    
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        persistent_workers=True,
+        # shuffle=True,#mutually exclusive with SubsetRandomSampler
+        sampler=train_sampler,
+    )
+
+
+    val_dataloader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        num_workers=1,
+        persistent_workers=False,
+        # shuffle=False, #mutually exclusive with SubsetRandomSampler
+        sampler=val_sampler,
+    )
+
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        num_workers=1,
+        persistent_workers=False,
+        shuffle=False,
+    )
 
     scheduler = ASHAScheduler(
         max_t=5,
@@ -976,6 +1033,7 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
 
         train_dict = train_mlp(
             model=model,
+            # train_dataloader=train_dataloader,
             train_dataloader=train_dataloader,
             epochs=epochs,
             device=config.device,
@@ -986,7 +1044,6 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
             device=config.device,
         )
 
-        # trial_dict = {}
         seed = random_state + i
         # this should force each call of .fit to be different...I think..
         seed_rngs(seed)
@@ -1008,8 +1065,6 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
             y_pred=trial_dict["y_pred"], y_true=trial_dict["y_true"]
         )
 
-        # import pdb
-        # pdb.set_trace()
         try:
             trial_dict["roc-auc"] = roc_auc_score(
                 y_score=trial_dict["eta"][:, 1], y_true=trial_dict["y_true"]
@@ -1053,6 +1108,13 @@ def get_model(config):
         assert config.D is not None
         model = RPEncoder(input_size=config.input_size, D=config.D, num_classes=2)
 
+    elif config.model == "mlp-small":
+        model = MLPClassifier(layer_sizes=((config.ecfp_length, 128), (128, 2)), 
+                              lr=1e-3, activation=torch.nn.ReLU(), criterion=torch.nn.NLLLoss(), optimizer=torch.optim.Adam)
+
+    elif config.model == "mlp-large":
+        model = MLPClassifier(layer_sizes=((config.ecfp_length, 512), (512, 256), (256, 128), (128, 2)),
+                              lr=1e-3, activation=torch.nn.ReLU(), criterion=torch.nn.NLLLoss(), optimizer=torch.optim.Adam)
     else:
         # if using sklearn or pytorch non-hd model
         model = None

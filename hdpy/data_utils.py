@@ -129,16 +129,6 @@ class ECFPFromSMILESDataset(Dataset):
         self.ecfp_length = ecfp_length
         self.ecfp_radius = ecfp_radius
 
-        # todo: do this with a pool
-        # self.fps = np.asarray(
-            # [
-                # compute_fingerprint_from_smiles(
-                    # x, length=ecfp_length, radius=ecfp_radius
-                # )
-                # for x in tqdm(smiles)
-            # ]
-        # )
-
         from functools import partial
 
         fp_job = partial(compute_fingerprint_from_smiles, length=ecfp_length, radius=ecfp_radius)
@@ -153,6 +143,7 @@ class ECFPFromSMILESDataset(Dataset):
         self.smiles = self.smiles[valid_idxs]
         self.labels = torch.from_numpy(self.labels[valid_idxs])
 
+        self.tensors = [self.fps, self.labels]
 
     def __len__(self):
         return self.fps.shape[0]

@@ -97,9 +97,6 @@ def binarize(hv):
     return hv
 
 
-from torch.utils.data import Dataset
-
-
 def tok_seq_to_hv(tokens: list, D: int, item_mem: dict):
     # hv = torch.zeros(D).int()
 

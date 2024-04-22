@@ -1,4 +1,4 @@
-model: mlp-small
+model: mlp-large
 embedding: ecfp
 ecfp_length: 1024
 # ecfp_length: 768 

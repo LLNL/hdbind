@@ -1,6 +1,6 @@
 # hdpy 
 
-Repository for ``HD-Bind: Encoding of Molecular Structure with Low Precision, Hyperdimensional Binary Representations'' by Derek Jones, Jonathan E. Allen, Xiaohua Zhang, Behnam Khaleghi, Jaeyoung Kang, Weihong Xu, Niema Moshiri, Tajana S. Rosing
+Repository for "HD-Bind: Encoding of Molecular Structure with Low Precision, Hyperdimensional Binary Representations" by Derek Jones, Jonathan E. Allen, Xiaohua Zhang, Behnam Khaleghi, Jaeyoung Kang, Weihong Xu, Niema Moshiri, Tajana S. Rosing
 
 - ecfp/: contains implementations of ecfp encoding algorithms
 - molehd/: contains implementations of the MoleHD (Ma et.al) SMILES-based encoding algorithms
