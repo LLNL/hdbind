@@ -16,12 +16,14 @@ SCRATCH_DIR = "/p/vast1/jones289"
 # args contains things that are unique to a specific run
 hdc_parser = hdc_args.get_parser()
 hdc_parser.add_argument('--mode', choices=['encode', 'train', 'test', 'mlp-train', 'mlp-test'])
+# hdc_parser.add_argument('--perf-output', default="perf_profile.csv")
 args = hdc_parser.parse_args()
 # config contains general information about the model/data processing
 config = hdc_args.get_config(args)
 
 # collect GPU statistics
-subprocess.run([f"nvidia-smi --query-gpu=index,timestamp,power.draw,clocks.sm,clocks.mem,clocks.gr,memory.total,memory.free,memory.used,utilization.gpu,utilization.memory,temperature.gpu,pstate, --format=csv -l 1 -f {args.perf_output}&"])
+# causes issues with shell=True which is apparently required for passing arguments? and gives a too many open files error when running
+# subprocess.run([f"nvidia-smi --query-gpu=index,timestamp,power.draw,clocks.sm,clocks.mem,clocks.gr,memory.total,memory.free,memory.used,utilization.gpu,utilization.memory,temperature.gpu,pstate, --format=csv -l 1 -f {args.perf_output}&"], shell=True)
 
 
 
@@ -50,8 +52,8 @@ test_time_list = []
 
 lit_pcba_ave_p = Path("/p/vast1/jones289/lit_pcba/AVE_unbiased")
 
-target_list = list(lit_pcba_ave_p.glob("*/"))
-
+# target_list = list(lit_pcba_ave_p.glob("*/"))
+target_list = list(lit_pcba_ave_p.glob("VDR*/"))
 for target_path in tqdm(target_list):
 
     target_name = target_path.name

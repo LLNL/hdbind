@@ -13,6 +13,9 @@ import multiprocessing as mp
 import functools
 from SmilesPE.tokenizer import SPE_Tokenizer, codecs
 
+def foo():
+    return True
+
 
 class SMILESHDEncoder(HDModel):
     def __init__(self, D):
@@ -68,7 +71,6 @@ class SMILESHDEncoder(HDModel):
 
 
 def tokenize_smiles(smiles_list, tokenizer, ngram_order, num_workers=0):
-    print(num_workers)
     tokenizer_func = None
     toks = None
 

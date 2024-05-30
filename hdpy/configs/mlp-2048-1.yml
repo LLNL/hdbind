@@ -4,5 +4,4 @@ ecfp_length: 2048
 ecfp_radius: 1
 ngram_order:
 D: 
-# epochs: 10
 device: cuda 

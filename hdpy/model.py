@@ -9,24 +9,26 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 import torchmetrics
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 import numpy as np
 import time
-# from hdpy.molehd.encode import tokenize_smiles
 from hdpy.utils import collate_list_fn, binarize, seed_rngs
 from sklearn.metrics import classification_report, roc_auc_score
-from ray import tune
-from ray.tune.schedulers import ASHAScheduler
-from ray.tune.schedulers import ASHAScheduler
-from ray import tune
-from ray.air import Checkpoint, RunConfig
-from ray import train, tune
-from hdpy.metrics import validate
+
+try:
+    from ray.tune.schedulers import ASHAScheduler
+    from ray.air import RunConfig
+    from ray import tune
+except ModuleNotFoundError as e:
+    print("ray not available. MLP models not available in this env.")
+from hdpy.metrics import validate, compute_enrichment_factor
 
 
 class HDModel(nn.Module):
-    def __init__(self, D: int):
+    def __init__(self, D: int, name=None):
         super(HDModel, self).__init__()
+        if name:
+            self.name = name
         self.am = None
         self.D = D
 
@@ -36,13 +38,16 @@ class HDModel(nn.Module):
     def build_am(self, dataset_hvs, labels):
         # raise NotImplementedError("Please implement this function in a subclass")
 
-        self.am = {}
+        # import pdb
+        # pdb.set_trace()
+        self.am = torch.zeros(2, self.D, dtype=int) 
 
         for hv, label in zip(dataset_hvs, labels):
             if int(label) not in self.am.keys():
-                self.am[int(label)] = hv
+                print(dir(self.am))
+                self.am[int(label)] = hv.int()
             else:
-                self.am[int(label)] += hv
+                self.am[int(label)] += hv.int()
 
     def update_am(self, dataset_hvs, labels):
         # this avoids creating a new associative memory and instead just updates the existing one...not sure why we need two functions so that should be updated at some point
@@ -50,6 +55,7 @@ class HDModel(nn.Module):
             self.am = {}
         for hv, label in zip(dataset_hvs, labels):
             if int(label) not in self.am.keys():
+                print(dir(self.am))
                 self.am[int(label)] = hv
             else:
                 self.am[int(label)] += hv
@@ -59,8 +65,7 @@ class HDModel(nn.Module):
 
     def predict(self, enc_hvs):
         start = time.time()
-        # preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().cuda().float(), self.am.clone().cuda().float()), dim=1)
-        # preds = torch.argmax(torchmetrics.functional.pairwise_cosine_similarity(enc_hvs.clone().float(), self.am.clone().float()), dim=1)
+
         preds = torch.argmax(
             torchmetrics.functional.pairwise_cosine_similarity(
                 enc_hvs.float(), self.am.float()
@@ -125,20 +130,24 @@ class HDModel(nn.Module):
 class RPEncoder(HDModel):
     def __init__(self, input_size: int, D: int, num_classes: int):
         super(RPEncoder, self).__init__(D=D)
-        self.rp_layer = nn.Linear(input_size, D, bias=False)
+        self.rp_layer = nn.Linear(input_size, D, bias=False).float()
         init_rp_mat = (
             torch.bernoulli(torch.tensor([[0.5] * input_size] * D)).float() * 2 - 1
         )
-        self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False)
+        self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False).float()
 
         self.init_class_hvs = torch.zeros(num_classes, D).float()
 
         # self.am = torch.zeros(2, self.D, dtype=int)
-        self.am = torch.nn.parameter.Paramter(torch.zeros(2, self.D, dtype=int), requires_grad=False)
+        self.am = torch.nn.parameter.Parameter(torch.zeros(2, self.D, dtype=int), requires_grad=False)
         self.name = "rp"
-
+        self.input_size = input_size
+        self.D = D
+        self.num_classes=num_classes
     def encode(self, x):
-        hv = self.rp_layer(x)
+        # import pdb
+        # pdb.set_trace()
+        hv = self.rp_layer(x.float())
         # hv = torch.where(hv > 0, 1.0, -1.0).int()
         hv = torch.where(hv > 0, 1.0, -1.0)
         return hv.int()
@@ -146,6 +155,43 @@ class RPEncoder(HDModel):
     def forward(self, x):
         hv = self.encode(x)
         return hv
+
+class ComboEncoder(HDModel):
+    def __init__(self, input_size: int, D: int, num_classes: int):
+        super(ComboEncoder, self).__init__(D=D)
+        self.rp_layer = nn.Linear(input_size, D, bias=False).float()
+        init_rp_mat = (
+            torch.bernoulli(torch.tensor([[0.5] * input_size] * D)).float() * 2 - 1
+        )
+        self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False).float()
+
+        self.init_class_hvs = torch.zeros(num_classes, D).float()
+
+        # self.am = torch.zeros(2, self.D, dtype=int)
+        self.am = torch.nn.parameter.Parameter(torch.zeros(2, self.D, dtype=int), requires_grad=False)
+        self.name = "combo"
+
+        self.input_size = input_size
+        self.D = D
+        self.num_classes=num_classes
+
+    def encode(self, x):
+        # import pdb
+        # pdb.set_trace()
+        ecfp_hv = x[:, self.input_size:]
+        embed = x[:, :self.input_size]
+        embed_hv = self.rp_layer(embed.float())
+        # hv = torch.where(hv > 0, 1.0, -1.0).int()
+        hv = ecfp_hv.cuda() * embed_hv.cuda() # bind the hv's together
+        hv = torch.where(hv > 0, 1.0, -1.0)
+        return hv.int()
+
+    def forward(self, x):
+        hv = self.encode(x)
+        return hv
+
+
+
 
 
 class TokenEncoder(HDModel):
@@ -287,10 +333,6 @@ class HD_Level_Classification(HDModel):
         return out
 
 
-# BENCHMARK MODELS
-
-
-# Fully connected neural network with one hidden layer
 class MLPClassifier(nn.Module):
     def __init__(self, layer_sizes, lr, activation, criterion, optimizer):
         super(MLPClassifier, self).__init__()
@@ -376,7 +418,7 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                             model.encode(x[class_mask, :]).reshape(-1, model.D).sum(dim=0)
                         )
                     else:
-                        model.am[class_idx] += (x[class_mask, :]).sum(dim=0)
+                        model.am[class_idx] += (x[class_mask, :]).sum(dim=0).reshape(-1).int()
 
             am_time_end = time.time()
 
@@ -571,14 +613,6 @@ def encode_hdc(model, dataloader, device):
     encode_list = [x.cpu() for x in encode_list]
     return torch.cat(encode_list), torch.cat(target_list), np.sum(encode_time_list)
 
-
-
-
-
-
-
-
-
 def run_hdc(
     model,
     config,
@@ -591,6 +625,7 @@ def run_hdc(
     test_dataset,
     smiles_train=None,
     smiles_test=None,
+    encode=True,
 ):
     train_encode_time = 0
     test_encode_time = 0
@@ -624,63 +659,6 @@ def run_hdc(
 
         train_dataset_hvs = torch.vstack(train_dataset_hvs).int()
         test_dataset_hvs = torch.vstack(test_dataset_hvs).int()
-
-    elif config.model == "selfies":
-        # smiles-pe is a special case because it tokenizes the string based on use specified parameters
-        # train_hv_p = root_data_p / Path(
-        # f"{config.tokenizer}-{config.ngram_order}-train_dataset_hv.pth"
-        # )
-        # test_hv_p = root_data_p / Path(
-        # f"{config.tokenizer}-{config.ngram_order}-test_dataset_hv.pth"
-        # )
-        # im_p = root_data_p / Path(f"{config.tokenizer}-{config.ngram_order}-item_mem.pth")
-
-        # charwise = False
-        # if config.tokenizer == "selfies_charwise":
-        # charwise = True
-
-        # train_encode_time = 0
-        # if not im_p.exists():
-
-        # train_toks = []
-
-        # for smiles in smiles_train:
-        # train_toks.append(
-        # tokenize_selfies_from_smiles(smiles, charwise=charwise)
-        # )
-
-        # test_toks = []
-        # for smiles in smiles_test:
-        # test_toks.append(
-        # tokenize_selfies_from_smiles(smiles, charwise=charwise)
-        # )
-
-        # im_p.parent.mkdir(parents=True, exist_ok=True)
-
-        # toks = train_toks + test_toks
-
-        # hd_model.build_item_memory(toks)
-        # train_encode_start = time.time()
-        # train_dataset_hvs = hd_model.encode_dataset(train_toks)
-        # train_encode_time = time.time() - train_encode_start
-
-        # test_encode_start = time.time()
-        # test_dataset_hvs = hd_model.encode_dataset(test_toks)
-        # test_encode_time = time.time() - test_encode_start
-
-        # train_dataset_hvs = torch.vstack(train_dataset_hvs).int()
-        # test_dataset_hvs = torch.vstack(test_dataset_hvs).int()
-
-        # torch.save(train_dataset_hvs, train_hv_p)
-        # torch.save(test_dataset_hvs, test_hv_p)
-        # torch.save(hd_model.item_mem, im_p)
-        # else:
-        # item_mem = torch.load(im_p)
-        # hd_model.item_mem = item_mem
-
-        # train_dataset_hvs = torch.load(train_hv_p)
-        # test_dataset_hvs = torch.load(test_hv_p)
-        pass
 
     collate_fn = None
     if config.model == "molehd":
@@ -716,6 +694,7 @@ def run_hdc(
             train_dataloader=train_dataloader,
             num_epochs=epochs,
             device=config.device,
+            encode=encode,
         )
 
         trial_dict["hd_learning_curve"] = learning_curve
@@ -723,7 +702,7 @@ def run_hdc(
         # import pdb
         # pdb.set_trace()
         # time test inside of the funcion
-        test_dict = test_hdc(model, test_dataloader, device=config.device)
+        test_dict = test_hdc(model, test_dataloader, device=config.device, encode=encode)
 
         trial_dict["am"] = {
             0: model.am[0].cpu().numpy(),
@@ -753,13 +732,21 @@ def run_hdc(
             trial_dict["roc-auc"] = None
             print(e)
         # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
+        # import pdb
+        # pdb.set_trace()
+
+        trial_dict["enrich-1"]  = compute_enrichment_factor(scores=trial_dict["eta"], 
+                                                            labels=trial_dict["y_true"],
+                                                            n_percent=.01)
+        trial_dict["enrich-10"] = compute_enrichment_factor(scores=trial_dict["eta"], 
+                                                            labels=trial_dict["y_true"],
+                                                            n_percent=.10)
 
 
         print(trial_dict["class_report"])
         print(f"roc-auc {trial_dict['roc-auc']}")
 
-        # import pdb
-        # pdb.set_trace()
+
         validate(
             labels=trial_dict["y_true"],
             pred_labels=trial_dict["y_pred"],
@@ -768,7 +755,6 @@ def run_hdc(
         result_dict["trials"][i] = trial_dict
     
     return result_dict
-
 
 def train_mlp(model, train_dataloader, epochs, device):
     model = model.to(device)
@@ -815,7 +801,6 @@ def train_mlp(model, train_dataloader, epochs, device):
         "loss_time": loss_time,
         "backward_time": backward_time,
     }
-
 
 def val_mlp(model, val_dataloader, device):
     forward_time = 0.0
@@ -898,44 +883,6 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
     }
 
 
-    '''
-    train_dataset, val_dataset = torch.utils.data.random_split(
-        train_dataset, [0.80, 0.20]
-    )
-
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        persistent_workers=True,
-        shuffle=True,
-    )
-
-    val_dataloader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        num_workers=1,
-        persistent_workers=False,
-        shuffle=False,
-    )
-
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-        num_workers=1,
-        persistent_workers=False,
-        shuffle=False,
-    )
-
-    full_train_dataloader = DataLoader(
-        torch.utils.data.ConcatDataset([train_dataset, val_dataset]),
-        batch_size=batch_size,
-        num_workers=num_workers,
-        persistent_workers=True,
-        shuffle=True,
-    )
-    '''
-
     from torch.utils.data import DataLoader, SubsetRandomSampler
     from sklearn.model_selection import StratifiedShuffleSplit
 
@@ -991,8 +938,6 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
         reduction_factor=2,
         brackets=2,
     )
-
-
 
     tuner = tune.Tuner(
         tune.with_resources(
@@ -1075,6 +1020,16 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
             print(e)
         # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
 
+
+        trial_dict["enrich-1"]  = compute_enrichment_factor(scores=trial_dict["eta"][:, 1], 
+                                                            labels=trial_dict["y_true"],
+                                                            n_percent=.01)
+        trial_dict["enrich-10"] = compute_enrichment_factor(scores=trial_dict["eta"][:, 1], 
+                                                            labels=trial_dict["y_true"],
+                                                            n_percent=.10)
+
+
+
         print(trial_dict["class_report"])
         print(f"roc-auc {trial_dict['roc-auc']}")
 
@@ -1089,7 +1044,6 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
 
     return result_dict
 
-
 def get_model(config):
     if config.model == "molehd":
         model = TokenEncoder(D=config.D, num_classes=2)
@@ -1101,7 +1055,7 @@ def get_model(config):
 
     elif config.model == "ecfp":
         from hdpy.ecfp.encode import ECFPEncoder
-        model = ECFPEncoder(D=config.D)
+        model = ECFPEncoder(D=config.D, radius=config.ecfp_radius)
 
     elif config.model == "rp":
         # assert config.ecfp_length is not None
@@ -1115,6 +1069,12 @@ def get_model(config):
     elif config.model == "mlp-large":
         model = MLPClassifier(layer_sizes=((config.ecfp_length, 512), (512, 256), (256, 128), (128, 2)),
                               lr=1e-3, activation=torch.nn.ReLU(), criterion=torch.nn.NLLLoss(), optimizer=torch.optim.Adam)
+    elif config.model == "directecfp":
+        model = HDModel(D=config.D, name="directecfp")
+        model.am = torch.zeros(2, model.D, dtype=float)
+
+    elif config.model == "combo":
+        model = ComboEncoder(input_size=config.input_size, D=config.D, num_classes=2)
     else:
         # if using sklearn or pytorch non-hd model
         model = None

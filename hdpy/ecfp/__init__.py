@@ -5,14 +5,16 @@
 #
 # All rights reserved.
 ################################################################################
+import time
 import numpy as np
 from rdkit.Chem import DataStructs
 from rdkit.Chem import rdmolfiles
 from rdkit.Chem import AllChem
 
 
-def compute_fingerprint_from_smiles(smiles, length: int, radius: int):
+def compute_fingerprint_from_smiles(smiles, length: int, radius: int, return_time=False):
     try:
+        start = time.time()
         mol = rdmolfiles.MolFromSmiles(smiles, sanitize=True)
         # mol = rdmolfiles.MolFromSmiles(smiles, sanitize=False)
 
@@ -22,8 +24,16 @@ def compute_fingerprint_from_smiles(smiles, length: int, radius: int):
             np.frombuffer(DataStructs.BitVectToBinaryText(fp_vec), dtype=np.uint8),
             bitorder="little",
         )
+        end=time.time()
         # print(fp, fp_vec)
-        return fp
+        if return_time:
+            return fp, end - start
+        else:
+         return fp
+
+    except ValueError as e:
+        print(e)
+        return None
 
     except Exception as e:
         print(e)

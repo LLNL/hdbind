@@ -9,18 +9,19 @@ from cProfile import run
 import torch
 import random
 import time
-random.seed(time.time())
+# random.seed(time.time())
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-import selfies as sf
 from sklearn.preprocessing import normalize
-constrain_dict = sf.get_semantic_constraints()
-from hdpy.data_utils import ECFPFromSMILESDataset, SMILESDataset
+from hdpy.dataset import ECFPFromSMILESDataset, StreamingECFPDataset, StreamingComboDataset
+# , SMILESDataset
 from sklearn.model_selection import train_test_split
 from torch.utils.data import TensorDataset
 from pathlib import Path
 from hdpy.model import run_mlp, run_hdc, get_model
+from hdpy.metrics import compute_enrichment_factor
+
 
 SCRATCH_DIR = "/p/vast1/jones289/"
 
@@ -29,8 +30,9 @@ def main(
     model,
     train_dataset,
     test_dataset,
+    encode=True,
 ):
-    if config.model in ["molehd", "selfies", "ecfp", "rp"]:
+    if config.model in ["molehd", "selfies", "ecfp", "rp", "directecfp", "combo"]:
         result_dict = run_hdc(
             model=model,
             config=config,
@@ -41,6 +43,7 @@ def main(
             random_state=args.random_state,
             train_dataset=train_dataset,
             test_dataset=test_dataset,
+            encode=encode
         )
     elif config.model in ["mlp"]:
         result_dict = run_mlp(
@@ -80,7 +83,10 @@ def driver():
     roc_values = (
         []
     )  # some datasets contain multiple targets, store these values then print at end
+    std_values = []
 
+
+    enrich_1_values, enrich_10_values = [], []
 
     lit_pcba_ave_p = Path("/p/vast1/jones289/lit_pcba/AVE_unbiased")
 
@@ -96,7 +102,6 @@ def driver():
             dataset = "lit-pcba"
 
         output_file = Path(
-            # f"{output_result_dir}/{exp_name}.{args.dataset}-{target_path.name}-{args.split_type}.{args.random_state}-{args.n_trials}-{args.batch_size}-{args.num_workers}-{args.epochs}.pkl"
             f"{output_result_dir}/{exp_name}.{dataset}-{target_path.name}-{args.split_type}.{args.random_state}.pkl"
         )
         print(f"{output_file}\t{output_file.exists()}")
@@ -291,13 +296,102 @@ def driver():
                     test_dataset = TensorDataset(torch.from_numpy(normalize(test_data[:, :-1], norm="l2", axis=0)).float(), 
                                                 torch.from_numpy(test_data[:, -1]).float())
 
+            elif config.embedding == "directecfp":
 
-            
+
+                train_dataset = StreamingECFPDataset(smiles_list=smiles_train, 
+                                                     labels=y_train, 
+                                                     length=config.ecfp_length, 
+                                                     radius=config.ecfp_radius)
+                test_dataset = StreamingECFPDataset(smiles_list=smiles_test, 
+                                                     labels=y_test, 
+                                                     length=config.ecfp_length, 
+                                                     radius=config.ecfp_radius)
+
+
+            elif config.embedding == "molformer-decfp-combo":
+
+
+                if args.split_type == "random":
+
+
+                    full_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                    "molformer_embedding_N-Step-Checkpoint_3_30000_full.npy"
+                    )
+                    if config.embedding == "molformer-ecfp-combo":
+                        print("loading combo model")
+                        full_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                        f"molformer_embedding_ecfp_{config.ecfp_length}_{config.ecfp_radius}_N-Step-Checkpoint_3_30000_full.npy"
+                        )
+
+
+                    smiles_df = pd.read_csv(full_molformer_path.with_name("full_data.csv"))
+
+                    data = np.load(full_molformer_path)
+
+                    train_data = data[train_df["index"].values, :]
+                    test_data = data[test_df["index"].values, :]
+
+
+                    smiles_train = (smiles_df.loc[train_df["index"].values])['0'].values.tolist() 
+                    smiles_test = (smiles_df.loc[test_df["index"].values])['0'].values.tolist()
+
+                    x_train = train_data[:, :-1] 
+                    y_train = train_data[:, -1]
+
+                    x_test = test_data[:, :-1]
+                    y_test = test_data[:, -1]
+
+
+                else:
+
+                    train_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                        "molformer_embedding_N-Step-Checkpoint_3_30000_train.npy"
+                        )
+
+                    test_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
+                    "molformer_embedding_N-Step-Checkpoint_3_30000_test.npy"
+                    )
+
+                    train_data = (np.load(train_molformer_path)).astype(float)
+                    test_data = (np.load(test_molformer_path)).astype(float)
+
+
+                    smiles_train_df = pd.read_csv(train_molformer_path.with_name("train.csv"))
+                    smiles_test_df = pd.read_csv(test_molformer_path.with_name("test.csv"))
+
+                    smiles_train = smiles_train_df['0'].values.tolist()
+                    smiles_test = smiles_test_df['0'].values.tolist()
+
+                    x_train = train_data[:, :-1] 
+                    y_train = train_data[:, -1]
+
+                    x_test = test_data[:, :-1]
+                    y_test = test_data[:, -1]
+
+                print(train_data.shape, test_data.shape)
+                train_dataset = StreamingComboDataset(smiles_list=smiles_train,
+                                                        feats=x_train,
+                                                        labels=y_train, 
+                                                        length=config.ecfp_length, 
+                                                        radius=config.ecfp_radius)
+                test_dataset = StreamingComboDataset(smiles_list=smiles_test,
+                                                        feats=x_test, 
+                                                        labels=y_test, 
+                                                        length=config.ecfp_length, 
+                                                        radius=config.ecfp_radius)
+
+
+
             else:
                 raise NotImplementedError
 
+
+            encode = True
+            if config.embedding == "directecfp":
+                encode = False
             result_dict = main(
-                model=model, train_dataset=train_dataset, test_dataset=test_dataset
+                model=model, train_dataset=train_dataset, test_dataset=test_dataset, encode=encode
             )
 
             result_dict["smiles_train"] = smiles_train
@@ -313,8 +407,47 @@ def driver():
             np.mean([value["roc-auc"] for value in result_dict["trials"].values()])
         )
 
-    print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.std(roc_values)})")
+        std_values.append(np.std([value["roc-auc"] for value in result_dict["trials"].values()]))
+        
+        try:
+            enrich_1_values.append(
+                np.mean([value["enrich-1"] for value in result_dict["trials"].values()])
+            )
 
+            enrich_10_values.append(
+                np.mean([value["enrich-10"] for value in result_dict["trials"].values()])
+            )
+        
+        except KeyError as e:
+            print(f"{e}. result missing enrichment metrics. computing these now.")
+
+            # for trial_idx, trial_dict in result_dict['trials'].items():
+            for trial_idx, _ in result_dict['trials'].items():
+                # import pdb
+                # pdb.set_trace()
+                scores = None
+                if config.model in ["molehd", "selfies", "ecfp", "rp", "directecfp"]:
+                    scores = result_dict["trials"][trial_idx]["eta"]
+                elif config.model == "mlp":
+                    scores = result_dict["trials"][trial_idx]["eta"][:, 1]
+                
+                result_dict["trials"][trial_idx]["enrich-1"]  = compute_enrichment_factor(scores=scores, 
+                                                        labels=result_dict["trials"][trial_idx]["y_true"],
+                                                        n_percent=.01)
+                result_dict["trials"][trial_idx]["enrich-10"] = compute_enrichment_factor(scores=scores,
+                                                                    labels=result_dict["trials"][trial_idx]["y_true"],
+                                                                    n_percent=.1)
+
+                enrich_1_values.append(result_dict["trials"][trial_idx]["enrich-1"])
+                enrich_10_values.append(result_dict["trials"][trial_idx]["enrich-10"])
+
+                torch.save(result_dict, output_file)
+
+
+    # print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.std(roc_values)})")
+    print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.mean(std_values)}) \t {np.mean(roc_values)*100:.2f} ({np.mean(std_values)*100:.2f})")
+    print(f"Median EF-1% is {np.median(enrich_1_values)}")
+    print(f"Median EF-10% is {np.median(enrich_10_values)}")
 
 if __name__ == "__main__":
     import hdpy.hdc_args as hdc_args
@@ -322,6 +455,7 @@ if __name__ == "__main__":
     # args contains things that are unique to a specific run
     args = hdc_args.parse_args()
     assert args.split_type is not None and args.dataset is not None
+    assert args.dataset == "lit-pcba-ave"
     # config contains general information about the model/data processing
     config = hdc_args.get_config(args)
 

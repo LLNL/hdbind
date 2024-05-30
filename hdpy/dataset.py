@@ -11,13 +11,62 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
-from hdpy.molehd.encode import tokenize_smiles
-from hdpy.utils import get_random_hv
+# from hdpy.molehd.encode import tokenize_smiles
+# from hdpy.utils import get_random_hv
 from hdpy.ecfp import compute_fingerprint_from_smiles
-from sklearn.preprocessing import Normalizer
+# from sklearn.preprocessing import Normalizer
 import multiprocessing as mp
 
 
+class StreamingECFPDataset(Dataset):
+    def __init__(self, smiles_list:list, labels:np.array, length:int, radius:int):
+        self.smiles_list = smiles_list
+        self.labels = torch.from_numpy(labels).int()
+        self.length = length
+        self.radius = radius
+
+    def __len__(self):
+        return len(self.smiles_list)
+    
+    def __getitem__(self, idx):
+
+        smiles = self.smiles_list[idx]
+        ecfp = compute_fingerprint_from_smiles(smiles, length=self.length, radius=self.radius)
+
+        if ecfp is None:
+            print(f"compute_fingerprint_from_smiles failed for {smiles}")
+        else:
+            return torch.from_numpy(ecfp), self.labels[idx]
+
+class StreamingComboDataset(Dataset):
+    def __init__(self, smiles_list:list, feats:np.array, labels:np.array, length:int, radius:int):
+        self.smiles_list = smiles_list
+        self.labels = torch.from_numpy(labels).int()
+        self.length = length
+        self.radius = radius
+        self.feats = feats
+
+    def __len__(self):
+        return len(self.smiles_list)
+    
+    def __getitem__(self, idx):
+
+        smiles = self.smiles_list[idx]
+        ecfp = compute_fingerprint_from_smiles(smiles, length=self.length, radius=self.radius)
+
+        # if molecule is None, we use all zeros to encode failures as no detected substructure is technically present
+        if ecfp is None:
+            print("ecfp is None.")
+            ecfp = np.zeros(1, self.length)
+        feat = self.feats[idx]
+        # print(ecfp)
+        data = np.concatenate([feat, ecfp]).astype(float)
+        if ecfp is None:
+            print(f"compute_fingerprint_from_smiles failed for {smiles}")
+        else:
+            return torch.from_numpy(data), self.labels[idx]
+
+# '''
 # todo: remove SMILESDataset that attempts to split the dataset
 class SMILESDataset(Dataset):
     def __init__(
@@ -87,7 +136,7 @@ class SMILESDataset(Dataset):
             return self.data_toks[idx]
         else:
             return self.data_toks[idx], self.labels[idx]
-
+# '''
 
 class RawECFPDataset(Dataset):
     def __init__(
@@ -112,7 +161,6 @@ class RawECFPDataset(Dataset):
         return self.ecfp_arr[idx]
 
 
-# TODO: rename to ECFP dataset
 class ECFPFromSMILESDataset(Dataset):
     def __init__(
         self,
@@ -152,7 +200,6 @@ class ECFPFromSMILESDataset(Dataset):
         return self.fps[idx], self.labels[idx]
 
 
-# TODO: deprecate and remove 
 class ECFPDataset(Dataset):
     def __init__(
         self,

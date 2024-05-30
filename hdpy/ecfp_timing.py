@@ -19,7 +19,7 @@ import torch.multiprocessing as mp
 # from hdpy.metrics import validate
 from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
-from hdpy.data_utils import SMILESDataset
+from hdpy.dataset import SMILESDataset
 from hdpy.model import TokenEncoder
 import numpy as np
 import pandas as pd

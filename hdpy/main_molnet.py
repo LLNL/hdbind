@@ -10,15 +10,15 @@ import torch
 import numpy as np
 import pickle
 import random
+from tqdm import tqdm
 import deepchem as dc
+from hdpy.dataset import ECFPFromSMILESDataset, StreamingECFPDataset, StreamingComboDataset, SMILESDataset
 from deepchem.molnet import load_hiv, load_tox21, load_bace_classification, load_sider
 from pathlib import Path
 from sklearn.preprocessing import normalize
-from hdpy.data_utils import ECFPFromSMILESDataset, SMILESDataset
-from hdpy.ecfp.encode import ECFPEncoder
-from hdpy.model import RPEncoder, TokenEncoder, run_mlp, run_hd, get_model
-from hdpy.selfies_enc.encode import SELFIESHDEncoder
+from hdpy.model import run_mlp, run_hdc, get_model
 from torch.utils.data import TensorDataset
+from hdpy.ecfp.encode import compute_fingerprint_from_smiles
 
 SCRATCH_DIR = "/p/vast1/jones289"
 
@@ -26,9 +26,10 @@ def main(args, config,
     model,
     train_dataset,
     test_dataset,
+    encode=True,
 ):
-    if config.model in ["molehd", "selfies", "ecfp", "rp"]:
-        result_dict = run_hd(
+    if config.model in ["molehd", "selfies", "ecfp", "rp", "directecfp", "combo"]:
+        result_dict = run_hdc(
             model=model,
             config=config,
             epochs=args.epochs,
@@ -38,6 +39,7 @@ def main(args, config,
             random_state=args.random_state,
             train_dataset=train_dataset,
             test_dataset=test_dataset,
+            encode=encode
         )
     elif config.model in ["mlp", "mlp-small"]:
         result_dict = run_mlp(config=config, batch_size=args.batch_size, epochs=args.epochs,
@@ -56,7 +58,7 @@ def driver():
 
     model = get_model(config)
 
-    if config.model in ["smiles-pe", "selfies", "ecfp", "rp"]:
+    if config.model in ["smiles-pe", "selfies", "ecfp", "rp", "directecfp"]:
         # transfer the model to GPU memory
         model = model.to(device).float()
 
@@ -127,6 +129,7 @@ def driver():
             dataset = dc.molnet.load_clintox(splitter="scaffold")
 
 
+
             target_list = dataset[0]
             smiles_train = dataset[1][0].ids
             smiles_test = dataset[1][1].ids
@@ -141,6 +144,8 @@ def driver():
                             y_test), handle)
 
         else:
+            # import pdb
+            # pdb.set_trace()
             with open(cache_path, "rb") as handle:
                 data = pickle.load(handle)
             target_list, smiles_train, smiles_test, y_train, y_test = data
@@ -254,6 +259,46 @@ def driver():
                                          torch.from_numpy(test_data[:, -1]).float())
 
 
+        elif config.embedding == "directecfp":
+            # import pdb
+            # pdb.set_trace()
+            train_data = [compute_fingerprint_from_smiles(x, length=config.ecfp_length, radius=config.ecfp_radius) for x in tqdm(smiles_train)]
+            train_mask = np.array([not x is None for x in train_data]) # filter for good fps
+            train_data = np.array([x for x,y in zip(train_data, train_mask) if y]) 
+            train_data = torch.from_numpy(train_data).float().squeeze()
+            train_dataset = TensorDataset(train_data, torch.from_numpy(y_train[train_mask, target_idx]).int())
+
+            test_data = [compute_fingerprint_from_smiles(x, length=config.ecfp_length, radius=config.ecfp_radius) for x in tqdm(smiles_test)]
+            test_mask = np.array([not x is None for x in test_data]) # filter for good fps
+            test_data = np.array([x for x,y in zip(test_data, test_mask) if y]) 
+            test_data = torch.from_numpy(test_data).float().squeeze()
+            test_dataset = TensorDataset(test_data, torch.from_numpy(y_test[test_mask, target_idx]).int())
+
+            # model.build_am(dataset_hvs=train_data, labels=torch.from_numpy(y_train))
+
+        elif config.embedding == "molformer-decfp-combo":
+            
+            train_data = np.load(f"{SCRATCH_DIR}/molformer_embeddings/molnet/{args.dataset}/train_N-Step-Checkpoint_3_30000.npy")
+            test_data = np.load(f"{SCRATCH_DIR}/molformer_embeddings/molnet/{args.dataset}/test_N-Step-Checkpoint_3_30000.npy")
+
+            smiles_train = np.load(f"{SCRATCH_DIR}/molformer_embeddings/molnet/{args.dataset}/train_N-Step-Checkpoint_3_30000_smiles.npy", allow_pickle=True).tolist()
+            smiles_test = np.load(f"{SCRATCH_DIR}/molformer_embeddings/molnet/{args.dataset}/test_N-Step-Checkpoint_3_30000_smiles.npy", allow_pickle=True).tolist()
+
+
+
+            train_dataset = StreamingComboDataset(smiles_list=smiles_train,
+                                                    feats=train_data[:, :768],
+                                                    labels=train_data[:, (768+target_idx)], 
+                                                    length=config.ecfp_length, 
+                                                    radius=config.ecfp_radius)
+            test_dataset = StreamingComboDataset(smiles_list=smiles_test,
+                                                    feats=test_data[:, :768], 
+                                                    labels=test_data[:, (768+target_idx)], 
+                                                    length=config.ecfp_length, 
+                                                    radius=config.ecfp_radius)
+
+
+
         else:
             raise NotImplementedError
 
@@ -268,8 +313,12 @@ def driver():
             result_dict = torch.load(output_file)
 
         else:
+            encode = True
+            if config.embedding == "directecfp":
+                encode = False
             result_dict = main(args=args, config=config,
-                    model=model, train_dataset=train_dataset, test_dataset=test_dataset
+                    model=model, train_dataset=train_dataset, test_dataset=test_dataset,
+                    encode=encode
                 )
 
             result_dict["smiles_train"] = smiles_train
@@ -284,7 +333,7 @@ def driver():
         roc_values.append(np.mean([value["roc-auc"] for value in result_dict["trials"].values()]))
         std_values.append(np.std([value["roc-auc"] for value in result_dict["trials"].values()]))
 
-    print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.mean(std_values)})")
+    print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.mean(std_values)})\n{np.mean(roc_values)*100:.1f} ({np.mean(std_values)*100:.1f})")
 
 
 if __name__ == "__main__":

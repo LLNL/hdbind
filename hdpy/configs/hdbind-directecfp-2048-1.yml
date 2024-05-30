@@ -1,0 +1,7 @@
+device: cuda:0
+model: directecfp
+embedding: directecfp
+input_size: 2048 
+ecfp_length: 2048
+ecfp_radius: 1 
+D: 2048

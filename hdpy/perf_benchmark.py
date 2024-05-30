@@ -3,7 +3,7 @@ from thop import profile
 from hdpy.model import RPEncoder, MLPClassifier
 from deepchem.molnet import load_hiv, load_tox21, load_bace_classification, load_sider
 from argparse import Namespace
-from hdpy.data_utils import ECFPFromSMILESDataset, SMILESDataset
+from hdpy.dataset import ECFPFromSMILESDataset, SMILESDataset
 from pathlib import Path
 import deepchem as dc
 from torch.utils.data import DataLoader
