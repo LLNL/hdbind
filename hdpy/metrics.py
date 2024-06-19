@@ -6,7 +6,7 @@
 # All rights reserved.
 ################################################################################
 import numpy as np
-from sklearn.metrics import recall_score, precision_score
+from sklearn.metrics import recall_score, precision_score, roc_curve
 
 
 def compute_enrichment_factor(scores, labels, n_percent):
@@ -25,6 +25,14 @@ def compute_enrichment_factor(scores, labels, n_percent):
 
     return (actives_sampled / actives_database) * (labels.shape[0] / sample_n)
 
+
+def compute_roc_enrichment(scores, labels, fpr_thresh):
+
+    fpr, tpr, _ = roc_curve(y_true=labels, y_score=scores)
+
+    er = np.interp(fpr_thresh, fpr, tpr) * 100
+
+    return er
 
 def validate(labels, pred_labels, pred_scores):
     n_correct = (pred_labels == labels).sum()
@@ -48,3 +56,7 @@ def validate(labels, pred_labels, pred_scores):
         scores=pred_scores, labels=labels, n_percent=0.1
     )
     print(f"enrichment-factor (EF) (10%) enrichment: {enrich_fact_10}")
+
+    er_1 = compute_roc_enrichment(scores=pred_scores, labels=labels, fpr_thresh=.01)
+
+    print(f"roc-enrichment (ER-1%): {er_1}")

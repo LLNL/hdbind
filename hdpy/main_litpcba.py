@@ -20,7 +20,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import TensorDataset
 from pathlib import Path
 from hdpy.model import run_mlp, run_hdc, get_model
-from hdpy.metrics import compute_enrichment_factor
+from hdpy.metrics import compute_enrichment_factor, compute_roc_enrichment
 
 
 SCRATCH_DIR = "/p/vast1/jones289/"
@@ -87,6 +87,8 @@ def driver():
 
 
     enrich_1_values, enrich_10_values = [], []
+    er_1_mean_values = []
+    er_1_std_values = []
 
     lit_pcba_ave_p = Path("/p/vast1/jones289/lit_pcba/AVE_unbiased")
 
@@ -106,9 +108,12 @@ def driver():
         )
         print(f"{output_file}\t{output_file.exists()}")
         if output_file.exists():
+
+        
             print(f"output_file: {output_file} exists. skipping.")
             result_dict = torch.load(output_file)
 
+        # '''
         else:
             smiles_train, smiles_test, y_train, y_test = None, None, None, None
 
@@ -402,6 +407,10 @@ def driver():
             result_dict["args"] = config
             torch.save(result_dict, output_file)
             print(f"done. output file: {output_file}")
+        # '''
+
+
+
 
         roc_values.append(
             np.mean([value["roc-auc"] for value in result_dict["trials"].values()])
@@ -438,16 +447,62 @@ def driver():
                                                                     labels=result_dict["trials"][trial_idx]["y_true"],
                                                                     n_percent=.1)
 
-                enrich_1_values.append(result_dict["trials"][trial_idx]["enrich-1"])
-                enrich_10_values.append(result_dict["trials"][trial_idx]["enrich-10"])
+            # enrich_1_values.append(result_dict["trials"][trial_idx]["enrich-1"])
+            # enrich_10_values.append(result_dict["trials"][trial_idx]["enrich-10"])
+            enrich_1_values.append(
+                np.mean([value["enrich-1"] for value in result_dict["trials"].values()])
+            )
 
-                torch.save(result_dict, output_file)
+            enrich_10_values.append(
+                np.mean([value["enrich-10"] for value in result_dict["trials"].values()])
+            )
+            torch.save(result_dict, output_file)
 
+        try:
+            mean_er_1 = np.mean([value["er-1"] for value in result_dict["trials"].values()])
+            std_er_1 = np.std([value["er-1"] for value in result_dict["trials"].values()])
+            er_1_mean_values.append(
+               mean_er_1 
+            )
+            er_1_std_values.append(
+               std_er_1 
+            )
+
+        except KeyError as e:
+            
+            print(f"{e}. result missing roc-enrichment metrics. computing these now.")
+            for trial_idx in result_dict["trials"].keys():
+                scores = None 
+                
+                if "er-1" not in result_dict["trials"][trial_idx].keys():
+
+                    if config.model in ["molehd", "selfies", "ecfp", "rp", "directecfp"]:
+                        scores = result_dict["trials"][trial_idx]["eta"]
+                    elif config.model == "mlp":
+                        scores = result_dict["trials"][trial_idx]["eta"][:, 1]
+                    
+                    labels = result_dict["trials"][trial_idx]['y_true']
+
+                    er_1 = compute_roc_enrichment(scores=scores, labels=labels, fpr_thresh=.01)
+
+                    result_dict["trials"][trial_idx]["er-1"] = er_1
+            
+
+            mean_er_1 = np.mean([value["er-1"] for value in result_dict["trials"].values()])
+            std_er_1 = np.std([value["er-1"] for value in result_dict["trials"].values()])
+            er_1_mean_values.append(
+               mean_er_1 
+            )
+            er_1_std_values.append(
+               std_er_1 
+            )
+            torch.save(result_dict, output_file)           
 
     # print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.std(roc_values)})")
     print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.mean(std_values)}) \t {np.mean(roc_values)*100:.2f} ({np.mean(std_values)*100:.2f})")
     print(f"Median EF-1% is {np.median(enrich_1_values)}")
     print(f"Median EF-10% is {np.median(enrich_10_values)}")
+    print(f"Mean ER-1%: {np.mean(er_1_values)}")
 
 if __name__ == "__main__":
     import hdpy.hdc_args as hdc_args

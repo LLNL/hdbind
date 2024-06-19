@@ -7,15 +7,19 @@ from tqdm import tqdm
 from hdpy.utils import collate_list_fn
 from torch.utils.data import DataLoader
 from pathlib import Path
-import subprocess
+from dataset import StreamingECFPDataset, StreamingComboDataset, ECFPFromSMILESDataset
+from hdpy.model import train_mlp, val_mlp
+from hdpy.ecfp import compute_fingerprint_from_smiles
 SCRATCH_DIR = "/p/vast1/jones289"
 
-
+# global dataset
+# dataset = None 
 
 # '''
 # args contains things that are unique to a specific run
 hdc_parser = hdc_args.get_parser()
-hdc_parser.add_argument('--mode', choices=['encode', 'train', 'test', 'mlp-train', 'mlp-test'])
+hdc_parser.add_argument('--mode', choices=['encode', 'train', 'test'])
+hdc_parser.add_argument('--output-prefix', default="debug")
 # hdc_parser.add_argument('--perf-output', default="perf_profile.csv")
 args = hdc_parser.parse_args()
 # config contains general information about the model/data processing
@@ -27,114 +31,51 @@ config = hdc_args.get_config(args)
 
 
 
-model = get_model(config)
-
-
-
-if config.device == 'cpu':
-    device = 'cpu'
-else:
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-print(f'using device {device}')
-model.to(device)
-if config.model in ["rp"]:
-# this should be addressed in a better way such as registering as a nn submodule
-    model.am = model.am.to(device)
-
-# model = torch.nn.DataParallel(model)
-
-print(model)
-
-encode_time_list = []
-train_time_list = []
-test_time_list = []
-
-lit_pcba_ave_p = Path("/p/vast1/jones289/lit_pcba/AVE_unbiased")
-
-# target_list = list(lit_pcba_ave_p.glob("*/"))
-target_list = list(lit_pcba_ave_p.glob("VDR*/"))
-for target_path in tqdm(target_list):
-
-    target_name = target_path.name
-
-    train_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
-                    "molformer_embedding_N-Step-Checkpoint_3_30000_train.npy"
-                    )
-
-    test_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
-    "molformer_embedding_N-Step-Checkpoint_3_30000_test.npy"
-    )
-
-    if config.embedding == "molformer-ecfp-combo":
-        print("loading combo model")
-        train_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
-        f"molformer_embedding_ecfp_{config.ecfp_length}_{config.ecfp_radius}_N-Step-Checkpoint_3_30000_train.npy"
-        )
-        test_molformer_path = lit_pcba_ave_p / Path(target_name) / Path(
-        f"molformer_embedding_ecfp_{config.ecfp_length}_{config.ecfp_radius}_N-Step-Checkpoint_3_30000_test.npy"
-        )
-
-
-    if config.embedding == "ecfp":
-        train_molformer_path = lit_pcba_ave_p / Path(target_name) / Path("ecfp_train.npy") 
-        
-        test_molformer_path = lit_pcba_ave_p / Path(target_name) / Path("ecfp_test.npy") 
-
-    collate_fn, encodings, labels = None, None, None
-    if config.model == "molehd":
-        collate_fn = collate_list_fn
-
-    
-    output_target_encode_path = Path(f"/p/vast1/jones289/hdbind/lit-pcba/{target_name}_{config.model}_{config.embedding}_{config.D}_cache.pt")
+def perf_trial():
 
     if args.mode == 'encode':
-        train_data = np.load(train_molformer_path)
-        test_data = np.load(test_molformer_path)
 
-        x_train = train_data[:, :-1] 
-        y_train = train_data[:, -1]
-
-        x_test = test_data[:, :-1]
-        y_test = test_data[:, -1]
-
-        train_dataset = TensorDataset(
-            torch.from_numpy(x_train).float(),
-            torch.from_numpy(y_train).int(),
-        )
-        test_dataset = TensorDataset(
-            torch.from_numpy(x_test).float(),
-            torch.from_numpy(y_test).int(),
-        )
         # run encode loop
         dataloader = DataLoader(
-        torch.utils.data.ConcatDataset([train_dataset, test_dataset]),
+        dataset,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
-        persistent_workers=True,
+        # persistent_workers=True,
         shuffle=True,
         collate_fn=collate_fn,
         )
-        encodings, labels, encode_time = encode_hdc(model=model, dataloader=dataloader, device=device)
 
-        # maybe do the actual generating and loading separately so there's no risk of unneccessary gpu-cpu data transfer
+        if model.name == "mlp" or config.embedding == "directecfp":
+            # compute ecfps and return mean time and std
+            time_list = []
+            for smiles in tqdm(np.concatenate([train_smiles, test_smiles])):
+                _, ecfp_time = compute_fingerprint_from_smiles(smiles=smiles, length=config.ecfp_length, radius=config.ecfp_radius, return_time=True)
+                time_list.append(ecfp_time)
 
+            mean_encode_time = np.mean(time_list)
+            std_encode_time = np.std(time_list)
+
+        else: 
+            # encodings, labels, encode_time, mean_encode_time, std_encode_time = encode_hdc(model=model, dataloader=dataloader, device=device, use_numpy=True)
+
+            encodings, labels, encode_time_arr = encode_hdc(model=model, dataloader=dataloader, device=device, use_numpy=True)
+
+            # import pdb
+            # pdb.set_trace()
+            mean_encode_time = encode_time_arr.mean()
+            std_encode_time = encode_time_arr.std()
         if output_target_encode_path.exists():
+            pass
+        elif model.name == "mlp" or config.embedding == "directecfp":
             pass
         else:
             torch.save((encodings, labels), output_target_encode_path)
 
-        print(f"encode: N={len(labels)}, time={encode_time} ({encode_time/len(labels)} s\mol)")
-
-        encode_time_list.append((encode_time, len(labels)))
-
     elif args.mode == 'train':
 
-        if not output_target_encode_path.exists():
-            raise RuntimeError("run encode first")
         # load the encodings and labels
-        encodings, labels = torch.load(output_target_encode_path)
-        dataset = torch.utils.data.TensorDataset(encodings, labels)
+        # encodings, labels = torch.load(output_target_encode_path)
+        # dataset = torch.utils.data.TensorDataset(encodings, labels)
 
         # run train loop
         dataloader = DataLoader(
@@ -145,106 +86,205 @@ for target_path in tqdm(target_list):
         shuffle=True,
         collate_fn=collate_fn,
         )
-        train_result = train_hdc(model=model, train_dataloader=dataloader, device=device, num_epochs=1,
-                  encode=False) 
 
+        if model.name == "mlp":
+            train_result = train_mlp(model=model, train_dataloader=dataloader, 
+                    epochs=1, device=device)
+        else:
+            train_result = train_hdc(model=model, train_dataloader=dataloader, device=device, num_epochs=1,
+                    encode=False) 
 
-        print(f"train: N={len(labels)}, time-AM={train_result[2]} ({train_result[2]/ len(labels)} s/mol), time-retrain={train_result[3]} ({train_result[3] / len(labels)} s/mol)")
-
-        
-        train_time_list.append((train_result[2], train_result[3], len(labels)))
 
     elif args.mode == 'test':
-        if not output_target_encode_path.exists():
-            raise RuntimeError("run encode first")
-        encodings, labels = torch.load(output_target_encode_path)
-        # load the encodigns and labels
 
-        dataset = torch.utils.data.TensorDataset(encodings, labels)
+
         # run test loop
         dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
-        persistent_workers=True,
+        # persistent_workers=True,
         shuffle=True,
         collate_fn=collate_fn,
         )
-        test_result = test_hdc(model=model, test_dataloader=dataloader, device=device, encode=False) 
 
-        print(f"test: N={len(labels)}, time={test_result['test_time']} ({test_result['test_time']/len(labels)} s/mol)")
-
-
-        test_time_list.append((test_result['test_time'], len(labels)))
-
-
-    elif args.mode == "mlp-train":
-        from hdpy.model import train_mlp
+        if model.name == "mlp":
+            test_result = val_mlp(model=model, val_dataloader=dataloader, device=device)
+        else:
+            test_result = test_hdc(model=model, test_dataloader=dataloader, device=device, encode=False) 
         
-        train_data = np.load(train_molformer_path)
+        # del encodings
+        # del labels
+        torch.cuda.empty_cache()
 
-        x_train = train_data[:, :-1] 
-        y_train = train_data[:, -1]
+
+    if args.mode == "encode":
+        # print(f"time-encode (mean s/mol): {np.mean([x[0] / x[1] for x in encode_time_list])}")
+        return mean_encode_time, std_encode_time
+    # elif args.mode == "train":
+        # print(f"time-am (mean s/mol): {np.mean([x[0] / x[2] for x in train_time_list])}")
+        # print(f"time-retrain (mean s/mol): {np.mean([x[1] / x[2] for x in train_time_list])}")
+    # elif args.mode == "mlp-train":
+        # print(f"time-train (mean s/mol): {np.mean([x[0] / x[1] for x in train_time_list])}")
+        # return 
+    elif args.mode in ["test", "mlp-test"]:
+
+        # print(f"mean (s/mol){test_result['test_time_mean']}, std (s/mol) {test_result['test_time_std']}")
+        return test_result['test_time_mean'], test_result['test_time_std']
+
+
+def main():
+
+    result_list = []
+
+    for i in range(10):
+        result_list.append(perf_trial())
+
+    mean_time = np.mean([x[0] for x in result_list])
+    std_time = np.std([x[1] for x in result_list])
+    print(f"mean (avg): {mean_time}, std (avg): {std_time}")
+
+    output_path = Path(f"{args.output_prefix}_{args.mode}.npy")
+    np.save(output_path, np.array([len(dataset), mean_time, std_time]))
+
+if __name__ == "__main__":
+
+    dataset = None
+    model = get_model(config)
+
+
+
+    if config.device == 'cpu':
+        device = 'cpu'
+    else:
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+    # print(f'using device {device}')
+
+    model.to(device)
+    if model.name != "mlp":
+    # this should be addressed in a better way such as registering as a nn submodule
+        model.am = model.am.to(device)
+
+    root_data_p = Path("/p/vast1/jones289/molformer_embeddings/molnet/hiv/")
+    if not root_data_p.exists():
+        print(f"{root_data_p} does not exist yet. creating.")
+        root_data_p.mkdir(parents=True)
+
+
+    collate_fn, encodings, labels = None, None, None
+    # train_dataset, test_dataset = None, None
+    dataloader = None
+    if config.model == "molehd":
+        collate_fn = collate_list_fn
+
+
+    # if config.embedding == "molformer-ecfp-combo":
+        # print("loading combo model")
+    train_molformer_path = root_data_p / Path(
+                "train_N-Step-Checkpoint_3_30000.npy"
+                )
+
+    test_molformer_path = root_data_p / Path(
+    "test_N-Step-Checkpoint_3_30000.npy"
+    )
+        
+    train_smiles_path = root_data_p / Path(
+                "train_N-Step-Checkpoint_3_30000_smiles.npy"
+                )
+
+    test_smiles_path = root_data_p / Path(
+    "test_N-Step-Checkpoint_3_30000_smiles.npy"
+    )
+
+    output_target_encode_path = Path(f"/p/vast1/jones289/hdbind/molnet/hiv/{config.model}_{config.embedding}_{config.D}_cache.pt")
+
+    if not output_target_encode_path.parent.exists():
+        output_target_encode_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+    train_smiles = np.load(train_smiles_path, allow_pickle=True)
+    test_smiles = np.load(test_smiles_path, allow_pickle=True)
+    train_data = np.load(train_molformer_path)
+    test_data = np.load(test_molformer_path)
+
+    x_train = train_data[:, :-1] 
+    y_train = train_data[:, -1]
+
+    x_test = test_data[:, :-1]
+    y_test = test_data[:, -1]       
+
+
+    if config.embedding == "molformer":
 
         train_dataset = TensorDataset(
             torch.from_numpy(x_train).float(),
             torch.from_numpy(y_train).int(),
         )
-
-        dataloader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        persistent_workers=True,
-        shuffle=True,
-        collate_fn=collate_fn,
-        )
-        train_result = train_mlp(model=model, train_dataloader=dataloader, 
-                  epochs=1, device=device)
-        
-        print(f"train: N={y_train.shape[0]}, time={train_result['train_time']} ({train_result['train_time']/y_train.shape[0]} s/mol)")
-
-
-        train_time_list.append((train_result['train_time'], y_train.shape[0] ))
-
-    elif args.mode == "mlp-test":
-        from hdpy.model import val_mlp
-        test_data = np.load(test_molformer_path)
-
-        x_test = test_data[:, :-1]
-        y_test = test_data[:, -1]
-
         test_dataset = TensorDataset(
             torch.from_numpy(x_test).float(),
             torch.from_numpy(y_test).int(),
         )
-        # run encode loop
-        dataloader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        persistent_workers=True,
-        shuffle=True,
-        collate_fn=collate_fn,
+        dataset = torch.utils.data.ConcatDataset([train_dataset, test_dataset])
+    elif config.embedding == "directecfp":
+
+        
+        train_dataset = StreamingECFPDataset(smiles_list=train_smiles, 
+                                                labels=y_train, 
+                                                length=config.ecfp_length, 
+                                                radius=config.ecfp_radius)
+        test_dataset = StreamingECFPDataset(smiles_list=test_smiles, 
+                                                labels=y_test, 
+                                                length=config.ecfp_length, 
+                                                radius=config.ecfp_radius)
+        
+        dataset= torch.utils.data.ConcatDataset([train_dataset, test_dataset])
+
+
+    elif config.embedding == "molformer-decfp-combo":
+
+        train_dataset = StreamingComboDataset(smiles_list=train_smiles,
+                                                    feats=x_train,
+                                                    labels=y_train, 
+                                                    length=config.ecfp_length, 
+                                                    radius=config.ecfp_radius)
+        test_dataset = StreamingComboDataset(smiles_list=test_smiles,
+                                                    feats=x_test, 
+                                                    labels=y_test, 
+                                                    length=config.ecfp_length, 
+                                                    radius=config.ecfp_radius)
+
+
+        dataset = torch.utils.data.ConcatDataset([train_dataset, test_dataset])
+
+    elif config.embedding == "ecfp":
+        train_dataset = ECFPFromSMILESDataset(
+                    smiles=train_smiles,
+                    labels=y_train,
+                    ecfp_length=config.ecfp_length,
+                    ecfp_radius=config.ecfp_radius,
+                )
+
+        test_dataset = ECFPFromSMILESDataset(
+            smiles=test_smiles,
+            labels=y_test,
+            ecfp_length=config.ecfp_length,
+            ecfp_radius=config.ecfp_radius,
         )
-        test_result = val_mlp(model=model, val_dataloader=dataloader, device=device)
 
-        print(f"test: N={y_test.shape[0]}, time={test_result['forward_time']} ({test_result['forward_time']/y_test.shape[0]} s/mol)")
+        dataset = torch.utils.data.ConcatDataset([train_dataset, test_dataset])
 
-        test_time_list.append((test_result['forward_time'], y_test.shape[0]))
+    if args.mode == "test":
+        if model.name == "mlp":
+            pass
+        else:
+            if config.embedding == "directecfp":
+                print(f"using {config.embedding} does not require encoding. passing encode check.")
+            elif output_target_encode_path.exists():
+                encodings, labels = torch.load(output_target_encode_path)
+                # load the encodings and labels
+                dataset = torch.utils.data.TensorDataset(encodings, labels)
+            else:
+                raise RuntimeError("run encode first")
 
-    del encodings
-    del labels
-    torch.cuda.empty_cache()
-
-
-if args.mode == "encode":
-    print(f"time-encode (mean s/mol): {np.mean([x[0] / x[1] for x in encode_time_list])}")
-
-elif args.mode == "train":
-    print(f"time-am (mean s/mol): {np.mean([x[0] / x[2] for x in train_time_list])}")
-    print(f"time-retrain (mean s/mol): {np.mean([x[1] / x[2] for x in train_time_list])}")
-elif args.mode == "mlp-train":
-    print(f"time-train (mean s/mol): {np.mean([x[0] / x[1] for x in train_time_list])}")
-elif args.mode in ["test", "mlp-test"]:
-    print(f"time-test (mean s/mol): {np.mean([x[0] / x[1] for x in test_time_list])}")
+    main()

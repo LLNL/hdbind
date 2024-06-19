@@ -348,7 +348,7 @@ class MLPClassifier(nn.Module):
 
         self.criterion = criterion
         self.optimizer = optimizer(self.parameters(), lr=lr)
-
+        self.name = "mlp"
     def forward(self, x):
         out = self.fc_layers(x)
         out = torch.nn.LogSoftmax(dim=1)(out)
@@ -499,7 +499,7 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
             None,
         )
 
-def test_hdc(model, test_dataloader, device, encode=True):
+def test_hdc(model, test_dataloader, device, encode=True, return_time_list=False):
     with torch.no_grad():
         model = model.to(device)
         test_time_list = []
@@ -560,16 +560,20 @@ def test_hdc(model, test_dataloader, device, encode=True):
             conf_list.append(conf.cpu())
             conf_time_list.append(conf_test_end - conf_test_start)
 
+        # import pdb
+        # pdb.set_trace()
         return {
-            "y_pred": torch.cat(pred_list),
-            "y_true": torch.cat(target_list),
-            "eta": torch.cat(conf_list),
-            "test_time": np.sum(test_time_list),
-            "conf_test_time": np.sum(conf_time_list),
-            "test_encode_time": np.sum(test_encode_time_list),
-        }
+                "y_pred": torch.cat(pred_list),
+                "y_true": torch.cat(target_list),
+                "eta": torch.cat(conf_list),
+                "test_time": np.sum(test_time_list),
+                "test_time_std": np.std(np.array(test_time_list)[1:]),
+                "test_time_mean": np.mean(np.array(test_time_list)[1:]),
+                "conf_test_time": np.sum(conf_time_list),
+                "test_encode_time": np.sum(test_encode_time_list),
+            }
 
-def encode_hdc(model, dataloader, device):
+def encode_hdc(model, dataloader, device, use_numpy=False):
     with torch.no_grad():
         model = model.to(device)
 
@@ -604,14 +608,19 @@ def encode_hdc(model, dataloader, device):
                 hv = model.encode(x)
                 encode_end = time.time()
 
-            encode_list.append(hv)
-            target_list.append(y)
+            if use_numpy:
+                encode_list.append(hv)
+                target_list.append(y)
+            else:
+                encode_list.append(hv.cpu().numpy())
+                target_list.append(y.cpu().numpy())
+
             encode_time_list.append(encode_end - encode_start)
 
     # import pdb
     # pdb.set_trace()
     encode_list = [x.cpu() for x in encode_list]
-    return torch.cat(encode_list), torch.cat(target_list), np.sum(encode_time_list)
+    return torch.cat(encode_list), torch.cat(target_list), np.array(encode_time_list)
 
 def run_hdc(
     model,
@@ -806,15 +815,17 @@ def val_mlp(model, val_dataloader, device):
     forward_time = 0.0
     loss_time = 0.0
     total_loss = 0.0
-
+    test_time_list = []
     preds = []
     targets = []
 
     with torch.no_grad():
         for batch in tqdm(val_dataloader, desc=f"validating MLP"):
             x, y = batch
-            targets.append(y)
 
+            targets.append(y.cpu())
+
+            # '''
             x = x.to(device).float()
             y = y.to(device).reshape(-1).long()
 
@@ -822,7 +833,7 @@ def val_mlp(model, val_dataloader, device):
             y_ = model(x)
             forward_end = time.time()
 
-            preds.append(y_)
+            preds.append(y_.cpu())
 
             loss_start = time.time()
             loss = model.criterion(y_, y)
@@ -832,10 +843,12 @@ def val_mlp(model, val_dataloader, device):
 
             forward_time += forward_end - forward_start
             loss_time += loss_end - loss_start
-
+            test_time_list.append(forward_end - forward_start)
+            # '''
     preds = torch.cat(preds)
     targets = torch.cat(targets)
-
+    # import pdb
+    # pdb.set_trace()
     return {
         "y_true": targets.to("cpu"),
         "y_pred": torch.argmax(preds, dim=1).to("cpu"),
@@ -843,6 +856,8 @@ def val_mlp(model, val_dataloader, device):
         "loss": total_loss,
         "forward_time": forward_time,
         "loss_time": loss_time,
+        "test_time_std": np.std(np.array(test_time_list)[1:]),
+        "test_time_mean": np.mean(np.array(test_time_list)[1:]),
     }
 
 def ray_mlp_job(params, device, train_dataloader, val_dataloader):

@@ -192,10 +192,11 @@ def time_direct_ecfp_encoder():
         ecfp_list = [compute_fingerprint_from_smiles(x, length=args.ecfp_length, radius=args.ecfp_radius, return_time=True) for x in tqdm(smiles_df[0].values.tolist())]
         sum_fp_time = np.sum([x[1] for x in ecfp_list])
         mean_fp_time = np.mean([x[1] for x in ecfp_list])
+        std_fp_time = np.std([x[1] for x in ecfp_list])
         output_path = Path(f"ecfp_{args.ecfp_length}_{args.ecfp_radius}")
         if not output_path.exists():
             output_path.mkdir(parents=True, exist_ok=True)
-        print(sum_fp_time, mean_fp_time)
+        print(sum_fp_time, mean_fp_time, std_fp_time)
         np.save(output_path/Path("time.npy"), np.array([sum_fp_time, mean_fp_time]))
 if __name__ == "__main__":
     # time_ecfp_encoder()

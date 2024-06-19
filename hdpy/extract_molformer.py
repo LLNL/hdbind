@@ -1,1 +1,1 @@
-/usr/WS1/jones289/molformer/notebooks/pretrained_molformer/extract.py
+molformer/extract_molformer.py

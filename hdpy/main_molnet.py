@@ -197,6 +197,7 @@ def driver():
     random.shuffle(target_list)
     for target_idx, target_name in enumerate(target_list):
 
+
         if config.embedding == "ecfp":
             train_dataset = ECFPFromSMILESDataset(smiles=smiles_train, 
                                         labels=y_train[:, target_idx], 
@@ -301,7 +302,6 @@ def driver():
 
         else:
             raise NotImplementedError
-
 
 
         # todo: add target list or target_idx to output_file? this is already the format for dude/lit-pcba/clintox so just extend trivially
