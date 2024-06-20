@@ -12,24 +12,13 @@ from hdpy.model import train_mlp, val_mlp
 from hdpy.ecfp import compute_fingerprint_from_smiles
 SCRATCH_DIR = "/p/vast1/jones289"
 
-# global dataset
-# dataset = None 
-
-# '''
 # args contains things that are unique to a specific run
 hdc_parser = hdc_args.get_parser()
-hdc_parser.add_argument('--mode', choices=['encode', 'train', 'test'])
+hdc_parser.add_argument('--mode', choices=['encode', 'test'])
 hdc_parser.add_argument('--output-prefix', default="debug")
-# hdc_parser.add_argument('--perf-output', default="perf_profile.csv")
 args = hdc_parser.parse_args()
 # config contains general information about the model/data processing
 config = hdc_args.get_config(args)
-
-# collect GPU statistics
-# causes issues with shell=True which is apparently required for passing arguments? and gives a too many open files error when running
-# subprocess.run([f"nvidia-smi --query-gpu=index,timestamp,power.draw,clocks.sm,clocks.mem,clocks.gr,memory.total,memory.free,memory.used,utilization.gpu,utilization.memory,temperature.gpu,pstate, --format=csv -l 1 -f {args.perf_output}&"], shell=True)
-
-
 
 def perf_trial():
 
@@ -41,7 +30,7 @@ def perf_trial():
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         # persistent_workers=True,
-        shuffle=True,
+        shuffle=False,
         collate_fn=collate_fn,
         )
 
@@ -56,12 +45,9 @@ def perf_trial():
             std_encode_time = np.std(time_list)
 
         else: 
-            # encodings, labels, encode_time, mean_encode_time, std_encode_time = encode_hdc(model=model, dataloader=dataloader, device=device, use_numpy=True)
 
             encodings, labels, encode_time_arr = encode_hdc(model=model, dataloader=dataloader, device=device, use_numpy=True)
 
-            # import pdb
-            # pdb.set_trace()
             mean_encode_time = encode_time_arr.mean()
             std_encode_time = encode_time_arr.std()
         if output_target_encode_path.exists():
@@ -70,30 +56,6 @@ def perf_trial():
             pass
         else:
             torch.save((encodings, labels), output_target_encode_path)
-
-    elif args.mode == 'train':
-
-        # load the encodings and labels
-        # encodings, labels = torch.load(output_target_encode_path)
-        # dataset = torch.utils.data.TensorDataset(encodings, labels)
-
-        # run train loop
-        dataloader = DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        persistent_workers=True,
-        shuffle=True,
-        collate_fn=collate_fn,
-        )
-
-        if model.name == "mlp":
-            train_result = train_mlp(model=model, train_dataloader=dataloader, 
-                    epochs=1, device=device)
-        else:
-            train_result = train_hdc(model=model, train_dataloader=dataloader, device=device, num_epochs=1,
-                    encode=False) 
-
 
     elif args.mode == 'test':
 
@@ -104,7 +66,7 @@ def perf_trial():
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         # persistent_workers=True,
-        shuffle=True,
+        shuffle=False,
         collate_fn=collate_fn,
         )
 
@@ -113,23 +75,14 @@ def perf_trial():
         else:
             test_result = test_hdc(model=model, test_dataloader=dataloader, device=device, encode=False) 
         
-        # del encodings
-        # del labels
         torch.cuda.empty_cache()
 
 
     if args.mode == "encode":
-        # print(f"time-encode (mean s/mol): {np.mean([x[0] / x[1] for x in encode_time_list])}")
         return mean_encode_time, std_encode_time
-    # elif args.mode == "train":
-        # print(f"time-am (mean s/mol): {np.mean([x[0] / x[2] for x in train_time_list])}")
-        # print(f"time-retrain (mean s/mol): {np.mean([x[1] / x[2] for x in train_time_list])}")
-    # elif args.mode == "mlp-train":
-        # print(f"time-train (mean s/mol): {np.mean([x[0] / x[1] for x in train_time_list])}")
-        # return 
+
     elif args.mode in ["test", "mlp-test"]:
 
-        # print(f"mean (s/mol){test_result['test_time_mean']}, std (s/mol) {test_result['test_time_std']}")
         return test_result['test_time_mean'], test_result['test_time_std']
 
 
@@ -161,10 +114,11 @@ if __name__ == "__main__":
 
     # print(f'using device {device}')
 
-    model.to(device)
-    if model.name != "mlp":
-    # this should be addressed in a better way such as registering as a nn submodule
-        model.am = model.am.to(device)
+    if args.mode == "test":
+        model.to(device)
+        if model.name != "mlp":
+        # this should be addressed in a better way such as registering as a nn submodule
+            model.am = model.am.to(device)
 
     root_data_p = Path("/p/vast1/jones289/molformer_embeddings/molnet/hiv/")
     if not root_data_p.exists():
@@ -179,8 +133,7 @@ if __name__ == "__main__":
         collate_fn = collate_list_fn
 
 
-    # if config.embedding == "molformer-ecfp-combo":
-        # print("loading combo model")
+
     train_molformer_path = root_data_p / Path(
                 "train_N-Step-Checkpoint_3_30000.npy"
                 )
