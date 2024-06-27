@@ -22,6 +22,8 @@ config = hdc_args.get_config(args)
 
 def perf_trial():
 
+    time_arr = None
+
     if args.mode == 'encode':
 
         # run encode loop
@@ -34,6 +36,7 @@ def perf_trial():
         collate_fn=collate_fn,
         )
 
+
         if model.name == "mlp" or config.embedding == "directecfp":
             # compute ecfps and return mean time and std
             time_list = []
@@ -41,15 +44,18 @@ def perf_trial():
                 _, ecfp_time = compute_fingerprint_from_smiles(smiles=smiles, length=config.ecfp_length, radius=config.ecfp_radius, return_time=True)
                 time_list.append(ecfp_time)
 
-            mean_encode_time = np.mean(time_list)
-            std_encode_time = np.std(time_list)
+            time_arr = np.array(time_list)
+            # mean_encode_time = np.mean(time_list)
+            # std_encode_time = np.std(time_list)
 
         else: 
 
-            encodings, labels, encode_time_arr = encode_hdc(model=model, dataloader=dataloader, device=device, use_numpy=True)
+            encodings, labels, time_arr = encode_hdc(model=model, dataloader=dataloader, device=device, use_numpy=True)
 
-            mean_encode_time = encode_time_arr.mean()
-            std_encode_time = encode_time_arr.std()
+            # encode_time_arr = encode_time_arr[1:]
+
+            # mean_encode_time = encode_time_arr.mean()
+            # std_encode_time = encode_time_arr.std()
         if output_target_encode_path.exists():
             pass
         elif model.name == "mlp" or config.embedding == "directecfp":
@@ -70,6 +76,8 @@ def perf_trial():
         collate_fn=collate_fn,
         )
 
+        # import ipdb as pdb
+        # pdb.set_trace()
         if model.name == "mlp":
             test_result = val_mlp(model=model, val_dataloader=dataloader, device=device)
         else:
@@ -77,13 +85,18 @@ def perf_trial():
         
         torch.cuda.empty_cache()
 
+        time_arr = np.array(test_result['test_time_list'])
 
-    if args.mode == "encode":
-        return mean_encode_time, std_encode_time
+    # if args.mode == "encode":
+        # return mean_encode_time
 
-    elif args.mode in ["test", "mlp-test"]:
+    # elif args.mode in ["test", "mlp-test"]:
 
-        return test_result['test_time_mean'], test_result['test_time_std']
+        # import pdb
+        # pdb.set_trace()
+        # return test_result['test_time_list'][1:].sum()
+    
+    return time_arr
 
 
 def main():
@@ -91,10 +104,14 @@ def main():
     result_list = []
 
     for i in range(10):
-        result_list.append(perf_trial())
+        result_list.append(perf_trial().sum() / N)
 
-    mean_time = np.mean([x[0] for x in result_list])
-    std_time = np.std([x[1] for x in result_list])
+    # import pdb
+    # pdb.set_trace()
+    mean_time = np.mean(result_list)
+    std_time = np.std(result_list)
+
+    # TODO: need to save the mean and std wrt to the number of molecules, not the number of batches
     print(f"mean (avg): {mean_time}, std (avg): {std_time}")
 
     output_path = Path(f"{args.output_prefix}_{args.mode}.npy")
@@ -240,4 +257,6 @@ if __name__ == "__main__":
             else:
                 raise RuntimeError("run encode first")
 
+    N = len(dataset)
+    print(N)
     main()

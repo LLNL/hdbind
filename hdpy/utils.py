@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 # from rdkit import Chem
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 import pandas as pd
@@ -247,6 +247,37 @@ def load_pdbbind_from_hdf(
         np.asarray(test_data_list),
         np.asarray(test_label_list),
     )
+
+
+
+def dump_dataset_to_disk(dataset:Dataset, output_path:Path):
+    assert output_path is not None
+
+    dataloader = DataLoader(dataset, num_workers=8, batch_size=128)
+
+    if not output_path.exists():
+        if not output_path.parent.exists():
+            output_path.parent.mkdir(parents=True)
+        
+        hv_list = []
+        label_list = []
+        for batch in tqdm(dataloader, desc="writing hypervectors to disk.."):
+            hv, label = batch
+
+            hv_list.append(hv.cpu())
+            label_list.append(label.cpu())
+        
+        hvs = torch.cat(hv_list)
+        labels = torch.cat(label_list).reshape(-1,1)
+
+        data = torch.cat([hvs, labels], dim=1).numpy()
+        np.save(output_path, data)
+
+    else:
+        print(f"{output_path} exists! skipping.")
+
+
+
 
 
 def main():

@@ -19,6 +19,8 @@ from sklearn.preprocessing import normalize
 from hdpy.model import run_mlp, run_hdc, get_model
 from torch.utils.data import TensorDataset
 from hdpy.ecfp.encode import compute_fingerprint_from_smiles
+from hdpy.utils import dump_dataset_to_disk
+
 
 SCRATCH_DIR = "/p/vast1/jones289"
 
@@ -334,6 +336,15 @@ def driver():
         std_values.append(np.std([value["roc-auc"] for value in result_dict["trials"].values()]))
 
     print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.mean(std_values)})\n{np.mean(roc_values)*100:.1f} ({np.mean(std_values)*100:.1f})")
+
+    #TODO: this needs to be done per target or will cause an error with datasets that have multiple labels
+    dump_dataset_to_disk(dataset=train_dataset, output_path=Path(f"/p/vast1/jones289/hdbind/molnet/{args.dataset}/{exp_name}_train_hvs.npy"))
+    dump_dataset_to_disk(dataset=test_dataset, output_path=Path(f"/p/vast1/jones289/hdbind/molnet/{args.dataset}/{exp_name}_test_hvs.npy"))
+    
+    if config.model in ["smiles-pe", "selfies", "ecfp", "rp", "directecfp"]:
+        am = model.am.numpy()
+
+        np.save(Path(f"/p/vast1/jones289/hdbind/molnet/{args.dataset}/{exp_name}_am.npy"), am)
 
 
 if __name__ == "__main__":

@@ -349,10 +349,17 @@ class MLPClassifier(nn.Module):
         self.criterion = criterion
         self.optimizer = optimizer(self.parameters(), lr=lr)
         self.name = "mlp"
-    def forward(self, x):
-        out = self.fc_layers(x)
-        out = torch.nn.LogSoftmax(dim=1)(out)
-        return out
+    def forward(self, x, return_time=False):
+        if return_time:
+            start = time.time()
+            out = self.fc_layers(x)
+            out = torch.nn.LogSoftmax(dim=1)(out)
+            end = time.time()
+            return out, end - start
+        else:
+            out = self.fc_layers(x)
+            out = torch.nn.LogSoftmax(dim=1)(out)           
+            return out
 
 
 from sklearn.neighbors import KNeighborsClassifier
@@ -500,6 +507,9 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
         )
 
 def test_hdc(model, test_dataloader, device, encode=True, return_time_list=False):
+
+    starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
     with torch.no_grad():
         model = model.to(device)
         test_time_list = []
@@ -543,15 +553,21 @@ def test_hdc(model, test_dataloader, device, encode=True, return_time_list=False
                     hv = x
                 test_encode_end = time.time()
 
-            test_forward_start = time.time()
+            starter.record()
+            # test_forward_start = time.time()
             # y_ = model.forward(hv) # not sure why I'm not using forward
             y_ = model.predict(hv)
-            test_forward_end = time.time()
+            # test_forward_end = time.time()
+            ender.record()
+            torch.cuda.synchronize()            
+
+            batch_forward_time = starter.elapsed_time(ender) / 1000 # convert milliseconds to seconds
+
 
             target_list.append(y.cpu().reshape(-1, 1))
             pred_list.append(y_.cpu().reshape(-1, 1))
 
-            test_time_list.append(test_forward_end - test_forward_start)
+            test_time_list.append(batch_forward_time)
             test_encode_time_list.append(test_encode_end - test_encode_start)
 
             conf_test_start = time.time()
@@ -566,11 +582,12 @@ def test_hdc(model, test_dataloader, device, encode=True, return_time_list=False
                 "y_pred": torch.cat(pred_list),
                 "y_true": torch.cat(target_list),
                 "eta": torch.cat(conf_list),
-                "test_time": np.sum(test_time_list),
-                "test_time_std": np.std(np.array(test_time_list)[1:]),
-                "test_time_mean": np.mean(np.array(test_time_list)[1:]),
-                "conf_test_time": np.sum(conf_time_list),
-                "test_encode_time": np.sum(test_encode_time_list),
+                "test_time_list": np.array(test_time_list)
+                # "test_time": np.sum(test_time_list),
+                # "test_time_std": np.std(np.array(test_time_list)[1:]),
+                # "test_time_mean": np.mean(np.array(test_time_list)[1:]),
+                # "conf_test_time": np.sum(conf_time_list),
+                # "test_encode_time": np.sum(test_encode_time_list),
             }
 
 def encode_hdc(model, dataloader, device, use_numpy=False):
@@ -819,6 +836,25 @@ def val_mlp(model, val_dataloader, device):
     preds = []
     targets = []
 
+    # https://deci.ai/blog/measure-inference-time-deep-neural-networks/
+    starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
+
+    # warm up GPU
+
+    # import pdb
+    # pdb.set_trace()
+
+    batch_size = val_dataloader.batch_size
+    if batch_size >= len(val_dataloader.dataset):
+        print("batch size is larger than input dataset, changing this to input dataset size")
+        batch_size = len(val_dataloader.dataset)
+    dummy_input = torch.zeros(val_dataloader.batch_size, val_dataloader.dataset[0][0].shape[0], device=device)
+    # print(dummy_input.shape)
+    for _ in tqdm(range(10), desc="warming up GPU"):
+        model.forward(dummy_input)
+    
+    batch_ct = 0
     with torch.no_grad():
         for batch in tqdm(val_dataloader, desc=f"validating MLP"):
             x, y = batch
@@ -829,24 +865,39 @@ def val_mlp(model, val_dataloader, device):
             x = x.to(device).float()
             y = y.to(device).reshape(-1).long()
 
-            forward_start = time.time()
-            y_ = model(x)
-            forward_end = time.time()
-
+            # forward_start = time.time()
+            # y_, batch_forward_time = model.forward(x, return_time=True)
+            # forward_end = time.time()
+            starter.record()
+            y_ = model.forward(x)
+            ender.record()
+            torch.cuda.synchronize()
+            batch_forward_time = starter.elapsed_time(ender) / 1000 # convert milliseconds to seconds
+            
+            
             preds.append(y_.cpu())
-
             loss_start = time.time()
             loss = model.criterion(y_, y)
             loss_end = time.time()
 
             total_loss += loss.item()
 
-            forward_time += forward_end - forward_start
+            # forward_time += forward_end - forward_start
+            forward_time += batch_forward_time
             loss_time += loss_end - loss_start
-            test_time_list.append(forward_end - forward_start)
+            # test_time_list.append(forward_end - forward_start)
+            # test_time_list.append(batch_forward_time / y.shape[0])
+            test_time_list.append(batch_forward_time)
             # '''
+
+            batch_ct += 1
     preds = torch.cat(preds)
     targets = torch.cat(targets)
+
+
+    N = len(val_dataloader.dataset)
+    # print(N, forward_time, forward_time/N, np.sum(test_time_list), np.sum(test_time_list)/N)
+    # print(f"throughput/s: {(batch_ct * val_dataloader.batch_size) / forward_time}")
     # import pdb
     # pdb.set_trace()
     return {
@@ -856,8 +907,7 @@ def val_mlp(model, val_dataloader, device):
         "loss": total_loss,
         "forward_time": forward_time,
         "loss_time": loss_time,
-        "test_time_std": np.std(np.array(test_time_list)[1:]),
-        "test_time_mean": np.mean(np.array(test_time_list)[1:]),
+        "test_time_list": np.array(test_time_list)
     }
 
 def ray_mlp_job(params, device, train_dataloader, val_dataloader):
