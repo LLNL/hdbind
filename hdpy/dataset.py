@@ -11,8 +11,8 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
-# from hdpy.molehd.encode import tokenize_smiles
-# from hdpy.utils import get_random_hv
+from hdpy.molehd.encode import tokenize_smiles
+from hdpy.utils import get_random_hv
 from hdpy.ecfp import compute_fingerprint_from_smiles
 # from sklearn.preprocessing import Normalizer
 import multiprocessing as mp
@@ -66,6 +66,46 @@ class StreamingComboDataset(Dataset):
         else:
             return torch.from_numpy(data), self.labels[idx]
 
+
+class ComboDataset(Dataset):
+    def __init__(self, smiles_list:list, feats:np.array, labels:np.array, length:int, radius:int):
+        self.smiles_list = smiles_list
+        self.labels = torch.from_numpy(labels).int()
+        self.length = length
+        self.radius = radius
+        self.feats = feats
+
+        self.ecfp_arr = np.zeros((self.labels.shape[0], self.length), dtype=int)
+
+        for idx, smiles in tqdm(enumerate(self.smiles_list), desc="computing ecfps for combo dataset"):
+            ecfp = compute_fingerprint_from_smiles(smiles, length=self.length, radius=self.radius)
+            if ecfp is None:
+                print("ecfp is None.")
+                ecfp = np.zeros(1, self.length, dtype=int)
+            self.ecfp_arr[idx, :] = ecfp
+
+        self.ecfp_arr = torch.from_numpy(self.ecfp_arr)
+
+    def __len__(self):
+        return len(self.smiles_list)
+    
+    def __getitem__(self, idx):
+
+        # smiles = self.smiles_list[idx]
+        # ecfp = compute_fingerprint_from_smiles(smiles, length=self.length, radius=self.radius)
+
+        # if molecule is None, we use all zeros to encode failures as no detected substructure is technically present
+        # if ecfp is None:
+            # print("ecfp is None.")
+            # ecfp = np.zeros(1, self.length)
+        ecfp = self.ecfp_arr[idx, :]
+        feat = self.feats[idx]
+        # print(ecfp)
+        data = np.concatenate([feat, ecfp]).astype(float)
+        # if ecfp is None:
+            # print(f"compute_fingerprint_from_smiles failed for {smiles}")
+        # else:
+        return torch.from_numpy(data).float(), self.labels[idx]
 # '''
 # todo: remove SMILESDataset that attempts to split the dataset
 class SMILESDataset(Dataset):
@@ -112,7 +152,8 @@ class SMILESDataset(Dataset):
         self.item_mem_time = 0.0
         # for tokens in tqdm(self.data_toks, desc="building item memory"):
         for tokens in self.data_toks:
-            token_start = time.time()
+            # token_start = time.perf_counter()
+            token_start = time.perf_counter()
             tokens = list(set(tokens))
             # "empty" token?
             for token in tokens:
@@ -122,7 +163,7 @@ class SMILESDataset(Dataset):
                     token_hv = get_random_hv(self.D, 1)
                     self.item_mem[token] = token_hv.to(self.device)
 
-            token_end = time.time()
+            token_end = time.perf_counter()
             self.item_mem_time += token_end - token_start
 
         self.item_mem_time = self.item_mem_time

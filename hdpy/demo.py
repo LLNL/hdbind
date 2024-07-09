@@ -45,16 +45,16 @@ import rdkit
 
 def ecfp_job(smiles):
     try:
-        mol_start = time.time()
+        mol_start = time.perf_counter()
         mol = rdmolfiles.MolFromSmiles(smiles)
-        mol_end = time.time()
+        mol_end = time.perf_counter()
 
         if mol is not None:
-            fp_start = time.time()
+            fp_start = time.perf_counter()
             fp_vec = AllChem.GetMorganFingerprintAsBitVect(
                 mol, args.ecfp_radius, nBits=args.ecfp_length
             )
-            fp_end = time.time()
+            fp_end = time.perf_counter()
 
             fp = np.unpackbits(
                 np.frombuffer(DataStructs.BitVectToBinaryText(fp_vec), dtype=np.uint8),
@@ -81,20 +81,20 @@ def ecfp_job(smiles):
 def rp_ecfp_hdc(ecfp_list):
     # import pdb
     # pdb.set_trace()
-    enc_start = time.time()
+    enc_start = time.perf_counter()
     enc = RPEncoder(D=args.dimension, input_size=args.ecfp_length, num_classes=2)
     enc.to("cuda")
-    enc_end = time.time()
+    enc_end = time.perf_counter()
 
     # import pdb
     # pdb.set_trace()
     # print(f"random projection encoder created in {enc_end - enc_start} seconds on device={next(enc.rp_layer.parameters()).device}")
 
-    start = time.time()
+    start = time.perf_counter()
     ecfp_arr = np.array(ecfp_list)
     # dataset = TensorDataset(torch.Tensor(np.array(ecfp_list)).int())
     dataset = TensorDataset(torch.Tensor(ecfp_arr).int())
-    end = time.time()
+    end = time.perf_counter()
     # print(f"converting {len(ecfp_list)} ecfp list to pytorch TensorDataset took {end - start} seconds")
     dataloader = DataLoader(
         dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers
@@ -111,9 +111,9 @@ def rp_ecfp_hdc(ecfp_list):
 
                 pdb.set_trace()
             x = batch[0].to("cuda")
-            ecfp_encode_start = time.time()
+            ecfp_encode_start = time.perf_counter()
             encodings = enc(x)
-            ecfp_encode_end = time.time()
+            ecfp_encode_end = time.perf_counter()
 
             if trial == 0:
                 encoding_list.append(encodings.cpu())
@@ -168,11 +168,11 @@ def smiles_token_hdc(smiles_list):
 
     item_mem_time = dataset.item_mem_time
 
-    tok_encoder_start = time.time()
+    tok_encoder_start = time.perf_counter()
     tok_encoder = TokenEncoder(
         D=args.dimension, num_classes=2, item_mem=dataset.item_mem
     )
-    tok_encoder_end = time.time()
+    tok_encoder_end = time.perf_counter()
     # print(f"TokenEncoder created in {tok_encoder_end-tok_encoder_start} seconds.")
 
     dataloader = DataLoader(
@@ -197,9 +197,9 @@ def smiles_token_hdc(smiles_list):
                 import pdb
 
                 pdb.set_trace()
-            tok_encode_start = time.time()
+            tok_encode_start = time.perf_counter()
             tok_encoder.encode_batch(batch)
-            tok_encode_end = time.time()
+            tok_encode_end = time.perf_counter()
 
             epoch_encode_time_sum += tok_encode_end - tok_encode_start
 

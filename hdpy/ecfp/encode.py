@@ -22,7 +22,7 @@ def binarize(hv):
 
     return hv
 
-class ECFPEncoder(Dataset):
+class StreamingECFPEncoder(Dataset):
     def __init__(self, D: int, radius: int, input_size: int, smiles_list: list):
         super()
         self.D = D
@@ -39,11 +39,11 @@ class ECFPEncoder(Dataset):
         if self.item_mem is None:
             self.build_item_memory()
 
-        ecfp = self.compute_fingerprint_from_smiles(self.smiles_list[idx])
+        ecfp = compute_fingerprint_from_smiles(self.smiles_list[idx], length=self.input_size, radius=self.radius)
         if ecfp is not None:
-            # start = time.time()
+            # start = time.perf_counter()
             hv = self.encode(ecfp)
-            # end = time.time()
+            # end = time.perf_counter()
 
             return hv
         else:
@@ -56,30 +56,22 @@ class ECFPEncoder(Dataset):
         self.item_mem = torch.where(self.item_mem <= 0, self.item_mem, -1).int()
 
     def encode(self, datapoint):
-        # datapoint is just a single ECFP
 
         if self.item_mem is None:
             print("Build item memory before encoding")
 
-        start = time.time()
+        start = time.perf_counter()
         hv = torch.zeros(self.D, dtype=torch.int)
 
-        # import pdb
-        # pdb.set_trace()
+
         for pos, value in enumerate(datapoint):
             hv += self.item_mem[pos, value.item()]
 
-        # binarize (why are positive values being mapped to negative values and vice versa?)
-        hv = torch.where(hv > 0, hv, -1)
-        hv = torch.where(hv <= 0, hv, 1)
-        end = time.time()
+        hv = binarize(hv)
+        end = time.perf_counter()
 
         return hv, torch.ones(1) * (end - start)
 
-    def compute_fingerprint_from_smiles(self, smiles):
-        return compute_fingerprint_from_smiles(
-            smiles=smiles, length=self.input_size, radius=self.radius
-        )
 
 class DirectECFPEncoder(Dataset):
     def __init__(self, D: int, radius: int, input_size: int, smiles_list: list):
@@ -98,7 +90,7 @@ class DirectECFPEncoder(Dataset):
         if self.item_mem is None:
             self.build_item_memory()
 
-        ecfp = self.compute_fingerprint_from_smiles(self.smiles_list[idx])
+        ecfp = self.compute_fingerprint_from_smiles(self.smiles_list[idx], length=self.input_size, radius=self.radius)
         if ecfp is not None:
 
             # convert binary 0,1 to -1, 1
@@ -110,29 +102,19 @@ class DirectECFPEncoder(Dataset):
         pass
 
     def encode(self, datapoint):
-        # datapoint is just a single ECFP
-        # start = time.time()
-
-        # binarize (why are positive values being mapped to negative values and vice versa?)
-        # hv = torch.where(hv > 0, hv, -1)
-        # hv = torch.where(hv <= 0, hv, 1)
-        # end = time.time()
-
-        # return hv, torch.ones(1) * (end - start)
 
         pass
 
-    def compute_fingerprint_from_smiles(self, smiles):
-        return compute_fingerprint_from_smiles(
-            smiles=smiles, length=self.input_size, radius=self.radius
-        )
+
+
+
 
 
 def time_ecfp_encoder():
     import pandas as pd
     smiles_df = pd.read_csv("/p/vast1/jones289/lit_pcba/AVE_unbiased/VDR/smiles_test.csv", header=None)
 
-    enc = ECFPEncoder(D=10000, radius=1, input_size=1024, smiles_list=smiles_df[0].values.tolist())
+    enc = StreamingECFPEncoder(D=10000, radius=1, input_size=1024, smiles_list=smiles_df[0].values.tolist())
     enc.build_item_memory()
 
     ecfp_list = [compute_fingerprint_from_smiles(x, length=1024, radius=1).reshape(1,-1) for x in tqdm(smiles_df[0].values.tolist())]

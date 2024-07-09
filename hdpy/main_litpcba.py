@@ -9,7 +9,7 @@ from cProfile import run
 import torch
 import random
 import time
-# random.seed(time.time())
+# random.seed(time.perf_counter())
 from tqdm import tqdm
 import numpy as np
 import pandas as pd

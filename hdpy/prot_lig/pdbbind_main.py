@@ -26,7 +26,7 @@ from torch.utils.data import ConcatDataset
 # import multiprocessing as mp
 # import functools
 import numpy as np
-from hdpy.hdpy.ecfp_hd.encode import ECFPEncoder
+from hdpy.hdpy.ecfp_hd.encode import StreamingECFPEncoder
 import mdtraj
 import pandas as pd
 from rdkit import Chem
@@ -97,11 +97,11 @@ class PROTHDEncoder(HDModel):
         super().__init__()
 
         self.D = D
-        self.ligand_encoder = ECFPEncoder(D=self.D)
+        self.ligand_encoder = StreamingECFPEncoder(D=self.D)
         self.protein_encoder = RPEncoder(D=self.D, input_size=24, num_classes=2) #why is number of classes an argument?
 
     def featurize(  # type: ignore[override]
-        self, protein_file: str, ligand_file: str, ligand_encoder: ECFPEncoder
+        self, protein_file: str, ligand_file: str, ligand_encoder: StreamingECFPEncoder
     ) -> np.ndarray:
 
         residue_map = {
@@ -219,11 +219,11 @@ class DisjointComplexDataset(Dataset):
 
         # import ipdb
         # ipdb.set_trace()
-        self.ligand_encoder = ECFPEncoder(D=self.D)
+        self.ligand_encoder = StreamingECFPEncoder(D=self.D)
         self.ligand_encoder.build_item_memory(n_bits=1024)
 
     # def featurize(  # type: ignore[override]
-    # self, protein_file: str, ligand_file: str, ligand_encoder: ECFPEncoder
+    # self, protein_file: str, ligand_file: str, ligand_encoder: StreamingECFPEncoder
     # ) -> np.ndarray:
     def featurize(self, pdbid: str) -> np.ndarray:  # type: ignore[override]
         residue_map = {
@@ -510,7 +510,7 @@ def train(model, dataloader, model_name, epochs=10):
     # ipdb.set_trace()
 
     if model_name == "complex-graph":
-        single_pass_train_start = time.time()
+        single_pass_train_start = time.perf_counter()
         for batch in tqdm(
             dataloader, total=len(dataloader), desc="building associative memory"
         ):
@@ -518,7 +518,7 @@ def train(model, dataloader, model_name, epochs=10):
                 dataset_hvs=batch.graph_hvs.reshape(-1, model.D), labels=batch.y
             )
             # pass
-        single_pass_train_time = time.time() - single_pass_train_start
+        single_pass_train_time = time.perf_counter() - single_pass_train_start
 
         print(f"retraining took {single_pass_train_time} seconds")
 
@@ -526,7 +526,7 @@ def train(model, dataloader, model_name, epochs=10):
 
         learning_curve_list = []
 
-        retrain_start = time.time()
+        retrain_start = time.perf_counter()
         for _ in range(epochs):
             for batch in tqdm(
                 dataloader, total=len(dataloader), desc="perceptron training"
@@ -537,7 +537,7 @@ def train(model, dataloader, model_name, epochs=10):
                 # mistake_ct = model.retrain(hv_train, y_train, return_mistake_count=True)
                 learning_curve_list.append(mistake_ct)
 
-        retrain_time = time.time() - retrain_start
+        retrain_time = time.perf_counter() - retrain_start
 
         print(
             f"training took {retrain_time} seconds (avg. {retrain_time/epochs} sec. per epoch)"
@@ -545,14 +545,14 @@ def train(model, dataloader, model_name, epochs=10):
         return learning_curve_list, single_pass_train_time, retrain_time
 
     else:
-        single_pass_train_start = time.time()
+        single_pass_train_start = time.perf_counter()
         for batch in tqdm(
             dataloader, total=len(dataloader), desc="building associative memory"
         ):
             data, y = batch
             model.update_am(dataset_hvs=data, labels=y)
             # pass
-        single_pass_train_time = time.time() - single_pass_train_start
+        single_pass_train_time = time.perf_counter() - single_pass_train_start
 
         print(f"retraining took {single_pass_train_time} seconds")
 
@@ -560,7 +560,7 @@ def train(model, dataloader, model_name, epochs=10):
 
         learning_curve_list = []
 
-        retrain_start = time.time()
+        retrain_start = time.perf_counter()
         for _ in range(epochs):
             for batch in tqdm(
                 dataloader, total=len(dataloader), desc="perceptron training"
@@ -570,7 +570,7 @@ def train(model, dataloader, model_name, epochs=10):
                 # mistake_ct = model.retrain(hv_train, y_train, return_mistake_count=True)
                 learning_curve_list.append(mistake_ct)
 
-        retrain_time = time.time() - retrain_start
+        retrain_time = time.perf_counter() - retrain_start
 
         print(
             f"training took {retrain_time} seconds (avg. {retrain_time/epochs} sec. per epoch)"
@@ -589,15 +589,15 @@ def test(model, dataloader, model_name):
         for batch in tqdm(dataloader, total=len(dataloader), desc="testing"):
             true_list.append(batch.y)
 
-            pred_start = time.time()
+            pred_start = time.perf_counter()
             pred = model.predict(batch.graph_hvs.reshape(-1, model.D))
-            pred_time = time.time() - pred_start
+            pred_time = time.perf_counter() - pred_start
             pred_list.append(pred)
             pred_time_list.append(pred_time)
 
-            conf_start = time.time()
+            conf_start = time.perf_counter()
             conf = model.compute_confidence(batch.graph_hvs.reshape(-1, model.D))
-            conf_time = time.time() - conf_start
+            conf_time = time.perf_counter() - conf_start
             conf_list.append(conf)
             conf_time_list.append(conf_time)
     else:
@@ -607,15 +607,15 @@ def test(model, dataloader, model_name):
             data, y = batch
             true_list.append(y)
 
-            pred_start = time.time()
+            pred_start = time.perf_counter()
             pred = model.predict(data.squeeze())
-            pred_time = time.time() - pred_start
+            pred_time = time.perf_counter() - pred_start
             pred_list.append(pred)
             pred_time_list.append(pred_time)
 
-            conf_start = time.time()
+            conf_start = time.perf_counter()
             conf = model.compute_confidence(data.squeeze())
-            conf_time = time.time() - conf_start
+            conf_time = time.perf_counter() - conf_start
             conf_list.append(conf)
             conf_time_list.append(conf_time)
 
@@ -694,7 +694,7 @@ def complex_graph_main():
 
     import time
 
-    ts = time.time()
+    ts = time.perf_counter()
     with open(f"{args.model}-{args.seed}-result_dict_{ts}.pkl", "wb") as handle:
         pickle.dump(result_dict, handle)
 
@@ -764,7 +764,7 @@ def aa_seq_ecfp_main():
 
     import time
 
-    ts = time.time()
+    ts = time.perf_counter()
     with open(f"{args.model}-{args.seed}-result_dict_{ts}.pkl", "wb") as handle:
         pickle.dump(result_dict, handle)
 

@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 import time
 from hdpy.utils import collate_list_fn, binarize, seed_rngs
+from hdpy.molehd import tokenize_smiles
 from sklearn.metrics import classification_report, roc_auc_score
 
 try:
@@ -36,10 +37,7 @@ class HDModel(nn.Module):
         raise NotImplementedError("Please implement this function in a subclass")
 
     def build_am(self, dataset_hvs, labels):
-        # raise NotImplementedError("Please implement this function in a subclass")
 
-        # import pdb
-        # pdb.set_trace()
         self.am = torch.zeros(2, self.D, dtype=int) 
 
         for hv, label in zip(dataset_hvs, labels):
@@ -63,38 +61,55 @@ class HDModel(nn.Module):
     def encode(self, x):
         raise NotImplementedError("Please implement this function in a subclass")
 
-    def predict(self, enc_hvs):
-        start = time.time()
+    def predict(self, enc_hvs, return_time=False):
 
+        # import pdb
+        # pdb.set_trace()
+        am = self.am
+        am = am.float()
+
+        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
+        starter.record()
         preds = torch.argmax(
             torchmetrics.functional.pairwise_cosine_similarity(
-                enc_hvs.float(), self.am.float()
+                enc_hvs, am
             ),
             dim=1,
         )
-        end = time.time()
-        # print((end-start)/enc_hvs.shape[0])
-        return preds
+        ender.record()
+        torch.cuda.synchronize()
 
-    # def forward(self, x, encode_only=False):
+        total_time = starter.elapsed_time(ender) / 1000
 
-    # if encode_only:
-    # out = self.forward(x)
-    # out = self.predict(x)
-    # return out
+        if return_time:
+            return preds, total_time
+        else:
+            return preds
 
-    def compute_confidence(self, dataset_hvs):
+
+
+    def compute_confidence(self, dataset_hvs, return_time=False):
         # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order
 
         # this torchmetrics function potentially edits in place so we make a clone
         # moving the self.am to cuda memory repeatedly seems wasteful
+
+        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
+        starter.record()
         sims = torchmetrics.functional.pairwise_cosine_similarity(
             dataset_hvs.clone().float().cuda(), self.am.clone().float().cuda()
         )
-
         eta = (sims[:, 1] - sims[:, 0]) * (1 / 4)
-        eta = torch.add(eta, (1 / 2))
-        return eta.reshape(-1)
+        eta = torch.add(eta, (1 / 2)).reshape(-1)
+        ender.record()
+        total_time = starter.elapsed_time(ender) / 1000
+
+        if return_time:
+            return eta, total_time
+        else:
+            return eta
 
     def retrain(self, dataset_hvs, labels, return_mistake_count=False, lr=1.0):
         # should do this in parallel instead of the sequential? or can we define two functions and possibly combine the two? i.e. use the parallel version most of the time and then periodically update with the sequential version?
@@ -144,13 +159,23 @@ class RPEncoder(HDModel):
         self.input_size = input_size
         self.D = D
         self.num_classes=num_classes
-    def encode(self, x):
-        # import pdb
-        # pdb.set_trace()
+
+
+    def encode(self, x, return_time=False):
+        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
+        starter.record()
         hv = self.rp_layer(x.float())
-        # hv = torch.where(hv > 0, 1.0, -1.0).int()
-        hv = torch.where(hv > 0, 1.0, -1.0)
-        return hv.int()
+        hv = torch.where(hv > 0, 1.0, -1.0).int()
+        ender.record()
+        torch.cuda.synchronize()
+
+        total_time = starter.elapsed_time(ender) / 1000
+
+        if return_time:
+            return hv, total_time
+        else:
+            return hv
 
     def forward(self, x):
         hv = self.encode(x)
@@ -175,16 +200,24 @@ class ComboEncoder(HDModel):
         self.D = D
         self.num_classes=num_classes
 
-    def encode(self, x):
-        # import pdb
-        # pdb.set_trace()
+    def encode(self, x, return_time=False):
+
+        start, end, = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        start.record()
         ecfp_hv = x[:, self.input_size:]
         embed = x[:, :self.input_size]
-        embed_hv = self.rp_layer(embed.float())
-        # hv = torch.where(hv > 0, 1.0, -1.0).int()
-        hv = ecfp_hv.cuda() * embed_hv.cuda() # bind the hv's together
+        embed_hv = self.rp_layer(embed)
+        hv = (ecfp_hv * embed_hv).int() # bind the hv's together
         hv = torch.where(hv > 0, 1.0, -1.0)
-        return hv.int()
+        end.record()
+        torch.cuda.synchronize()
+
+        t = start.elapsed_time(end) / 1000 # convert to seconds
+
+        if return_time:
+            return hv, t
+        else:
+            return hv
 
     def forward(self, x):
         hv = self.encode(x)
@@ -349,13 +382,22 @@ class MLPClassifier(nn.Module):
         self.criterion = criterion
         self.optimizer = optimizer(self.parameters(), lr=lr)
         self.name = "mlp"
+
     def forward(self, x, return_time=False):
         if return_time:
-            start = time.time()
+            
+            starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+            starter.record()
             out = self.fc_layers(x)
             out = torch.nn.LogSoftmax(dim=1)(out)
-            end = time.time()
-            return out, end - start
+            ender.record()
+
+            torch.cuda.synchronize()
+            total_time = starter.elapsed_time(ender) / 1000 # convert milliseconds to seconds
+
+            return out, total_time
+
+
         else:
             out = self.fc_layers(x)
             out = torch.nn.LogSoftmax(dim=1)(out)           
@@ -405,7 +447,7 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                 x = x.to(device)
 
 
-            am_time_start = time.time()
+            am_time_start = time.perf_counter()
             for class_idx in range(2):  # binary classification
                 class_mask = y.squeeze() == class_idx
 
@@ -427,7 +469,7 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                     else:
                         model.am[class_idx] += (x[class_mask, :]).sum(dim=0).reshape(-1).int()
 
-            am_time_end = time.time()
+            am_time_end = time.perf_counter()
 
             am_time_sum += (am_time_end - am_time_start)
 
@@ -450,26 +492,26 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                     x = [x[0] for x in batch]
                     y = torch.from_numpy(np.array([x[1] for x in batch])).int()
                     y = y.squeeze().to(device)
-                    encode_time_start = time.time()
+                    encode_time_start = time.perf_counter()
                     if encode:
                         hv = torch.cat([model.encode(z) for z in x])
                     else:
                         hv = x
-                    encode_time_end = time.time()
+                    encode_time_end = time.perf_counter()
                     epoch_encode_time_total += encode_time_end - encode_time_start
 
                 else:
                     x, y = batch
                     x, y = x.to(device), y.squeeze().to(device)
-                    encode_time_start = time.time()
+                    encode_time_start = time.perf_counter()
                     if encode:
                         hv = model.encode(x)
                     else:
                         hv = x
-                    encode_time_end = time.time()
+                    encode_time_end = time.perf_counter()
                     epoch_encode_time_total += encode_time_end - encode_time_start
 
-                retrain_time_start = time.time() 
+                retrain_time_start = time.perf_counter() 
                 y_ = model.predict(hv)
                 update_mask = torch.abs(y - y_).bool()
                 mistake_ct += sum(update_mask)
@@ -488,7 +530,7 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                         model.am[int(mistake_label)] += mistake_hv
                         model.am[int(~mistake_label.bool())] -= mistake_hv
 
-                retrain_time_end = time.time()
+                retrain_time_end = time.perf_counter()
 
                 retrain_time_sum += (retrain_time_end - retrain_time_start)
 
@@ -508,23 +550,18 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
 
 def test_hdc(model, test_dataloader, device, encode=True, return_time_list=False):
 
-    starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
 
     with torch.no_grad():
         model = model.to(device)
         test_time_list = []
-        test_encode_time_list = []
         conf_time_list = []
         target_list = []
         pred_list = []
         conf_list = []
 
-        # import pdb
-        # pdb.set_trace()
+
         for batch in tqdm(test_dataloader, desc="testing.."):
-            x, y, y_, hv, test_encode_end, test_encode_end = (
-                None,
-                None,
+            x, y, y_, hv = (
                 None,
                 None,
                 None,
@@ -535,65 +572,48 @@ def test_hdc(model, test_dataloader, device, encode=True, return_time_list=False
 
                 y = torch.from_numpy(np.array([x[1] for x in batch])).int()
                 y = y.squeeze()
-                test_encode_start = time.time()
+                
                 if encode:
-                    hv = torch.cat([model.encode(z) for z in x])
+                    hv = torch.cat([model.encode(z, return_time=False) for z in x])
+
                 else:
                     hv = x
-                test_encode_end = time.time()
+
+
             else:
-                # import pdb
-                # pdb.set_trace()
+
                 x, y = batch
                 x, y = x.to(device), y.squeeze().to(device)
-                test_encode_start = time.time()
+                
                 if encode:
                     hv = model.encode(x)
                 else:
                     hv = x
-                test_encode_end = time.time()
 
-            starter.record()
-            # test_forward_start = time.time()
-            # y_ = model.forward(hv) # not sure why I'm not using forward
-            y_ = model.predict(hv)
-            # test_forward_end = time.time()
-            ender.record()
-            torch.cuda.synchronize()            
 
-            batch_forward_time = starter.elapsed_time(ender) / 1000 # convert milliseconds to seconds
-
+            y_, batch_forward_time = model.predict(hv.float(), return_time=True)
 
             target_list.append(y.cpu().reshape(-1, 1))
             pred_list.append(y_.cpu().reshape(-1, 1))
 
             test_time_list.append(batch_forward_time)
-            test_encode_time_list.append(test_encode_end - test_encode_start)
 
-            conf_test_start = time.time()
-            conf = model.compute_confidence(hv)
-            conf_test_end = time.time()
+            conf, batch_conf_time = model.compute_confidence(hv, return_time=True)
             conf_list.append(conf.cpu())
-            conf_time_list.append(conf_test_end - conf_test_start)
+            conf_time_list.append(batch_conf_time)
 
-        # import pdb
-        # pdb.set_trace()
+
         return {
                 "y_pred": torch.cat(pred_list),
                 "y_true": torch.cat(target_list),
                 "eta": torch.cat(conf_list),
                 "test_time_list": np.array(test_time_list)
-                # "test_time": np.sum(test_time_list),
-                # "test_time_std": np.std(np.array(test_time_list)[1:]),
-                # "test_time_mean": np.mean(np.array(test_time_list)[1:]),
-                # "conf_test_time": np.sum(conf_time_list),
-                # "test_encode_time": np.sum(test_encode_time_list),
             }
 
 def encode_hdc(model, dataloader, device, use_numpy=False):
     with torch.no_grad():
         model = model.to(device)
-
+        # model.am = model.am.float()
         encode_list = []
 
 
@@ -601,29 +621,30 @@ def encode_hdc(model, dataloader, device, use_numpy=False):
         target_list = []
 
         for batch in tqdm(dataloader, desc="encoding.."):
-            x, y, y_, hv, encode_start, encode_end = (
-                None,
-                None,
-                None,
+            x, y, hv = (
                 None,
                 None,
                 None,
             )
+            batch_encode_time = None
+
             if model.name == "molehd":
                 x = [x[0] for x in batch]
 
                 y = torch.from_numpy(np.array([x[1] for x in batch])).int()
                 y = y.squeeze()
-                encode_start = time.time()
-                hv = torch.cat([model.encode(z) for z in x])
-                encode_end = time.time()
+                
+                hv_list = [model.encode(z, return_time=True) for z in x]
+                hv = torch.cat([h[0] for h in hv_list])
+                batch_encode_time = torch.sum([h[1] for h in hv_list]).item()
+
             else:
 
                 x, y = batch
                 x = x.to(device)
-                encode_start = time.time()
-                hv = model.encode(x)
-                encode_end = time.time()
+                
+                hv, batch_encode_time = model.encode(x, return_time=True)
+
 
             if use_numpy:
                 encode_list.append(hv)
@@ -632,10 +653,9 @@ def encode_hdc(model, dataloader, device, use_numpy=False):
                 encode_list.append(hv.cpu().numpy())
                 target_list.append(y.cpu().numpy())
 
-            encode_time_list.append(encode_end - encode_start)
+            encode_time_list.append(batch_encode_time)
 
-    # import pdb
-    # pdb.set_trace()
+
     encode_list = [x.cpu() for x in encode_list]
     return torch.cat(encode_list), torch.cat(target_list), np.array(encode_time_list)
 
@@ -675,13 +695,13 @@ def run_hdc(
         toks = train_toks + test_toks
 
         model.build_item_memory(toks)
-        train_encode_start = time.time()
+        train_encode_start = time.perf_counter()
         train_dataset_hvs = model.encode_dataset(train_toks)
-        train_encode_time = time.time() - train_encode_start
+        train_encode_time = time.perf_counter() - train_encode_start
 
-        test_encode_start = time.time()
+        test_encode_start = time.perf_counter()
         test_dataset_hvs = model.encode_dataset(test_toks)
-        test_encode_time = time.time() - test_encode_start
+        test_encode_time = time.perf_counter() - test_encode_start
 
         train_dataset_hvs = torch.vstack(train_dataset_hvs).int()
         test_dataset_hvs = torch.vstack(test_dataset_hvs).int()
@@ -799,18 +819,18 @@ def train_mlp(model, train_dataloader, epochs, device):
             x = x.to(device).float()
             y = y.to(device).reshape(-1).long()
 
-            forward_start = time.time()
+            forward_start = time.perf_counter()
             y_ = model(x)
-            forward_end = time.time()
+            forward_end = time.perf_counter()
 
 
-            loss_start = time.time()
+            loss_start = time.perf_counter()
             loss = model.criterion(y_.reshape(-1, 2), y)
-            loss_end = time.time()
+            loss_end = time.perf_counter()
 
-            backward_start = time.time()
+            backward_start = time.perf_counter()
             loss.backward()
-            backward_end = time.time()
+            backward_end = time.perf_counter()
 
             model.optimizer.step()
 
@@ -836,21 +856,18 @@ def val_mlp(model, val_dataloader, device):
     preds = []
     targets = []
 
-    # https://deci.ai/blog/measure-inference-time-deep-neural-networks/
-    starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-
 
     # warm up GPU
-
-    # import pdb
-    # pdb.set_trace()
 
     batch_size = val_dataloader.batch_size
     if batch_size >= len(val_dataloader.dataset):
         print("batch size is larger than input dataset, changing this to input dataset size")
         batch_size = len(val_dataloader.dataset)
+
+
     dummy_input = torch.zeros(val_dataloader.batch_size, val_dataloader.dataset[0][0].shape[0], device=device)
-    # print(dummy_input.shape)
+    
+
     for _ in tqdm(range(10), desc="warming up GPU"):
         model.forward(dummy_input)
     
@@ -861,34 +878,22 @@ def val_mlp(model, val_dataloader, device):
 
             targets.append(y.cpu())
 
-            # '''
             x = x.to(device).float()
             y = y.to(device).reshape(-1).long()
 
-            # forward_start = time.time()
-            # y_, batch_forward_time = model.forward(x, return_time=True)
-            # forward_end = time.time()
-            starter.record()
-            y_ = model.forward(x)
-            ender.record()
-            torch.cuda.synchronize()
-            batch_forward_time = starter.elapsed_time(ender) / 1000 # convert milliseconds to seconds
-            
-            
+            y_, batch_forward_time = model.forward(x, return_time=True)
+
             preds.append(y_.cpu())
-            loss_start = time.time()
+            loss_start = time.perf_counter()
             loss = model.criterion(y_, y)
-            loss_end = time.time()
+            loss_end = time.perf_counter()
 
             total_loss += loss.item()
 
-            # forward_time += forward_end - forward_start
             forward_time += batch_forward_time
             loss_time += loss_end - loss_start
-            # test_time_list.append(forward_end - forward_start)
-            # test_time_list.append(batch_forward_time / y.shape[0])
+            
             test_time_list.append(batch_forward_time)
-            # '''
 
             batch_ct += 1
     preds = torch.cat(preds)
@@ -896,10 +901,7 @@ def val_mlp(model, val_dataloader, device):
 
 
     N = len(val_dataloader.dataset)
-    # print(N, forward_time, forward_time/N, np.sum(test_time_list), np.sum(test_time_list)/N)
-    # print(f"throughput/s: {(batch_ct * val_dataloader.batch_size) / forward_time}")
-    # import pdb
-    # pdb.set_trace()
+
     return {
         "y_true": targets.to("cpu"),
         "y_pred": torch.argmax(preds, dim=1).to("cpu"),
@@ -1119,8 +1121,8 @@ def get_model(config):
         model = SELFIESHDEncoder(D=config.D)
 
     elif config.model == "ecfp":
-        from hdpy.ecfp.encode import ECFPEncoder
-        model = ECFPEncoder(D=config.D, radius=config.ecfp_radius)
+        from hdpy.ecfp.encode import StreamingECFPEncoder
+        model = StreamingECFPEncoder(D=config.D, radius=config.ecfp_radius)
 
     elif config.model == "rp":
         # assert config.ecfp_length is not None

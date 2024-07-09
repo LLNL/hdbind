@@ -14,7 +14,7 @@ from rdkit.Chem import AllChem
 
 def compute_fingerprint_from_smiles(smiles, length: int, radius: int, return_time=False):
     try:
-        start = time.time()
+        start = time.perf_counter()
         mol = rdmolfiles.MolFromSmiles(smiles, sanitize=True)
         # mol = rdmolfiles.MolFromSmiles(smiles, sanitize=False)
 
@@ -24,7 +24,7 @@ def compute_fingerprint_from_smiles(smiles, length: int, radius: int, return_tim
             np.frombuffer(DataStructs.BitVectToBinaryText(fp_vec), dtype=np.uint8),
             bitorder="little",
         )
-        end=time.time()
+        end=time.perf_counter()
         # print(fp, fp_vec)
         if return_time:
             return fp, end - start

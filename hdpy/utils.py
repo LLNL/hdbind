@@ -45,11 +45,11 @@ class timing_part:
         self.verbose = verbose
 
     def __enter__(self):
-        self.start_time = time.time()
+        self.start_time = time.perf_counter()
         return self
 
     def __exit__(self, type, value, traceback):
-        exit_time = time.time()
+        exit_time = time.perf_counter()
         self.total_time = exit_time - self.start_time
         if self.verbose:
             tqdm.write(f"{self.TAG}\t{self.total_time}")

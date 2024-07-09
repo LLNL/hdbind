@@ -7,7 +7,7 @@ from tqdm import tqdm
 from hdpy.utils import collate_list_fn
 from torch.utils.data import DataLoader
 from pathlib import Path
-from dataset import StreamingECFPDataset, StreamingComboDataset, ECFPFromSMILESDataset
+from dataset import StreamingECFPDataset, StreamingComboDataset, ECFPFromSMILESDataset, ComboDataset 
 from hdpy.model import train_mlp, val_mlp
 from hdpy.ecfp import compute_fingerprint_from_smiles
 SCRATCH_DIR = "/p/vast1/jones289"
@@ -45,17 +45,40 @@ def perf_trial():
                 time_list.append(ecfp_time)
 
             time_arr = np.array(time_list)
-            # mean_encode_time = np.mean(time_list)
-            # std_encode_time = np.std(time_list)
+
+
+        elif config.embedding == "molformer-decfp-combo":
+            # estimate encoding cost using ECFP and the ComboEncoder overheads
+            model.to(device)
+            if model.name != "mlp":
+            # this should be addressed in a better way such as registering as a nn submodule
+                model.am = model.am.to(device)
+
+            ecfp_time_list = []
+            for smiles in tqdm(np.concatenate([train_smiles, test_smiles])):
+                _, ecfp_time = compute_fingerprint_from_smiles(smiles=smiles, length=config.ecfp_length, radius=config.ecfp_radius, return_time=True)
+                ecfp_time_list.append(ecfp_time)
+
+            ecfp_time_arr = np.array(ecfp_time_list)
+
+            encodings, labels, combo_time_arr = encode_hdc(model=model, dataloader=dataloader, device=device, use_numpy=True)
+
+
+            time_arr = ecfp_time_arr + (combo_time_arr.sum() / ecfp_time_arr.shape[0])
+
+            # import pdb
+            # pdb.set_trace()
+
 
         else: 
-
+            model.to(device)
+            if model.name != "mlp":
+            # this should be addressed in a better way such as registering as a nn submodule
+                model.am = model.am.to(device)
+            # import pdb
+            # pdb.set_trace()
             encodings, labels, time_arr = encode_hdc(model=model, dataloader=dataloader, device=device, use_numpy=True)
 
-            # encode_time_arr = encode_time_arr[1:]
-
-            # mean_encode_time = encode_time_arr.mean()
-            # std_encode_time = encode_time_arr.std()
         if output_target_encode_path.exists():
             pass
         elif model.name == "mlp" or config.embedding == "directecfp":
@@ -65,6 +88,11 @@ def perf_trial():
 
     elif args.mode == 'test':
 
+        if args.mode == "test":
+            model.to(device)
+            if model.name != "mlp":
+            # this should be addressed in a better way such as registering as a nn submodule
+                model.am = model.am.to(device)
 
         # run test loop
         dataloader = DataLoader(
@@ -87,15 +115,9 @@ def perf_trial():
 
         time_arr = np.array(test_result['test_time_list'])
 
-    # if args.mode == "encode":
-        # return mean_encode_time
 
-    # elif args.mode in ["test", "mlp-test"]:
-
-        # import pdb
-        # pdb.set_trace()
-        # return test_result['test_time_list'][1:].sum()
-    
+    # import pdb
+    # pdb.set_trace()
     return time_arr
 
 
@@ -103,6 +125,7 @@ def main():
 
     result_list = []
 
+    perf_trial() # warm-up
     for i in range(10):
         result_list.append(perf_trial().sum() / N)
 
@@ -114,7 +137,7 @@ def main():
     # TODO: need to save the mean and std wrt to the number of molecules, not the number of batches
     print(f"mean (avg): {mean_time}, std (avg): {std_time}")
 
-    output_path = Path(f"{args.output_prefix}_{args.mode}.npy")
+    output_path = Path(f"{args.output_prefix}.npy")
     np.save(output_path, np.array([len(dataset), mean_time, std_time]))
 
 if __name__ == "__main__":
@@ -131,11 +154,7 @@ if __name__ == "__main__":
 
     # print(f'using device {device}')
 
-    if args.mode == "test":
-        model.to(device)
-        if model.name != "mlp":
-        # this should be addressed in a better way such as registering as a nn submodule
-            model.am = model.am.to(device)
+
 
     root_data_p = Path("/p/vast1/jones289/molformer_embeddings/molnet/hiv/")
     if not root_data_p.exists():
@@ -213,12 +232,12 @@ if __name__ == "__main__":
 
     elif config.embedding == "molformer-decfp-combo":
 
-        train_dataset = StreamingComboDataset(smiles_list=train_smiles,
+        train_dataset = ComboDataset(smiles_list=train_smiles,
                                                     feats=x_train,
                                                     labels=y_train, 
                                                     length=config.ecfp_length, 
                                                     radius=config.ecfp_radius)
-        test_dataset = StreamingComboDataset(smiles_list=test_smiles,
+        test_dataset = ComboDataset(smiles_list=test_smiles,
                                                     feats=x_test, 
                                                     labels=y_test, 
                                                     length=config.ecfp_length, 
