@@ -57,14 +57,15 @@ class StreamingComboDataset(Dataset):
         # if molecule is None, we use all zeros to encode failures as no detected substructure is technically present
         if ecfp is None:
             print("ecfp is None.")
-            ecfp = np.zeros(1, self.length)
+            ecfp = np.zeros(1, self.length, dtype=float)
         feat = self.feats[idx]
         # print(ecfp)
         data = np.concatenate([feat, ecfp]).astype(float)
         if ecfp is None:
             print(f"compute_fingerprint_from_smiles failed for {smiles}")
         else:
-            return torch.from_numpy(data), self.labels[idx]
+            torch_data = torch.from_numpy(data).to(torch.float)
+            return torch_data, self.labels[idx]
 
 
 class ComboDataset(Dataset):

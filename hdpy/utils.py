@@ -18,11 +18,32 @@ from torch.utils.data import DataLoader, Dataset
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 import pandas as pd
-import deepchem as dc
+# import deepchem as dc
 import h5py
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+
+
+
+def timeit_cpu_cuda(func, *args, **kwargs):
+
+    cuda_starter, cuda_ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
+    start_time = time.perf_counter()  # Record the start time
+    cuda_starter.record()
+    result = func(*args, **kwargs)  # Call the original function
+    cuda_ender.record()
+    torch.cuda.synchronize()
+    end_time = time.perf_counter()  # Record the end time
+
+
+    cpu_time = end_time - start_time
+    cuda_time = cuda_starter.elapsed_time(cuda_ender) / 1000 # convert to milliseconds
+    # print(f"Function '{func.__name__}' took {execution_time:.6f} seconds to run.")
+    return result, cpu_time, cuda_time
+
+
 
 
 def seed_rngs(seed: int):
@@ -89,12 +110,22 @@ def load_features(path: str, dataset: str):
     return features, labels
 
 
-def binarize(hv):
-    # return torch.where(x>0, 1.0, -1.0)
-    hv = torch.where(hv > 0, hv, -1).int()
-    hv = torch.where(hv <= 0, hv, 1).int()
+def bipolarize(hv):
+    # hv = torch.where(hv <= 0, hv, -1).int()
+    # hv = torch.where(hv > 0, hv, 1).int()
 
-    return hv
+    # return hv
+    return torch.where(hv > 0, torch.tensor(1.0, device=hv.device), 
+                                    torch.tensor(-1.0, device=hv.device))
+
+# rename this after switch existing calls from binarize to bipolarize
+def binarize_(hv):
+    
+    # Convert positive values to 1, and non-positive values (0 or negative) to -1
+    return torch.where(hv > 0, torch.tensor(1.0, device=hv.device), 
+                                    torch.tensor(0.0, device=hv.device))
+
+
 
 
 def tok_seq_to_hv(tokens: list, D: int, item_mem: dict):
@@ -112,68 +143,65 @@ def tok_seq_to_hv(tokens: list, D: int, item_mem: dict):
     hv = np.where(hv > 0, hv, -1).astype(int)
     hv = np.where(hv <= 0, hv, 1).astype(int)
 
-    # binarize
-    # hv = binarize(hv)
-    # return hv
     return hv
 
 
-def compute_splits(
-    split_path: Path,
-    random_state: int,
-    split_type: str,
-    df: pd.DataFrame,
-    smiles_col: str,
-    label_col: str,
-):
+# def compute_splits(
+    # split_path: Path,
+    # random_state: int,
+    # split_type: str,
+    # df: pd.DataFrame,
+    # smiles_col: str,
+    # label_col: str,
+# ):
     # reset the index of the dataframe
-    df = df.reset_index()
+    # df = df.reset_index()
 
-    split_df = None
-    if not split_path.exists():
-        print(f"computing split file: {split_path}")
-        if split_type == "random":
-            train_idxs, test_idxs = train_test_split(
-                list(range(len(df))), random_state=random_state
-            )
+    # split_df = None
+    # if not split_path.exists():
+        # print(f"computing split file: {split_path}")
+        # if split_type == "random":
+            # train_idxs, test_idxs = train_test_split(
+                # list(range(len(df))), random_state=random_state
+            # )
 
-        elif split_type == "scaffold":
-            scaffoldsplitter = dc.splits.ScaffoldSplitter()
-            idxs = np.array(list(range(len(df))))
+        # elif split_type == "scaffold":
+            # scaffoldsplitter = dc.splits.ScaffoldSplitter()
+            # idxs = np.array(list(range(len(df))))
 
             #todo: if dataset
-            if label_col is None:
-                dataset = dc.data.DiskDataset.from_numpy(
-                    X=idxs, y=np.zeros(len(idxs), 1), ids=df[smiles_col].values
-                )
-            else:
-                dataset = dc.data.DiskDataset.from_numpy(
-                    X=idxs, y=df[label_col], ids=df[smiles_col].values
-                )
+            # if label_col is None:
+                # dataset = dc.data.DiskDataset.from_numpy(
+                    # X=idxs, y=np.zeros(len(idxs), 1), ids=df[smiles_col].values
+                # )
+            # else:
+                # dataset = dc.data.DiskDataset.from_numpy(
+                    # X=idxs, y=df[label_col], ids=df[smiles_col].values
+                # )
 
             # import ipdb
             # ipdb.set_trace()
-            train_data, test_data = scaffoldsplitter.train_test_split(dataset)
+            # train_data, test_data = scaffoldsplitter.train_test_split(dataset)
 
-            train_idxs = train_data.X
-            test_idxs = test_data.X
+            # train_idxs = train_data.X
+            # test_idxs = test_data.X
 
         # import ipdb
         # ipdb.set_trace()
         # create the train/test column
-        train_df = df.loc[train_idxs]
-        test_df = df.loc[test_idxs]
-        train_df["split"] = ["train"] * len(train_df)
-        test_df["split"] = ["test"] * len(test_df)
+        # train_df = df.loc[train_idxs]
+        # test_df = df.loc[test_idxs]
+        # train_df["split"] = ["train"] * len(train_df)
+        # test_df["split"] = ["test"] * len(test_df)
 
-        split_df = pd.concat([train_df, test_df])
-        split_df.to_csv(split_path, index=True)
+        # split_df = pd.concat([train_df, test_df])
+        # split_df.to_csv(split_path, index=True)
 
-    else:
-        print(f"split path: {split_path} exists. loading.")
-        split_df = pd.read_csv(split_path, index_col=0)
+    # else:
+        # print(f"split path: {split_path} exists. loading.")
+        # split_df = pd.read_csv(split_path, index_col=0)
 
-    return split_df
+    # return split_df
 
 
 def load_pdbbind_from_hdf(

@@ -10,7 +10,9 @@ import numpy as np
 from rdkit.Chem import DataStructs
 from rdkit.Chem import rdmolfiles
 from rdkit.Chem import AllChem
-
+import multiprocessing as mp
+from functools import partial
+from tqdm import tqdm
 
 def compute_fingerprint_from_smiles(smiles, length: int, radius: int, return_time=False):
     try:
@@ -38,3 +40,15 @@ def compute_fingerprint_from_smiles(smiles, length: int, radius: int, return_tim
     except Exception as e:
         print(e)
         return None
+
+
+
+
+def compute_fingerprint_from_smiles_parallel(smiles, length, radius, n_workers):
+
+    with mp.Pool(n_workers) as pool:
+        
+        job_func = partial(compute_fingerprint_from_smiles, length=length, radius=radius)
+        result = list(tqdm(pool.imap(job_func, smiles), total=len(smiles)))
+
+    return result

@@ -5,9 +5,56 @@
 #
 # All rights reserved.
 ################################################################################
+import torch
 import numpy as np
 from sklearn.metrics import recall_score, precision_score, roc_curve
 
+
+def pairwise_hamming_distance(matrix1, matrix2):
+    """
+    Computes the pairwise Hamming distance between two matrices.
+
+    Args:
+        matrix1 (torch.Tensor): The first matrix.
+        matrix2 (torch.Tensor): The second matrix.
+
+    Returns:
+        torch.Tensor: The pairwise Hamming distance matrix.
+    """
+
+    xor_result = matrix1.unsqueeze(1) ^ matrix2.unsqueeze(0)
+    return xor_result.sum(dim=-1)
+
+def matrix_tanimoto_similarity(A, B):
+
+    if torch.any(A[0] == -1 ) or torch.any(B[0] == -1):
+        print(torch.where(A[0] == -1), A.shape, torch.where(B[0] == -1), B.shape)
+        raise NotImplementedError("using non-binary data with tanimoto similarity not supported")
+
+    """
+    Compute the Tanimoto similarity between two sets of binary vectors.
+
+    Args:
+        A (torch.Tensor): A binary tensor of shape (n, d), where n is the number of samples and d is the dimensionality.
+        B (torch.Tensor): A binary tensor of shape (m, d), where m is the number of samples and d is the dimensionality.
+
+    Returns:
+        torch.Tensor: A tensor of shape (n, m) with Tanimoto similarity scores.
+    """
+    # A = A.float()
+    # B = B.float()
+
+    # Compute dot products (A · B^T)
+    AB = torch.mm(A, B.t())
+
+    # Compute the norms (|A|^2, |B|^2)
+    A_sum = A.sum(dim=1).unsqueeze(1)
+    B_sum = B.sum(dim=1).unsqueeze(0)
+
+    # Tanimoto similarity = (A · B^T) / (|A|^2 + |B|^2 - (A · B^T))
+    tanimoto = AB / (A_sum + B_sum - AB)
+
+    return tanimoto
 
 def compute_enrichment_factor(scores, labels, n_percent):
     # this variant implements the equation from Xiaohua's paper

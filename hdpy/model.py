@@ -12,7 +12,7 @@ import torchmetrics
 from torch.utils.data import DataLoader
 import numpy as np
 import time
-from hdpy.utils import collate_list_fn, binarize, seed_rngs
+from hdpy.utils import collate_list_fn, binarize_ as binarize, bipolarize, seed_rngs
 from hdpy.molehd import tokenize_smiles
 from sklearn.metrics import classification_report, roc_auc_score
 
@@ -22,23 +22,58 @@ try:
     from ray import tune
 except ModuleNotFoundError as e:
     print("ray not available. MLP models not available in this env.")
-from hdpy.metrics import validate, compute_enrichment_factor
+from hdpy.metrics import (
+    validate,
+    compute_enrichment_factor,
+    matrix_tanimoto_similarity,
+    pairwise_hamming_distance,
+)
 
 
 class HDModel(nn.Module):
-    def __init__(self, D: int, name=None):
+    def __init__(
+        self,
+        D: int,
+        name=None,
+        sim_metric="cosine",
+        binarize_am=False,
+        bipolarize_am=False,
+        binarize_hv=False,
+        bipolarize_hv=False,
+    ):
         super(HDModel, self).__init__()
         if name:
             self.name = name
+
+        assert not (binarize_am and bipolarize_am)  # only choose 1 if you choose at all
+        assert not (binarize_hv and bipolarize_hv)  # only choose 1 if you choose at all
+
         self.am = None
+        self.binarize_am = binarize_am
+        self.bipolarize_am = bipolarize_am
+        self.binarize_hv = binarize_hv
+        self.bipolarize_hv = bipolarize_hv
+
         self.D = D
+        self.sim_metric = sim_metric
 
     def build_item_memory(self, x_train, train_labels):
         raise NotImplementedError("Please implement this function in a subclass")
 
     def build_am(self, dataset_hvs, labels):
+        if self.binarize_am:
+            self.am = binarize(self.am)
+        if self.bipolarize_am:
+            self.am = bipolarize(self.am)
 
-        self.am = torch.zeros(2, self.D, dtype=int) 
+        if self.binarize_hv:
+            dataset_hvs = binarize(dataset_hvs)
+        if self.bipolarize_am:
+            dataset_hvs = bipolarize(dataset_hvs)
+
+        self.am = torch.zeros(2, self.D, dtype=int)
+
+        # print(type(dataset_hvs))
 
         for hv, label in zip(dataset_hvs, labels):
             if int(label) not in self.am.keys():
@@ -47,63 +82,171 @@ class HDModel(nn.Module):
             else:
                 self.am[int(label)] += hv.int()
 
-    def update_am(self, dataset_hvs, labels):
+        if self.binarize_am:
+            self.am = binarize(self.am)
+        if self.bipolarize_am:
+            self.am = bipolarize(self.am)
+
+    def update_am(self, hvs, labels):
+        if self.binarize_am:
+            self.am = binarize(self.am)
+        if self.bipolarize_am:
+            self.am = bipolarize(self.am)
+
+        if self.binarize_hv:
+            hvs = binarize(hvs)
+        if self.bipolarize_am:
+            hvs = bipolarize(hvs)
+
         # this avoids creating a new associative memory and instead just updates the existing one...not sure why we need two functions so that should be updated at some point
         if self.am is None:
             self.am = {}
-        for hv, label in zip(dataset_hvs, labels):
+        for hv, label in zip(hvs, labels):
             if int(label) not in self.am.keys():
                 print(dir(self.am))
                 self.am[int(label)] = hv
             else:
                 self.am[int(label)] += hv
 
+        if self.binarize_am:
+            self.am = binarize(self.am)
+        if self.bipolarize_am:
+            self.am = bipolarize(self.am)
+
     def encode(self, x):
         raise NotImplementedError("Please implement this function in a subclass")
 
-    def predict(self, enc_hvs, return_time=False):
-
+    def predict(self, hvs, return_time=False):
         # import pdb
         # pdb.set_trace()
+        if self.binarize_am:
+            self.am = binarize(self.am)
+
+        if self.bipolarize_am:
+            self.am = bipolarize(self.am)
+
+        if self.binarize_hv:
+            hvs = binarize(hvs)
+        if self.bipolarize_am:
+            hvs = bipolarize(hvs)
+
         am = self.am
         am = am.float()
 
-        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        predict_time_cpu_sum = 0
+        predict_time_cuda_sum = 0
+        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(
+            enable_timing=True
+        )
 
+        sim_func = None
+        if self.sim_metric == "cosine":
+            sim_func = torchmetrics.functional.pairwise_cosine_similarity
+            # starter.record()
+            # preds = torch.argmax(
+            # torchmetrics.functional.pairwise_cosine_similarity(
+            # enc_hvs, am
+            # ),
+            # dim=1,
+            # )
+            # ender.record()
+            # torch.cuda.synchronize()
+
+            # convert elapsed time in milliseconds to seconds
+            # total_time = starter.elapsed_time(ender) / 1000
+
+        elif self.sim_metric == "tanimoto":
+            sim_func = matrix_tanimoto_similarity
+            # predict_time_cpu_start = time.perf_counter()
+            # starter.record()
+            # preds = torch.argmax(
+            # matrix_tanimoto_similarity(enc_hvs, am),
+            # dim=1,
+            # )
+
+            # ender.record()
+            # torch.cuda.synchronize()
+
+            # convert elapsed time in milliseconds to seconds
+            # predict_time_cuda_batch = starter.elapsed_time(ender) / 1000
+
+            # predict_time_cpu_end = time.perf_counter()
+            # predict_time_cpu_sum += (predict_time_cpu_end)
+
+        elif self.sim_metric == "hamming":
+            sim_func = pairwise_hamming_distance
+            # predict_time_cpu_start = time.perf_counter()
+            # starter.record()
+            # preds = torch.argmax(
+            # pairwise_hamming_distance(enc_hvs, am),
+            # dim=1,
+            # )
+            # ender.record()
+            # torch.cuda.synchronize()
+
+            # predict_time_cuda_batch = starter.elapsed_time(ender) / 1000
+
+            # predict_time_cpu_end = time.perf_counter()
+            # predict_time_cpu_sum += (predict_time_cpu_end)
+
+        else:
+            raise NotImplementedError(f"{self.sim_metric} not implemented.")
+
+        predict_time_cpu_start = time.perf_counter()
         starter.record()
+
         preds = torch.argmax(
-            torchmetrics.functional.pairwise_cosine_similarity(
-                enc_hvs, am
-            ),
+            sim_func(hvs, am),
             dim=1,
         )
         ender.record()
         torch.cuda.synchronize()
 
-        total_time = starter.elapsed_time(ender) / 1000
+        predict_time_cuda_sum = starter.elapsed_time(ender) / 1000
+
+        predict_time_cpu_end = time.perf_counter()
+        predict_time_cpu_sum = (
+            predict_time_cpu_end - predict_time_cpu_start
+        ) - predict_time_cuda_sum
+
+        # if self.binarize_am:
+        # self.am = binarize(self.am)
 
         if return_time:
-            return preds, total_time
+            return preds, predict_time_cpu_sum, predict_time_cuda_sum
         else:
             return preds
 
-
-
-    def compute_confidence(self, dataset_hvs, return_time=False):
+    def compute_confidence(self, hvs, return_time=False):
         # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order
 
         # this torchmetrics function potentially edits in place so we make a clone
         # moving the self.am to cuda memory repeatedly seems wasteful
 
-        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        if self.binarize_am:
+            self.am = binarize(self.am)
+
+        if self.bipolarize_am:
+            self.am = bipolarize(self.am)
+
+        if self.binarize_hv:
+            hvs = binarize(hvs)
+        if self.bipolarize_am:
+            hvs = bipolarize(hvs)
+
+        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(
+            enable_timing=True
+        )
 
         starter.record()
         sims = torchmetrics.functional.pairwise_cosine_similarity(
-            dataset_hvs.clone().float().cuda(), self.am.clone().float().cuda()
+            hvs.clone().float().cuda(), self.am.clone().float().cuda()
         )
         eta = (sims[:, 1] - sims[:, 0]) * (1 / 4)
         eta = torch.add(eta, (1 / 2)).reshape(-1)
         ender.record()
+
+        # convert milliseconds to seconds
         total_time = starter.elapsed_time(ender) / 1000
 
         if return_time:
@@ -111,6 +254,7 @@ class HDModel(nn.Module):
         else:
             return eta
 
+    """
     def retrain(self, dataset_hvs, labels, return_mistake_count=False, lr=1.0):
         # should do this in parallel instead of the sequential? or can we define two functions and possibly combine the two? i.e. use the parallel version most of the time and then periodically update with the sequential version?
 
@@ -123,9 +267,13 @@ class HDModel(nn.Module):
         mistakes = 0
 
         for hv, label in tqdm(zip(dataset_hvs, labels), total=len(dataset_hvs)):
-            out = int(
-                torch.argmax(torch.nn.CosineSimilarity()(hv.float(), self.am.float()))
-            )
+            # out = int(
+                # torch.argmax(torch.nn.CosineSimilarity()(hv.float(), self.am.float()))
+            # )
+            # out = int(
+                # torch.argmax(torch.nn.CosineSimilarity()(hv.float(), self.am.float()))
+            # )
+
 
             if out == int(label):
                 pass
@@ -136,40 +284,98 @@ class HDModel(nn.Module):
 
         if return_mistake_count:
             return mistakes
+    """
 
     def fit(self, x_train, y_train, num_epochs, lr=1.0):
+        if self.binarize_am:
+            self.am = binarize(self.am)
+
+        if self.bipolarize_am:
+            self.am = bipolarize(self.am)
+
+        if self.binarize_hv:
+            hvs = binarize(hvs)
+        if self.bipolarize_am:
+            hvs = bipolarize(hvs)
+
         for _ in tqdm(range(num_epochs), total=num_epochs, desc="training HD..."):
             self.train_step(train_features=x_train, train_labels=y_train, lr=lr)
 
+        if self.binarize_am:
+            self.am = binarize(self.am)
+
+        if self.bipolarize_am:
+            self.am = bipolarize(self.am)
+
+        if self.binarize_hv:
+            hvs = binarize(hvs)
+        if self.bipolarize_am:
+            hvs = bipolarize(hvs)
+
 
 class RPEncoder(HDModel):
-    def __init__(self, input_size: int, D: int, num_classes: int):
-        super(RPEncoder, self).__init__(D=D)
+    def __init__(
+        self,
+        input_size: int,
+        D: int,
+        num_classes: int,
+        sim_metric: str,
+        binarize_am=False,
+        bipolarize_am=False,
+        binarize_hv=False,
+        bipolarize_hv=True,
+    ):
+        super(RPEncoder, self).__init__(
+            D=D,
+            sim_metric=sim_metric,
+            binarize_am=binarize_am,
+            bipolarize_am=bipolarize_am,
+            binarize_hv=binarize_hv,
+            bipolarize_hv=bipolarize_hv,
+        )
+
         self.rp_layer = nn.Linear(input_size, D, bias=False).float()
         init_rp_mat = (
             torch.bernoulli(torch.tensor([[0.5] * input_size] * D)).float() * 2 - 1
         )
-        self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False).float()
+        self.rp_layer.weight = nn.parameter.Parameter(
+            init_rp_mat, requires_grad=False
+        ).float()
 
         self.init_class_hvs = torch.zeros(num_classes, D).float()
 
         # self.am = torch.zeros(2, self.D, dtype=int)
-        self.am = torch.nn.parameter.Parameter(torch.zeros(2, self.D, dtype=int), requires_grad=False)
+        self.am = torch.nn.parameter.Parameter(
+            torch.zeros(2, self.D, dtype=int), requires_grad=False
+        )
         self.name = "rp"
         self.input_size = input_size
         self.D = D
-        self.num_classes=num_classes
-
+        self.num_classes = num_classes
+        self.sim_metric = sim_metric
+        self.binarize_am = binarize_am
+        self.bipolarize_am = bipolarize_am
+        self.binarize_hv = binarize_hv
+        self.bipolarize_hv = bipolarize_hv
 
     def encode(self, x, return_time=False):
-        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(
+            enable_timing=True
+        )
 
         starter.record()
         hv = self.rp_layer(x.float())
-        hv = torch.where(hv > 0, 1.0, -1.0).int()
+        # hv = torch.where(hv > 0, 1.0, -1.0).to(torch.int32)
+
+        if self.bipolarize_hv:
+            hv = bipolarize(hv)
+
+        if self.binarize_hv:
+            hv = binarize(hv)
         ender.record()
         torch.cuda.synchronize()
 
+        # convert milliseconds to seconds
         total_time = starter.elapsed_time(ender) / 1000
 
         if return_time:
@@ -181,38 +387,84 @@ class RPEncoder(HDModel):
         hv = self.encode(x)
         return hv
 
+
 class ComboEncoder(HDModel):
-    def __init__(self, input_size: int, D: int, num_classes: int):
-        super(ComboEncoder, self).__init__(D=D)
+    def __init__(
+        self,
+        input_size: int,
+        D: int,
+        num_classes: int,
+        sim_metric: str,
+        binarize_am=False,
+        bipolarize_am=False,
+        binarize_hv=False,
+        bipolarize_hv=False,
+    ):
+        super(ComboEncoder, self).__init__(
+            D=D,
+            sim_metric=sim_metric,
+            binarize_am=binarize_am,
+            bipolarize_am=bipolarize_am,
+            binarize_hv=binarize_hv,
+            bipolarize_hv=bipolarize_hv,
+        )
         self.rp_layer = nn.Linear(input_size, D, bias=False).float()
         init_rp_mat = (
             torch.bernoulli(torch.tensor([[0.5] * input_size] * D)).float() * 2 - 1
         )
-        self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False).float()
+        self.rp_layer.weight = nn.parameter.Parameter(
+            init_rp_mat, requires_grad=False
+        ).float()
 
         self.init_class_hvs = torch.zeros(num_classes, D).float()
 
         # self.am = torch.zeros(2, self.D, dtype=int)
-        self.am = torch.nn.parameter.Parameter(torch.zeros(2, self.D, dtype=int), requires_grad=False)
+        self.am = torch.nn.parameter.Parameter(
+            torch.zeros(2, self.D, dtype=int), requires_grad=False
+        ).to(torch.int32)
         self.name = "combo"
 
         self.input_size = input_size
         self.D = D
-        self.num_classes=num_classes
+        self.num_classes = num_classes
+        self.sim_metric = sim_metric
+        self.binarize_am = binarize_am
+        self.bipolarize_am = bipolarize_am
+        self.binarize_hv = binarize_hv
+        self.bipolarize_hv = bipolarize_hv
 
     def encode(self, x, return_time=False):
+        ecfp_hv = x[:, self.input_size :]
+        embed = x[:, : self.input_size]
 
-        start, end, = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        (
+            start,
+            end,
+        ) = torch.cuda.Event(
+            enable_timing=True
+        ), torch.cuda.Event(enable_timing=True)
         start.record()
-        ecfp_hv = x[:, self.input_size:]
-        embed = x[:, :self.input_size]
+
+        # would like to avoid capturing this overhead...
+        if self.binarize_hv:
+            ecfp_hv = binarize(hv)
+        if self.bipolarize_hv:
+            ecfp_hv = bipolarize(hv)
+
         embed_hv = self.rp_layer(embed)
-        hv = (ecfp_hv * embed_hv).int() # bind the hv's together
-        hv = torch.where(hv > 0, 1.0, -1.0)
+
+        if self.binarize_hv:
+            embed_hv = binarize(hv)
+        if self.bipolarize_hv:
+            embed_hv = bipolarize(hv)
+
+        hv = (ecfp_hv * embed_hv).int()  # bind the hv's together
+        hv = torch.where(hv > 0, 1.0, -1.0).to(torch.int32)
+        # replace with hv = bipolarize(hv)
         end.record()
         torch.cuda.synchronize()
 
-        t = start.elapsed_time(end) / 1000 # convert to seconds
+        t = start.elapsed_time(end) / 1000  # convert to seconds
 
         if return_time:
             return hv, t
@@ -224,18 +476,37 @@ class ComboEncoder(HDModel):
         return hv
 
 
-
-
-
 class TokenEncoder(HDModel):
-    def __init__(self, D: int, num_classes: int, item_mem=dict):
-        super(TokenEncoder, self).__init__(D=D)
+    def __init__(
+        self,
+        D: int,
+        num_classes: int,
+        item_mem: dict,
+        sim_metric: str,
+        binarize_am=False,
+        bipolarize_am=False,
+        binarize_hv=False,
+        bipolarize_hv=True,
+    ):
+        super(TokenEncoder, self).__init__(
+            D=D,
+            sim_metric=sim_metric,
+            binarize_am=binarize_am,
+            bipolarize_am=bipolarize_am,
+            binarize_hv=binarize_hv,
+            bipolarize_hv=bipolarize_hv,
+        )
 
         self.D = D
         self.num_classes = num_classes
         self.item_mem = item_mem
         self.am = torch.zeros(2, self.D, dtype=int)
         self.name = "molehd"
+
+        self.binarize_am = binarize_am
+        self.bipolarize_am = bipolarize_am
+        self.binarize_hv = binarize_hv
+        self.bipolarize_hv = bipolarize_hv
 
     def encode(self, tokens: list):
         # tokens is a list of tokens that we will map to item_mem token hvs and produce the smiles hv
@@ -249,10 +520,15 @@ class TokenEncoder(HDModel):
         hv = torch.vstack(batch_tokens).sum(dim=0).reshape(1, -1)
 
         # binarize
-        hv = torch.where(hv > 0, hv, -1).int()
-        hv = torch.where(hv <= 0, hv, 1).int()
+        # hv = torch.where(hv > 0, hv, -1).int()
+        # hv = torch.where(hv <= 0, hv, 1).int()
+        # hv = binarize(hv)
+        if self.binarize_hv:
+            hv = binarize(hv)
+        if self.bipolarize_hv:
+            hv = bipolarize(hv)
 
-        return hv
+        return hv.to(torch.int32)
 
     def forward(self, x):
         return super().forward(x).cpu()
@@ -345,7 +621,7 @@ class HD_Level_Classification(HDModel):
     #    return out
 
     def encode(self, x):
-        return self.RP_encoding(x)
+        return self.RP_encoding(x).to(torch.int32)
 
     def RP_encoding(self, x):
         # ipdb.set_trace()
@@ -385,22 +661,24 @@ class MLPClassifier(nn.Module):
 
     def forward(self, x, return_time=False):
         if return_time:
-            
-            starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+            starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(
+                enable_timing=True
+            )
             starter.record()
             out = self.fc_layers(x)
             out = torch.nn.LogSoftmax(dim=1)(out)
             ender.record()
 
             torch.cuda.synchronize()
-            total_time = starter.elapsed_time(ender) / 1000 # convert milliseconds to seconds
+            total_time = (
+                starter.elapsed_time(ender) / 1000
+            )  # convert milliseconds to seconds
 
             return out, total_time
 
-
         else:
             out = self.fc_layers(x)
-            out = torch.nn.LogSoftmax(dim=1)(out)           
+            out = torch.nn.LogSoftmax(dim=1)(out)
             return out
 
 
@@ -420,11 +698,14 @@ class kNN(nn.Module):
     def predict(self, features):
         return self.model.predict(features.cpu())
 
+
 # utility functions for training and testing
 def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
+    am_time_cpu_sum = 0
+    am_time_cuda_sum = 0
+    retrain_time_cpu_sum = 0
+    retrain_time_cuda_sum = 0
 
-
-    am_time_sum = 0
     with torch.no_grad():
         model = model.to(device)
         model.am = model.am.to(device)
@@ -446,8 +727,14 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
             if not isinstance(x, list):
                 x = x.to(device)
 
+            cuda_starter, cuda_ender = torch.cuda.Event(
+                enable_timing=True
+            ), torch.cuda.Event(enable_timing=True)
 
-            am_time_start = time.perf_counter()
+            am_time_cpu_start = time.perf_counter()
+            cuda_starter.record()
+
+            #############################Begin Critical Section############################
             for class_idx in range(2):  # binary classification
                 class_mask = y.squeeze() == class_idx
 
@@ -464,101 +751,163 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                 else:
                     if encode:
                         model.am[class_idx] += (
-                            model.encode(x[class_mask, :]).reshape(-1, model.D).sum(dim=0)
+                            # model.encode(x[class_mask, :]).reshape(-1, model.D).sum(dim=0).int()
+                            model.encode(x[class_mask, :])
+                            .reshape(-1, model.D)
+                            .sum(dim=0)
                         )
                     else:
-                        model.am[class_idx] += (x[class_mask, :]).sum(dim=0).reshape(-1).int()
+                        model.am[class_idx] += (
+                            (x[class_mask, :]).sum(dim=0).reshape(-1).int()
+                        )
 
-            am_time_end = time.perf_counter()
+            #############################End Critical Section############################
 
-            am_time_sum += (am_time_end - am_time_start)
+            cuda_ender.record()
 
+            torch.cuda.synchronize()
+            # include the GPU time so that we can subtract and take the difference to get CPU execution time
+            am_time_cpu_end = time.perf_counter()
 
-        retrain_time_sum = 0
+            am_time_cpu_sum += am_time_cpu_end - am_time_cpu_start
+            am_time_cuda_sum += (
+                cuda_starter.elapsed_time(cuda_ender) / 1000
+            )  # convert elapsed time in milliseconds to seconds
+
+        retrain_time_cpu_sum = 0
+        retrain_time_cuda_sum = 0
+
         learning_curve = []
-        train_encode_time_list = []
+        # train_encode_time_list = []
 
-        # import pdb
-        # pdb.set_trace()
+        # HDC-Retrain
         for epoch in range(num_epochs):
             mistake_ct = 0
             # TODO: initialize the associative memory with single pass training instead of the random initialization?
 
-            epoch_encode_time_total = 0
+            # epoch_encode_time_total = 0
             for batch in tqdm(train_dataloader, desc=f"training HDC epoch {epoch}"):
+                # encode_cuda_starter, encode_cuda_ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
                 x, y, hv = None, None, None
 
                 if model.name == "molehd":
                     x = [x[0] for x in batch]
                     y = torch.from_numpy(np.array([x[1] for x in batch])).int()
                     y = y.squeeze().to(device)
+
                     encode_time_start = time.perf_counter()
+                    encode_cuda_starter.record()
+
                     if encode:
                         hv = torch.cat([model.encode(z) for z in x])
                     else:
                         hv = x
-                    encode_time_end = time.perf_counter()
-                    epoch_encode_time_total += encode_time_end - encode_time_start
+
+                    # encode_time_end = time.perf_counter()
+                    # epoch_encode_time_total += encode_time_end - encode_time_start
 
                 else:
                     x, y = batch
                     x, y = x.to(device), y.squeeze().to(device)
-                    encode_time_start = time.perf_counter()
+
+                    # encode_time_start = time.perf_counter()
                     if encode:
                         hv = model.encode(x)
                     else:
                         hv = x
-                    encode_time_end = time.perf_counter()
-                    epoch_encode_time_total += encode_time_end - encode_time_start
+                    hv = hv.float()
+                    # encode_time_end = time.perf_counter()
+                    # epoch_encode_time_total += encode_time_end - encode_time_start
 
-                retrain_time_start = time.perf_counter() 
-                y_ = model.predict(hv)
+                # import pdb
+                # pdb.set_trace()
+                # tqdm.write(str(hv))
+                retrain_cuda_starter, retrain_cuda_ender = torch.cuda.Event(
+                    enable_timing=True
+                ), torch.cuda.Event(enable_timing=True)
+
+                # start the cpu counter outside of the cuda record time so it can capture both
+                retrain_time_cpu_start = time.perf_counter()
+                retrain_cuda_starter.record()
+                # if model.bipolarize_hv:
+                #   hv = bipolarize(hv)
+                # if model.binarize_hv:
+                # hv = binarize(hv)
+                if model.binarize_hv:
+                    hv = binarize(hv)
+                if model.bipolarize_hv:
+                    hv = bipolarize(hv)
+
+                y_ = model.predict(hv)  # cosine similarity is done in floating point
                 update_mask = torch.abs(y - y_).bool()
                 mistake_ct += sum(update_mask)
 
                 if update_mask.shape[0] == 1 and update_mask == False:
                     continue
                 elif update_mask.shape[0] == 1 and update_mask == True:
-
                     model.am[int(update_mask)] += hv.reshape(-1)
                     model.am[int(~update_mask.bool())] -= hv.reshape(-1)
                 else:
                     for mistake_hv, mistake_label in zip(
                         hv[update_mask], y[update_mask]
                     ):
-                        
                         model.am[int(mistake_label)] += mistake_hv
                         model.am[int(~mistake_label.bool())] -= mistake_hv
 
-                retrain_time_end = time.perf_counter()
+                retrain_cuda_ender.record()
+                torch.cuda.synchronize()
 
-                retrain_time_sum += (retrain_time_end - retrain_time_start)
+                # include the GPU time so that we can subtract and take the difference to get CPU execution time
+                retrain_time_cpu_end = time.perf_counter()
 
+                retrain_time_cuda_sum += (
+                    retrain_cuda_starter.elapsed_time(retrain_cuda_ender) / 1000
+                )  # convert elapsed time in milliesecons to seconds
+                retrain_time_cpu_sum += (
+                    retrain_time_cpu_end - retrain_time_cpu_start
+                ) - retrain_time_cuda_sum  # subtract the cuda time from the cpu time to get more accuarate measurement
 
             learning_curve.append(mistake_ct.cpu().numpy())
-            train_encode_time_list.append(epoch_encode_time_total)
+            # train_encode_time_list.append(epoch_encode_time_total)
 
-        return (
-            model,
-            learning_curve,
+        return {
+            "model": model,
+            "learning_curve": learning_curve,
             # single_pass_train_time,
-            am_time_sum,
-            retrain_time_sum,
+            "am_time_cpu_sum": am_time_cpu_sum,
+            "am_time_cpu_norm": am_time_cpu_sum / len(train_dataloader.dataset),
+            "retrain_time_cpu_sum": retrain_time_cpu_sum,
+            "retrain_time_cpu_norm": retrain_time_cpu_sum
+            / len(train_dataloader.dataset),
+            "am_time_cuda_sum": am_time_cuda_sum,
+            "am_time_cuda_norm": am_time_cuda_sum / len(train_dataloader.dataset),
+            "retrain_time_cuda_sum": retrain_time_cuda_sum,
+            "retrain_time_cuda_norm": retrain_time_cuda_sum
+            / len(train_dataloader.dataset)
+            # "encode_time_cpu_sum": encode_time_cpu_sum,
+            # "encode_time_cpu_norm": encode_time_cpu_norm,
+            # "encode_time_cuda_sum": encode_time_cuda_sum,
+            # "encode_time_cuda_norm": encode_time_cuda_norm,
             # np.sum(train_encode_time_list) / num_epochs
-            None,
-        )
+            # None,
+        }
+
 
 def test_hdc(model, test_dataloader, device, encode=True, return_time_list=False):
-
-
     with torch.no_grad():
         model = model.to(device)
-        test_time_list = []
-        conf_time_list = []
+        # test_time_list = []
+
+        encode_time_cpu_sum = 0
+        encode_time_cuda_sum = 0
+        test_time_cpu_sum = 0
+        test_time_cuda_sum = 0
+
+        # conf_time_list = []
         target_list = []
         pred_list = []
         conf_list = []
-
 
         for batch in tqdm(test_dataloader, desc="testing.."):
             x, y, y_, hv = (
@@ -567,55 +916,66 @@ def test_hdc(model, test_dataloader, device, encode=True, return_time_list=False
                 None,
                 None,
             )
+
+            # encode_cuda_starter, encode_cuda_ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
+            # encode data if necessary
             if model.name == "molehd":
                 x = [x[0] for x in batch]
 
                 y = torch.from_numpy(np.array([x[1] for x in batch])).int()
                 y = y.squeeze()
-                
+
                 if encode:
+                    # batch_encode_cpu_start = time.perf_counter()
                     hv = torch.cat([model.encode(z, return_time=False) for z in x])
+                    # batch_
 
                 else:
                     hv = x
 
-
             else:
-
                 x, y = batch
                 x, y = x.to(device), y.squeeze().to(device)
-                
+
                 if encode:
                     hv = model.encode(x)
                 else:
                     hv = x
 
+            y_, batch_cpu_time, batch_cuda_time = model.predict(
+                hv.float(), return_time=True
+            )
 
-            y_, batch_forward_time = model.predict(hv.float(), return_time=True)
-
+            # TODO: pre-allocate the memory instead of appending to lsits
             target_list.append(y.cpu().reshape(-1, 1))
             pred_list.append(y_.cpu().reshape(-1, 1))
 
-            test_time_list.append(batch_forward_time)
+            # test_time_list.append(batch_forward_time)
+            test_time_cpu_sum += batch_cpu_time
+            test_time_cuda_sum += batch_cuda_time
 
             conf, batch_conf_time = model.compute_confidence(hv, return_time=True)
             conf_list.append(conf.cpu())
-            conf_time_list.append(batch_conf_time)
-
+            # conf_time_list.append(batch_conf_time)
 
         return {
-                "y_pred": torch.cat(pred_list),
-                "y_true": torch.cat(target_list),
-                "eta": torch.cat(conf_list),
-                "test_time_list": np.array(test_time_list)
-            }
+            "y_pred": torch.cat(pred_list),
+            "y_true": torch.cat(target_list),
+            "eta": torch.cat(conf_list),
+            # "test_time_list": np.array(test_time_list)
+            "test_time_cpu_sum": test_time_cpu_sum,
+            "test_time_cpu_norm": test_time_cpu_sum / len(test_dataloader.dataset),
+            "test_time_cuda_sum": test_time_cuda_sum,
+            "test_time_cuda_norm": test_time_cuda_sum / len(test_dataloader.dataset),
+        }
+
 
 def encode_hdc(model, dataloader, device, use_numpy=False):
     with torch.no_grad():
         model = model.to(device)
         # model.am = model.am.float()
         encode_list = []
-
 
         encode_time_list = []
         target_list = []
@@ -633,18 +993,16 @@ def encode_hdc(model, dataloader, device, use_numpy=False):
 
                 y = torch.from_numpy(np.array([x[1] for x in batch])).int()
                 y = y.squeeze()
-                
+
                 hv_list = [model.encode(z, return_time=True) for z in x]
                 hv = torch.cat([h[0] for h in hv_list])
                 batch_encode_time = torch.sum([h[1] for h in hv_list]).item()
 
             else:
-
                 x, y = batch
                 x = x.to(device)
-                
-                hv, batch_encode_time = model.encode(x, return_time=True)
 
+                hv, batch_encode_time = model.encode(x, return_time=True)
 
             if use_numpy:
                 encode_list.append(hv)
@@ -655,9 +1013,13 @@ def encode_hdc(model, dataloader, device, use_numpy=False):
 
             encode_time_list.append(batch_encode_time)
 
-
     encode_list = [x.cpu() for x in encode_list]
-    return torch.cat(encode_list), torch.cat(target_list), np.array(encode_time_list)
+    return (
+        torch.cat(encode_list).to(torch.int32),
+        torch.cat(target_list).to(torch.int32),
+        np.array(encode_time_list),
+    )
+
 
 def run_hdc(
     model,
@@ -672,6 +1034,8 @@ def run_hdc(
     smiles_train=None,
     smiles_test=None,
     encode=True,
+    result_dict=None,  # can use this to finish computing a partial result
+    result_path=None,
 ):
     train_encode_time = 0
     test_encode_time = 0
@@ -717,25 +1081,40 @@ def run_hdc(
         persistent_workers=True,
         shuffle=True,
         collate_fn=collate_fn,
+        pin_memory=True,
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=batch_size,
-        num_workers=1,
+        num_workers=8,
         persistent_workers=False,
         shuffle=False,
         collate_fn=collate_fn,
+        pin_memory=True,
     )
 
-    result_dict = {"trials": {}}
+    if result_dict is None:
+        result_dict = {"trials": {}}
 
-    for i in range(n_trials):
+    # print(f"result_dict: {result_dict}")
+    # avoid recomputing trials that have finished
+    comp_trial_ct = len(result_dict["trials"])
+    print(f"strarting to train from trial: {comp_trial_ct}")
+    for i in range(comp_trial_ct, n_trials):
         trial_dict = {}
 
         # this should force each call of .fit to be different...I think..
         seed_rngs(random_state + i)
 
-        model, learning_curve, single_pass_train_time, retrain_time, _ = train_hdc(
+        # model, learning_curve, single_pass_train_time, retrain_time, _ = train_hdc(
+        # model=model,
+        # train_dataloader=train_dataloader,
+        # num_epochs=epochs,
+        # device=config.device,
+        # encode=encode,
+        # )
+
+        train_dict = train_hdc(
             model=model,
             train_dataloader=train_dataloader,
             num_epochs=epochs,
@@ -743,27 +1122,59 @@ def run_hdc(
             encode=encode,
         )
 
-        trial_dict["hd_learning_curve"] = learning_curve
+        trial_dict["hd_learning_curve"] = train_dict["learning_curve"]
 
-        # import pdb
-        # pdb.set_trace()
         # time test inside of the funcion
-        test_dict = test_hdc(model, test_dataloader, device=config.device, encode=encode)
+        test_dict = test_hdc(
+            model=train_dict["model"],
+            test_dataloader=test_dataloader,
+            device=config.device,
+            encode=encode,
+        )
 
         trial_dict["am"] = {
-            0: model.am[0].cpu().numpy(),
-            1: model.am[1].cpu().numpy(),
+            0: train_dict["model"].am[0].cpu().numpy(),
+            1: train_dict["model"].am[1].cpu().numpy(),
         }  # store the associative memory so it can be loaded up later on
 
         trial_dict["y_pred"] = test_dict["y_pred"].cpu().numpy()
         trial_dict["eta"] = test_dict["eta"].cpu().numpy().reshape(-1, 1)
         trial_dict["y_true"] = test_dict["y_true"].cpu().numpy()
-        trial_dict["single_pass_train_time"] = single_pass_train_time
-        trial_dict["test_time"] = test_dict["test_time"]
-        trial_dict["conf_test_time"] = test_dict["conf_test_time"]
-        trial_dict["train_encode_time"] = test_encode_time
-        trial_dict["test_encode_time"] = test_encode_time
-        trial_dict["encode_time"] = train_encode_time + test_encode_time
+
+        # trial_dict["single_pass_train_time"] = single_pass_train_time
+        trial_dict["am_time_cpu_sum"] = train_dict["am_time_cpu_sum"]
+        trial_dict["am_time_cpu_norm"] = train_dict["am_time_cpu_norm"]
+        trial_dict["retrain_time_cpu_sum"] = train_dict["retrain_time_cpu_sum"]
+        trial_dict["retrain_time_cpu_norm"] = train_dict["retrain_time_cpu_norm"]
+
+        trial_dict["am_time_cuda_sum"] = train_dict["am_time_cuda_sum"]
+        trial_dict["am_time_cuda_norm"] = train_dict["am_time_cuda_norm"]
+        trial_dict["retrain_time_cuda_sum"] = train_dict["retrain_time_cuda_sum"]
+        trial_dict["retrain_time_cuda_norm"] = train_dict["retrain_time_cuda_norm"]
+
+        trial_dict["train_time_cpu_sum"] = (
+            trial_dict["am_time_cpu_sum"] + trial_dict["retrain_time_cpu_sum"]
+        )
+        trial_dict["train_time_cuda_sum"] = (
+            trial_dict["am_time_cuda_sum"] + trial_dict["retrain_time_cuda_sum"]
+        )
+
+        trial_dict["train_time_cpu_norm"] = (
+            trial_dict["am_time_cpu_norm"] + trial_dict["retrain_time_cpu_norm"]
+        )
+        trial_dict["train_time_cuda_norm"] = (
+            trial_dict["am_time_cuda_norm"] + trial_dict["retrain_time_cuda_norm"]
+        )
+
+        # trial_dict["test_time"] = test_dict["test_time_list"]
+        trial_dict["test_time_cpu_sum"] = test_dict["test_time_cpu_sum"]
+        trial_dict["test_time_cpu_norm"] = test_dict["test_time_cpu_norm"]
+        trial_dict["test_time_cuda_sum"] = test_dict["test_time_cuda_sum"]
+        trial_dict["test_time_cuda_norm"] = test_dict["test_time_cuda_norm"]
+        # trial_dict["conf_test_time"] = test_dict["conf_test_time"]
+        # trial_dict["train_encode_time"] = test_encode_time
+        # trial_dict["test_encode_time"] = test_encode_time
+        # trial_dict["encode_time"] = train_encode_time + test_encode_time
 
         trial_dict["class_report"] = classification_report(
             y_pred=trial_dict["y_pred"], y_true=trial_dict["y_true"]
@@ -781,34 +1192,39 @@ def run_hdc(
         # import pdb
         # pdb.set_trace()
 
-        trial_dict["enrich-1"]  = compute_enrichment_factor(scores=trial_dict["eta"], 
-                                                            labels=trial_dict["y_true"],
-                                                            n_percent=.01)
-        trial_dict["enrich-10"] = compute_enrichment_factor(scores=trial_dict["eta"], 
-                                                            labels=trial_dict["y_true"],
-                                                            n_percent=.10)
-
+        trial_dict["enrich-1"] = compute_enrichment_factor(
+            scores=trial_dict["eta"], labels=trial_dict["y_true"], n_percent=0.01
+        )
+        trial_dict["enrich-10"] = compute_enrichment_factor(
+            scores=trial_dict["eta"], labels=trial_dict["y_true"], n_percent=0.10
+        )
 
         print(trial_dict["class_report"])
         print(f"roc-auc {trial_dict['roc-auc']}")
-
 
         validate(
             labels=trial_dict["y_true"],
             pred_labels=trial_dict["y_pred"],
             pred_scores=trial_dict["eta"],
         )
+
+        # store the new result then save it
         result_dict["trials"][i] = trial_dict
-    
+        print(f"saving trial {i} to {result_path}")
+        torch.save(result_dict, result_path)
+
     return result_dict
+
 
 def train_mlp(model, train_dataloader, epochs, device):
     model = model.to(device)
 
-    forward_time = 0.0
-    loss_time = 0.0
-    backward_time = 0.0
-    step = 0
+    forward_cpu_time = 0.0
+    forward_cuda_time = 0.0
+    loss_cpu_time = 0.0
+    loss_cuda_time = 0.0
+    backward_cpu_time = 0.0
+    backward_cuda_time = 0.0
 
     for epoch in range(epochs):
         for batch in tqdm(train_dataloader, desc=f"training MLP epoch: {epoch}"):
@@ -819,26 +1235,49 @@ def train_mlp(model, train_dataloader, epochs, device):
             x = x.to(device).float()
             y = y.to(device).reshape(-1).long()
 
-            forward_start = time.perf_counter()
+            forward_cuda_starter, forward_cuda_ender = torch.cuda.Event(
+                enable_timing=True
+            ), torch.cuda.Event(enable_timing=True)
+            forward_cpu_start = time.perf_counter()
+            forward_cuda_starter.record()
             y_ = model(x)
-            forward_end = time.perf_counter()
+            forward_cuda_ender.record()
+            torch.synchronize()
+            forward_cpu_end = time.perf_counter()
 
+            forward_cpu_time += forward_cpu_end - forward_cpu_start
+            forward_cuda_time += (
+                forward_cuda_starter.elapsed_time(forward_cuda_ender) / 1000
+            )  # convert elapsed time in milliseconds to seconds
 
-            loss_start = time.perf_counter()
-            loss = model.criterion(y_.reshape(-1, 2), y)
-            loss_end = time.perf_counter()
+            # check that the output is correct dimension
+            y_ = y_.reshape(-1, 2)
 
-            backward_start = time.perf_counter()
+            loss_cuda_starter, loss_cuda_ender = torch.cuda.Event(
+                enable_timing=True
+            ), torch.cuda.Event(enable_timing=True)
+            loss_cpu_start = time.perf_counter()
+            loss_cuda_starter.record()
+            # loss_start = time.perf_counter()
+            loss = model.criterion(y_, y)
+            loss_cuda_ender.record()
+            torch.cuda.synchronize()
+            # loss_end = time.perf_counter()
+            loss_cpu_end = time.perf_counter()
+
+            loss_cpu_time += loss_cpu_end - loss_cpu_start
+            loss_cuda_time += loss_cuda_starter.elapsed_time(loss_cuda_ender) / 1000
+
+            backward_cuda_starter, backward_cuda_ender = torch
+            # backward_start = time.perf_counter()
             loss.backward()
-            backward_end = time.perf_counter()
+            # backward_end = time.perf_counter()
 
             model.optimizer.step()
 
-            step += 1
-
-            forward_time += forward_end - forward_start
-            loss_time += loss_end - loss_start
-            backward_time += backward_end - backward_start
+            # forward_time += forward_end - forward_start
+            # loss_time += loss_end - loss_start
+            # backward_time += backward_end - backward_start
 
     return {
         "model": model,
@@ -848,6 +1287,7 @@ def train_mlp(model, train_dataloader, epochs, device):
         "backward_time": backward_time,
     }
 
+
 def val_mlp(model, val_dataloader, device):
     forward_time = 0.0
     loss_time = 0.0
@@ -856,21 +1296,22 @@ def val_mlp(model, val_dataloader, device):
     preds = []
     targets = []
 
-
     # warm up GPU
 
     batch_size = val_dataloader.batch_size
     if batch_size >= len(val_dataloader.dataset):
-        print("batch size is larger than input dataset, changing this to input dataset size")
+        print(
+            "batch size is larger than input dataset, changing this to input dataset size"
+        )
         batch_size = len(val_dataloader.dataset)
 
-
-    dummy_input = torch.zeros(val_dataloader.batch_size, val_dataloader.dataset[0][0].shape[0], device=device)
-    
+    dummy_input = torch.zeros(
+        val_dataloader.batch_size, val_dataloader.dataset[0][0].shape[0], device=device
+    )
 
     for _ in tqdm(range(10), desc="warming up GPU"):
         model.forward(dummy_input)
-    
+
     batch_ct = 0
     with torch.no_grad():
         for batch in tqdm(val_dataloader, desc=f"validating MLP"):
@@ -892,13 +1333,12 @@ def val_mlp(model, val_dataloader, device):
 
             forward_time += batch_forward_time
             loss_time += loss_end - loss_start
-            
+
             test_time_list.append(batch_forward_time)
 
             batch_ct += 1
     preds = torch.cat(preds)
     targets = torch.cat(targets)
-
 
     N = len(val_dataloader.dataset)
 
@@ -909,8 +1349,9 @@ def val_mlp(model, val_dataloader, device):
         "loss": total_loss,
         "forward_time": forward_time,
         "loss_time": loss_time,
-        "test_time_list": np.array(test_time_list)
+        "test_time_list": np.array(test_time_list),
     }
+
 
 def ray_mlp_job(params, device, train_dataloader, val_dataloader):
     model = MLPClassifier(**params)
@@ -927,7 +1368,17 @@ def ray_mlp_job(params, device, train_dataloader, val_dataloader):
 
     tune.report(loss=loss, val_time=val_time)
 
-def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_dataset, test_dataset):
+
+def run_mlp(
+    config,
+    batch_size,
+    epochs,
+    num_workers,
+    n_trials,
+    random_state,
+    train_dataset,
+    test_dataset,
+):
     param_dist = {
         "layer_sizes": tune.choice(
             [
@@ -942,36 +1393,38 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
                 ((config.ecfp_length, 128), (128, 2)),
             ]
         ),
-        #"lr": tune.choice([1e-3, 1e-2],
+        # "lr": tune.choice([1e-3, 1e-2],
         "lr": tune.uniform(1e-5, 1e-1),
         "activation": tune.choice([torch.nn.Tanh(), torch.nn.ReLU(), torch.nn.GELU()]),
         "criterion": tune.choice([torch.nn.NLLLoss()]),
         "optimizer": tune.choice([torch.optim.Adam, torch.optim.SGD]),
     }
 
-
     from torch.utils.data import DataLoader, SubsetRandomSampler
     from sklearn.model_selection import StratifiedShuffleSplit
 
     # Assume you have a PyTorch dataset named 'dataset' and corresponding labels 'labels'
-
-
 
     # Define the number of splits and the train/validation split ratio
     n_splits = 1  # You can change this according to your requirement
     test_size = 0.2  # Ratio of validation data
 
     # Initialize Stratified Shuffle Split
-    stratified_splitter = StratifiedShuffleSplit(n_splits=n_splits, test_size=test_size, random_state=42)
+    stratified_splitter = StratifiedShuffleSplit(
+        n_splits=n_splits, test_size=test_size, random_state=42
+    )
 
     # Get indices for train and validation sets
-    train_indices, val_indices = next(stratified_splitter.split(np.zeros(len(train_dataset.tensors[1])), train_dataset.tensors[1]))
+    train_indices, val_indices = next(
+        stratified_splitter.split(
+            np.zeros(len(train_dataset.tensors[1])), train_dataset.tensors[1]
+        )
+    )
 
     # Define samplers
     train_sampler = SubsetRandomSampler(train_indices)
     val_sampler = SubsetRandomSampler(val_indices)
 
-    
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -980,7 +1433,6 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
         # shuffle=True,#mutually exclusive with SubsetRandomSampler
         sampler=train_sampler,
     )
-
 
     val_dataloader = DataLoader(
         train_dataset,
@@ -1064,7 +1516,9 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
 
         trial_dict["y_pred"] = test_dict["y_pred"].cpu().numpy()
         trial_dict["eta"] = test_dict["eta"].cpu().numpy()
-        trial_dict["y_true"] = test_dict["y_true"].numpy() # these were being saved as torch arrays, may slow down notebooks
+        trial_dict["y_true"] = test_dict[
+            "y_true"
+        ].numpy()  # these were being saved as torch arrays, may slow down notebooks
         trial_dict["train_time"] = train_dict["train_time"]
         trial_dict["test_time"] = test_dict["forward_time"]
         trial_dict["train_encode_time"] = None
@@ -1087,15 +1541,12 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
             print(e)
         # going from the MoleHD paper, we use their confidence definition that normalizes the distances between AM elements to between 0 and 1
 
-
-        trial_dict["enrich-1"]  = compute_enrichment_factor(scores=trial_dict["eta"][:, 1], 
-                                                            labels=trial_dict["y_true"],
-                                                            n_percent=.01)
-        trial_dict["enrich-10"] = compute_enrichment_factor(scores=trial_dict["eta"][:, 1], 
-                                                            labels=trial_dict["y_true"],
-                                                            n_percent=.10)
-
-
+        trial_dict["enrich-1"] = compute_enrichment_factor(
+            scores=trial_dict["eta"][:, 1], labels=trial_dict["y_true"], n_percent=0.01
+        )
+        trial_dict["enrich-10"] = compute_enrichment_factor(
+            scores=trial_dict["eta"][:, 1], labels=trial_dict["y_true"], n_percent=0.10
+        )
 
         print(trial_dict["class_report"])
         print(f"roc-auc {trial_dict['roc-auc']}")
@@ -1111,40 +1562,108 @@ def run_mlp(config,batch_size,epochs, num_workers,n_trials, random_state, train_
 
     return result_dict
 
+
 def get_model(config):
+    assert not (config.bipolarize_am and config.binarize_am)
+    assert not (config.bipolarize_hv and config.binarize_hv)
+
     if config.model == "molehd":
-        model = TokenEncoder(D=config.D, num_classes=2)
+        model = TokenEncoder(
+            D=config.D,
+            num_classes=2,
+            sim_metric=config.sim_metric,
+            binarize=config.binarize,
+            bipolarize=config.bipolarize,
+        )
         # will update item_mem after processing input data
 
     elif config.model == "selfies":
         from hdpy.selfies_enc.encode import SELFIESHDEncoder
-        model = SELFIESHDEncoder(D=config.D)
+
+        model = SELFIESHDEncoder(
+            D=config.D,
+            sim_metric=config.sim_metric,
+            binarize_am=config.binarize_am,
+            bipolarize_am=config.bipolarize_am,
+            binarize_hv=config.binarize_hv,
+            bipolarize_hv=config.bipolarize_hv,
+        )
 
     elif config.model == "ecfp":
         from hdpy.ecfp.encode import StreamingECFPEncoder
-        model = StreamingECFPEncoder(D=config.D, radius=config.ecfp_radius)
+
+        model = StreamingECFPEncoder(
+            D=config.D,
+            radius=config.ecfp_radius,
+            sim_metric=config.sim_metric,
+            binarize_am=config.binarize_am,
+            bipolarize_am=config.bipolarize_am,
+            binarize_hv=config.binarize_hv,
+            bipolarize_hv=config.bipolarize_hv,
+        )
 
     elif config.model == "rp":
         # assert config.ecfp_length is not None
         assert config.D is not None
-        model = RPEncoder(input_size=config.input_size, D=config.D, num_classes=2)
+        model = RPEncoder(
+            input_size=config.input_size,
+            D=config.D,
+            num_classes=2,
+            sim_metric=config.sim_metric,
+            binarize_am=config.binarize_am,
+            bipolarize_am=config.bipolarize_am,
+            binarize_hv=config.binarize_hv,
+            bipolarize_hv=config.bipolarize_hv,
+        )
 
     elif config.model == "mlp-small":
-        model = MLPClassifier(layer_sizes=((config.ecfp_length, 128), (128, 2)), 
-                              lr=1e-3, activation=torch.nn.ReLU(), criterion=torch.nn.NLLLoss(), optimizer=torch.optim.Adam)
+        model = MLPClassifier(
+            layer_sizes=((config.ecfp_length, 128), (128, 2)),
+            lr=1e-3,
+            activation=torch.nn.ReLU(),
+            criterion=torch.nn.NLLLoss(),
+            optimizer=torch.optim.Adam,
+        )
 
     elif config.model == "mlp-large":
-        model = MLPClassifier(layer_sizes=((config.ecfp_length, 512), (512, 256), (256, 128), (128, 2)),
-                              lr=1e-3, activation=torch.nn.ReLU(), criterion=torch.nn.NLLLoss(), optimizer=torch.optim.Adam)
+        model = MLPClassifier(
+            layer_sizes=((config.ecfp_length, 512), (512, 256), (256, 128), (128, 2)),
+            lr=1e-3,
+            activation=torch.nn.ReLU(),
+            criterion=torch.nn.NLLLoss(),
+            optimizer=torch.optim.Adam,
+        )
     elif config.model == "directecfp":
-        model = HDModel(D=config.D, name="directecfp")
+        model = HDModel(
+            D=config.D,
+            name="directecfp",
+            sim_metric=config.sim_metric,
+            binarize_am=config.binarize_am,
+            bipolarize_am=config.bipolarize_am,
+            binarize_hv=config.binarize_hv,
+            bipolarize_hv=config.bipolarize_hv,
+        )
         model.am = torch.zeros(2, model.D, dtype=float)
 
+        if config.binarize_am:
+            model.am = binarize(model.am)
+
+        if config.bipolarize_am:
+            model.am = bipolarize(model.am)
+
     elif config.model == "combo":
-        model = ComboEncoder(input_size=config.input_size, D=config.D, num_classes=2)
+        model = ComboEncoder(
+            input_size=config.input_size,
+            D=config.D,
+            num_classes=2,
+            sim_metric=config.sim_metric,
+            binarize_am=config.binarize_am,
+            bipolarize_am=config.bipolarize_am,
+            binarize_hv=config.binarize_hv,
+            bipolarize_hv=config.bipolarize_hv,
+        )
     else:
         # if using sklearn or pytorch non-hd model
         model = None
-
 
     return model

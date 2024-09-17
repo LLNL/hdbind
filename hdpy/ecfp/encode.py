@@ -55,7 +55,7 @@ class StreamingECFPEncoder(Dataset):
         )
         self.item_mem = torch.where(self.item_mem <= 0, self.item_mem, -1).int()
 
-    def encode(self, datapoint):
+    def encode(self, datapoint, return_time=False):
 
         if self.item_mem is None:
             print("Build item memory before encoding")
@@ -70,11 +70,13 @@ class StreamingECFPEncoder(Dataset):
         hv = binarize(hv)
         end = time.perf_counter()
 
-        return hv, torch.ones(1) * (end - start)
-
+        if return_time:
+            return hv, torch.ones(1) * (end - start)
+        else:
+            return hv
 
 class DirectECFPEncoder(Dataset):
-    def __init__(self, D: int, radius: int, input_size: int, smiles_list: list):
+    def __init__(self, D: int, radius: int, input_size: int, smiles_list: list, id_list=None):
         super()
         self.D = D
         self.input_size = input_size
@@ -82,6 +84,9 @@ class DirectECFPEncoder(Dataset):
         self.smiles_list = smiles_list
         self.item_mem = None
         self.name = "ecfp"
+        self.id_list = id_list
+
+
 
     def __len__(self):
         return len(self.smiles_list)
@@ -90,13 +95,27 @@ class DirectECFPEncoder(Dataset):
         if self.item_mem is None:
             self.build_item_memory()
 
-        ecfp = self.compute_fingerprint_from_smiles(self.smiles_list[idx], length=self.input_size, radius=self.radius)
+        smiles = self.smiles_list[idx] 
+        ecfp = compute_fingerprint_from_smiles(smiles, length=self.input_size, radius=self.radius)
+
+        hv = None
         if ecfp is not None:
 
+            ecfp = torch.from_numpy(ecfp).int()
             # convert binary 0,1 to -1, 1
-            ecfp = binarize(ecfp)
+            hv = binarize(ecfp).int()
+            # return hv
+
         else:
-            return None
+            # return None
+            print(f"ECFP calculation failed for {smiles}, returning zero vector")
+            hv = torch.zeros(self.D, dtype=torch.int)
+            # return hv
+
+        if self.id_list is not None:
+            return hv, self.id_list[idx]
+        else:
+            return hv
 
     def build_item_memory(self):
         pass
