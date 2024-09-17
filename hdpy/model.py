@@ -1245,54 +1245,70 @@ def train_mlp(model, train_dataloader, epochs, device):
             torch.synchronize()
             forward_cpu_end = time.perf_counter()
 
+            # update the counters
             forward_cpu_time += forward_cpu_end - forward_cpu_start
             forward_cuda_time += (
                 forward_cuda_starter.elapsed_time(forward_cuda_ender) / 1000
             )  # convert elapsed time in milliseconds to seconds
 
+
             # check that the output is correct dimension
             y_ = y_.reshape(-1, 2)
+
 
             loss_cuda_starter, loss_cuda_ender = torch.cuda.Event(
                 enable_timing=True
             ), torch.cuda.Event(enable_timing=True)
             loss_cpu_start = time.perf_counter()
             loss_cuda_starter.record()
-            # loss_start = time.perf_counter()
+            
             loss = model.criterion(y_, y)
             loss_cuda_ender.record()
             torch.cuda.synchronize()
-            # loss_end = time.perf_counter()
             loss_cpu_end = time.perf_counter()
 
+            # update the counters
             loss_cpu_time += loss_cpu_end - loss_cpu_start
             loss_cuda_time += loss_cuda_starter.elapsed_time(loss_cuda_ender) / 1000
 
-            backward_cuda_starter, backward_cuda_ender = torch
-            # backward_start = time.perf_counter()
+            backward_cuda_starter, backward_cuda_ender = torch.cuda.Event(enable_timing=True),\
+                                            torch.cuda.Event(enable_timing=True)
+            backward_cpu_start = time.perf_counter()
+            backward_cuda_starter.record()
             loss.backward()
-            # backward_end = time.perf_counter()
-
             model.optimizer.step()
+            backward_cuda_ender.record()
+            torch.synchronize()
+            backward_cpu_end = time.perf_counter()
 
-            # forward_time += forward_end - forward_start
-            # loss_time += loss_end - loss_start
-            # backward_time += backward_end - backward_start
+
+            # update the counters
+            backward_cpu_time += (backward_cpu_end - backward_cpu_start)
+            backward_cuda_time += (backward_cuda_starter.elapsed_time(backward_cuda_ender) / 1000)
+
 
     return {
         "model": model,
-        "train_time": forward_time + loss_time + backward_time,
-        "forward_time": forward_time,
-        "loss_time": loss_time,
-        "backward_time": backward_time,
+        # "train_time": forward_time + loss_time + backward_time,
+        # "forward_time": forward_time,
+        # "loss_time": loss_time,
+        # "backward_time": backward_time,
+        "forward_cpu_time": forward_cpu_time,
+        "forward_cuda_time": forward_cuda_time,
+        "loss_cpu_time": loss_cpu_time,
+        "loss_cuda_time": loss_cuda_time,
+        "backward_cpu_time": backward_cpu_time,
+        "backward_cuda_time": backward_cuda_time
     }
 
 
 def val_mlp(model, val_dataloader, device):
-    forward_time = 0.0
-    loss_time = 0.0
+    forward_cpu_time = 0.0
+    forward_cuda_time = 0.0
+    loss_cpu_time = 0.0
+    loss_cuda_time = 0.0
     total_loss = 0.0
-    test_time_list = []
+    # test_time_list = []
     preds = []
     targets = []
 
@@ -1322,19 +1338,45 @@ def val_mlp(model, val_dataloader, device):
             x = x.to(device).float()
             y = y.to(device).reshape(-1).long()
 
-            y_, batch_forward_time = model.forward(x, return_time=True)
+
+            forward_cuda_starter, forward_cuda_ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+            forward_cpu_start = time.perf_counter()
+            forward_cuda_starter.record()
+
+            y_, batch_forward_time = model.forward(x, return_time=False)
+
+            forward_cuda_ender.record()
+            torch.cuda.synchronize()
+
+            forward_cpu_end = time.perf_counter()
+
+            forward_cpu_time += (forward_cpu_end - forward_cpu_start)
+            forward_cuda_time += (forward_cuda_starter.elapsed_time(forward_cuda_ender) / 1000)
+
+
 
             preds.append(y_.cpu())
-            loss_start = time.perf_counter()
+
+
+
+            loss_cuda_starter, loss_cuda_ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+            loss_cpu_start = time.perf_counter()
+            loss_cuda_starter.record()
+            
             loss = model.criterion(y_, y)
-            loss_end = time.perf_counter()
+            
+            loss_cuda_ender.record()
+            torch.cuda.sycnhronize()
+
+            loss_cpu_end = time.perf_counter()
 
             total_loss += loss.item()
 
-            forward_time += batch_forward_time
-            loss_time += loss_end - loss_start
+            # forward_time += batch_forward_time
+            loss_cpu_time += (loss_cpu_end - loss_cpu_start)
+            loss_cuda_time += (loss_cuda_starter.elapsed_time(loss_cuda_ender) / 1000)
 
-            test_time_list.append(batch_forward_time)
+            # test_time_list.append(batch_forward_time)
 
             batch_ct += 1
     preds = torch.cat(preds)
@@ -1347,9 +1389,13 @@ def val_mlp(model, val_dataloader, device):
         "y_pred": torch.argmax(preds, dim=1).to("cpu"),
         "eta": preds.reshape(-1, 2).to("cpu"),
         "loss": total_loss,
-        "forward_time": forward_time,
-        "loss_time": loss_time,
-        "test_time_list": np.array(test_time_list),
+        "forward_cpu_time": forward_cpu_time,
+        "forward_cuda_time": forward_cuda_time,
+        "loss_cpu_time": loss_cpu_time,
+        "loss_cuda_time": loss_cuda_time,
+        # "forward_time": forward_time,
+        # "loss_time": loss_time,
+        # "test_time_list": np.array(test_time_list),
     }
 
 
@@ -1519,8 +1565,22 @@ def run_mlp(
         trial_dict["y_true"] = test_dict[
             "y_true"
         ].numpy()  # these were being saved as torch arrays, may slow down notebooks
-        trial_dict["train_time"] = train_dict["train_time"]
-        trial_dict["test_time"] = test_dict["forward_time"]
+
+
+        trial_dict["forward_cpu_time_train"] = train_dict["forward_cpu_time"]
+        trial_dict["forward_cuda_time_train"] = train_dict["forward_cuda_time"]
+        trial_dict["loss_cpu_time_train"] = train_dict["loss_cpu_time"]
+        trial_dict["loss_cuda_time_train"] = train_dict["loss_cuda_time"]
+        trial_dict["backward_cpu_time_train"] = train_dict["backward_cpu_time"]
+        trial_dict["backward_cuda_time_train"] = train_dict["backward_cuda_time"]       
+
+        trial_dict["forward_cpu_time_test"] = test_dict["forward_cpu_time"]
+        trial_dict["forward_cuda_time_test"] = test_dict["forward_cuda_time"]
+        trial_dict["loss_cpu_time_test"] = test_dict["loss_cpu_time"]
+        trial_dict["loss_cuda_time_test"] = test_dict["loss_cuda_time"]
+
+
+
         trial_dict["train_encode_time"] = None
         trial_dict["test_encode_time"] = None
         trial_dict["encode_time"] = None
