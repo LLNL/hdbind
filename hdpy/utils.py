@@ -76,6 +76,31 @@ class timing_part:
             tqdm.write(f"{self.TAG}\t{self.total_time}")
 
 
+class TimerCudaCpu:
+    def __init__(self, TAG, verbose=False):
+        self.TAG = str(TAG)
+        self.total_time_cpu = 0.0
+        self.total_time_cuda = 0.0
+        self.start_time = 0.0
+        self.verbose = verbose
+        self.cuda_starter = torch.cuda.Event(enable_timing=True)
+        self.cuda_ender = torch.cuda.Event(enable_timing=True)
+
+
+    def __enter__(self):
+        self.start_time = time.perf_counter()
+        self.starter.record()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.cuda_ender.record()
+        torch.cuda.synchronize()
+        exit_time = time.perf_counter()
+        self.total_time_cpu = exit_time - self.start_time
+        self.total_time_cuda = self.cuda_starter.elapsed_time(self.cuda_ender)
+        if self.verbose:
+            tqdm.write(f"{self.TAG}\tcpu_time: {self.total_time_cpu}, cuda_time: {self.total_time_cuda}")
+
 def load_molformer_embeddings(embed_path):
     data = torch.load(embed_path)
     return data["embeds"], data["labels"]

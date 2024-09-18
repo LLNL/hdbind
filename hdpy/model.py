@@ -202,12 +202,13 @@ class HDModel(nn.Module):
         ender.record()
         torch.cuda.synchronize()
 
-        predict_time_cuda_sum = starter.elapsed_time(ender) / 1000
 
         predict_time_cpu_end = time.perf_counter()
+        
+        predict_time_cuda_sum = starter.elapsed_time(ender) / 1000
         predict_time_cpu_sum = (
             predict_time_cpu_end - predict_time_cpu_start
-        ) - predict_time_cuda_sum
+        )
 
         # if self.binarize_am:
         # self.am = binarize(self.am)
@@ -447,16 +448,16 @@ class ComboEncoder(HDModel):
 
         # would like to avoid capturing this overhead...
         if self.binarize_hv:
-            ecfp_hv = binarize(hv)
+            ecfp_hv = binarize(ecfp_hv)
         if self.bipolarize_hv:
-            ecfp_hv = bipolarize(hv)
+            ecfp_hv = bipolarize(ecfp_hv)
 
         embed_hv = self.rp_layer(embed)
 
         if self.binarize_hv:
-            embed_hv = binarize(hv)
+            embed_hv = binarize(embed_hv)
         if self.bipolarize_hv:
-            embed_hv = bipolarize(hv)
+            embed_hv = bipolarize(embed_hv)
 
         hv = (ecfp_hv * embed_hv).int()  # bind the hv's together
         hv = torch.where(hv > 0, 1.0, -1.0).to(torch.int32)
@@ -766,7 +767,6 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
             cuda_ender.record()
 
             torch.cuda.synchronize()
-            # include the GPU time so that we can subtract and take the difference to get CPU execution time
             am_time_cpu_end = time.perf_counter()
 
             am_time_cpu_sum += am_time_cpu_end - am_time_cpu_start
@@ -785,9 +785,7 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
             mistake_ct = 0
             # TODO: initialize the associative memory with single pass training instead of the random initialization?
 
-            # epoch_encode_time_total = 0
             for batch in tqdm(train_dataloader, desc=f"training HDC epoch {epoch}"):
-                # encode_cuda_starter, encode_cuda_ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
 
                 x, y, hv = None, None, None
 
@@ -796,16 +794,10 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                     y = torch.from_numpy(np.array([x[1] for x in batch])).int()
                     y = y.squeeze().to(device)
 
-                    encode_time_start = time.perf_counter()
-                    encode_cuda_starter.record()
-
                     if encode:
                         hv = torch.cat([model.encode(z) for z in x])
                     else:
                         hv = x
-
-                    # encode_time_end = time.perf_counter()
-                    # epoch_encode_time_total += encode_time_end - encode_time_start
 
                 else:
                     x, y = batch
@@ -817,12 +809,16 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                     else:
                         hv = x
                     hv = hv.float()
-                    # encode_time_end = time.perf_counter()
-                    # epoch_encode_time_total += encode_time_end - encode_time_start
 
-                # import pdb
-                # pdb.set_trace()
-                # tqdm.write(str(hv))
+
+                if model.binarize_hv:
+                    hv = binarize(hv)
+                if model.bipolarize_hv:
+                    hv = bipolarize(hv)
+
+
+
+                
                 retrain_cuda_starter, retrain_cuda_ender = torch.cuda.Event(
                     enable_timing=True
                 ), torch.cuda.Event(enable_timing=True)
@@ -830,14 +826,8 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                 # start the cpu counter outside of the cuda record time so it can capture both
                 retrain_time_cpu_start = time.perf_counter()
                 retrain_cuda_starter.record()
-                # if model.bipolarize_hv:
-                #   hv = bipolarize(hv)
-                # if model.binarize_hv:
-                # hv = binarize(hv)
-                if model.binarize_hv:
-                    hv = binarize(hv)
-                if model.bipolarize_hv:
-                    hv = bipolarize(hv)
+
+
 
                 y_ = model.predict(hv)  # cosine similarity is done in floating point
                 update_mask = torch.abs(y - y_).bool()
@@ -850,9 +840,11 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                     model.am[int(~update_mask.bool())] -= hv.reshape(-1)
                 else:
                     for mistake_hv, mistake_label in zip(
-                        hv[update_mask], y[update_mask]
+                        hv.int()[update_mask], y[update_mask]
                     ):
-                        model.am[int(mistake_label)] += mistake_hv
+                        # import pdb
+                        # pdb.set_trace()
+                        model.am[mistake_label] += mistake_hv
                         model.am[int(~mistake_label.bool())] -= mistake_hv
 
                 retrain_cuda_ender.record()
@@ -866,7 +858,7 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                 )  # convert elapsed time in milliesecons to seconds
                 retrain_time_cpu_sum += (
                     retrain_time_cpu_end - retrain_time_cpu_start
-                ) - retrain_time_cuda_sum  # subtract the cuda time from the cpu time to get more accuarate measurement
+                ) 
 
             learning_curve.append(mistake_ct.cpu().numpy())
             # train_encode_time_list.append(epoch_encode_time_total)
