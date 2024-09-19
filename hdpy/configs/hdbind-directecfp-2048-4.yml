@@ -5,3 +5,8 @@ input_size: 2048
 ecfp_length: 2048
 ecfp_radius: 4 
 D: 2048
+sim_metric: cosine
+binarize_am: False
+binarize_hv: False
+bipolarize_am: False
+bipolarize_hv: True

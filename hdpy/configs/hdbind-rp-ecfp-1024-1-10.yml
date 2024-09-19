@@ -4,4 +4,8 @@ embedding: ecfp
 ecfp_length: 1024
 ecfp_radius: 1
 D: 10
-# epochs: 10
+sim_metric: cosine
+binarize_am: False
+binarize_hv: False
+bipolarize_am: False
+bipolarize_hv: True

@@ -1,0 +1,13 @@
+device: cuda:0
+model: rp
+embedding: ecfp
+input_size: 1024
+ecfp_length: 1024 
+ecfp_radius: 2 
+D: 200000
+# epochs: 10
+sim_metric: cosine
+binarize_am: False
+binarize_hv: False
+bipolarize_am: False
+bipolarize_hv: True

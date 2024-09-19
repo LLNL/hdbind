@@ -866,23 +866,17 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
         return {
             "model": model,
             "learning_curve": learning_curve,
-            # single_pass_train_time,
+            
             "am_time_cpu_sum": am_time_cpu_sum,
             "am_time_cpu_norm": am_time_cpu_sum / len(train_dataloader.dataset),
-            "retrain_time_cpu_sum": retrain_time_cpu_sum,
-            "retrain_time_cpu_norm": retrain_time_cpu_sum
-            / len(train_dataloader.dataset),
             "am_time_cuda_sum": am_time_cuda_sum,
             "am_time_cuda_norm": am_time_cuda_sum / len(train_dataloader.dataset),
+
+            "retrain_time_cpu_sum": retrain_time_cpu_sum,
+            "retrain_time_cpu_norm": (retrain_time_cpu_sum / num_epochs) / len(train_dataloader.dataset),
             "retrain_time_cuda_sum": retrain_time_cuda_sum,
-            "retrain_time_cuda_norm": retrain_time_cuda_sum
-            / len(train_dataloader.dataset)
-            # "encode_time_cpu_sum": encode_time_cpu_sum,
-            # "encode_time_cpu_norm": encode_time_cpu_norm,
-            # "encode_time_cuda_sum": encode_time_cuda_sum,
-            # "encode_time_cuda_norm": encode_time_cuda_norm,
-            # np.sum(train_encode_time_list) / num_epochs
-            # None,
+            "retrain_time_cuda_norm": (retrain_time_cuda_sum / num_epochs) / len(train_dataloader.dataset),
+            
         }
 
 
@@ -1234,7 +1228,7 @@ def train_mlp(model, train_dataloader, epochs, device):
             forward_cuda_starter.record()
             y_ = model(x)
             forward_cuda_ender.record()
-            torch.synchronize()
+            torch.cuda.synchronize()
             forward_cpu_end = time.perf_counter()
 
             # update the counters
@@ -1270,7 +1264,7 @@ def train_mlp(model, train_dataloader, epochs, device):
             loss.backward()
             model.optimizer.step()
             backward_cuda_ender.record()
-            torch.synchronize()
+            torch.cuda.synchronize()
             backward_cpu_end = time.perf_counter()
 
 
@@ -1285,12 +1279,23 @@ def train_mlp(model, train_dataloader, epochs, device):
         # "forward_time": forward_time,
         # "loss_time": loss_time,
         # "backward_time": backward_time,
-        "forward_cpu_time": forward_cpu_time,
-        "forward_cuda_time": forward_cuda_time,
-        "loss_cpu_time": loss_cpu_time,
-        "loss_cuda_time": loss_cuda_time,
-        "backward_cpu_time": backward_cpu_time,
-        "backward_cuda_time": backward_cuda_time
+        "train_forward_time_cpu_sum": forward_cpu_time,
+        "train_forward_time_cpu_norm": (forward_cpu_time / epochs) / len(train_dataloader.dataset),
+
+        "train_forward_time_cuda_sum": forward_cuda_time,
+        "train_forward_time_cuda_norm": (forward_cuda_time / epochs) / len(train_dataloader.dataset),
+
+        "train_loss_time_cpu_sum": loss_cpu_time,
+        "train_loss_time_cpu_norm": (loss_cpu_time / epochs) / len(train_dataloader.dataset),
+
+        "train_loss_time_cuda_sum": loss_cuda_time,
+        "train_loss_time_cuda_norm": (loss_cuda_time / epochs) / len(train_dataloader.dataset),
+
+        "train_backward_time_cpu_sum": backward_cpu_time,
+        "train_backward_time_cpu_norm": (backward_cpu_time / epochs) / len(train_dataloader.datasets),
+
+        "train_backward_time_cuda_sum": backward_cuda_time,
+        "train_backward_time_cuda_norm": (backward_cuda_time / epochs) / len(train_dataloader.dataset)
     }
 
 
@@ -1381,10 +1386,21 @@ def val_mlp(model, val_dataloader, device):
         "y_pred": torch.argmax(preds, dim=1).to("cpu"),
         "eta": preds.reshape(-1, 2).to("cpu"),
         "loss": total_loss,
-        "forward_cpu_time": forward_cpu_time,
-        "forward_cuda_time": forward_cuda_time,
-        "loss_cpu_time": loss_cpu_time,
-        "loss_cuda_time": loss_cuda_time,
+
+        "test_forward_time_cpu_sum": forward_cpu_time,
+        "test_forward_time_cpu_norm": forward_cpu_time / len(val_dataloader.dataset),
+
+        "test_forward_time_cuda_sum": forward_cuda_time,
+        "test_forward_time_cuda_norm": forward_cuda_time / len(val_dataloader.dataset),
+
+        "test_loss_time_cpu_sum": loss_cpu_time,
+        "test_loss_time_cpu_norm": loss_cpu_time / len(val_dataloader.dataset),
+        
+        "test_loss_time_cuda_sum": loss_cuda_time,
+        "test_loss_time_cuda_norm": loss_cuda_time / len(val_dataloader.dataset)
+
+        # "loss_cpu_time": loss_cpu_time,
+        # "loss_cuda_time": loss_cuda_time,
         # "forward_time": forward_time,
         # "loss_time": loss_time,
         # "test_time_list": np.array(test_time_list),
@@ -1559,17 +1575,37 @@ def run_mlp(
         ].numpy()  # these were being saved as torch arrays, may slow down notebooks
 
 
-        trial_dict["forward_cpu_time_train"] = train_dict["forward_cpu_time"]
-        trial_dict["forward_cuda_time_train"] = train_dict["forward_cuda_time"]
-        trial_dict["loss_cpu_time_train"] = train_dict["loss_cpu_time"]
-        trial_dict["loss_cuda_time_train"] = train_dict["loss_cuda_time"]
-        trial_dict["backward_cpu_time_train"] = train_dict["backward_cpu_time"]
-        trial_dict["backward_cuda_time_train"] = train_dict["backward_cuda_time"]       
+        trial_dict["train_forward_time_cpu_sum"] = train_dict["train_forward_time_cpu_sum"]
+        trial_dict["train_forward_time_cpu_norm"] = train_dict["train_forward_time_cpu_norm"]
 
-        trial_dict["forward_cpu_time_test"] = test_dict["forward_cpu_time"]
-        trial_dict["forward_cuda_time_test"] = test_dict["forward_cuda_time"]
-        trial_dict["loss_cpu_time_test"] = test_dict["loss_cpu_time"]
-        trial_dict["loss_cuda_time_test"] = test_dict["loss_cuda_time"]
+
+        trial_dict["train_forward_time_cuda_sum"] = train_dict["train_forward_time_cuda_sum"]
+        trial_dict["train_forward_time_cuda_norm"] = train_dict["train_forward_time_cuda_norm"]
+
+
+        trial_dict["train_loss_time_cpu_sum"] = train_dict["train_loss_time_cpu_sum"]
+        trial_dict["train_loss_time_cpu_norm"] = train_dict["train_loss_time_cpu_norm"]
+        
+        trial_dict["train_loss_time_cuda_sum"] = train_dict["train_loss_time_cuda_sum"]
+        trial_dict["train_loss_time_cuda_norm"] = train_dict["train_loss_time_cuda_norm"]
+
+        trial_dict["train_backward_time_cpu_sum"] = train_dict["train_backward_time_cpu_sum"]
+        trial_dict["train_backward_time_cpu_norm"] = train_dict["train_backward_time_cpu_norm"]
+
+        trial_dict["train_backward_time_cuda_sum"] = train_dict["train_backward_time_cuda_sum"]
+        trial_dict["train_backward_time_cuda_norm"] = train_dict["train_backward_time_cuda_norm"]
+
+
+        # trial_dict["forward_cuda_time_train"] = train_dict["forward_cuda_time"]
+        # trial_dict["loss_cpu_time_train"] = train_dict["loss_cpu_time"]
+        # trial_dict["loss_cuda_time_train"] = train_dict["loss_cuda_time"]
+        # trial_dict["backward_cpu_time_train"] = train_dict["backward_cpu_time"]
+        # trial_dict["backward_cuda_time_train"] = train_dict["backward_cuda_time"]       
+
+        # trial_dict["forward_cpu_time_test"] = test_dict["forward_cpu_time"]
+        # trial_dict["forward_cuda_time_test"] = test_dict["forward_cuda_time"]
+        # trial_dict["loss_cpu_time_test"] = test_dict["loss_cpu_time"]
+        # trial_dict["loss_cuda_time_test"] = test_dict["loss_cuda_time"]
 
 
 
@@ -1616,8 +1652,10 @@ def run_mlp(
 
 
 def get_model(config):
-    assert not (config.bipolarize_am and config.binarize_am)
-    assert not (config.bipolarize_hv and config.binarize_hv)
+
+    if "mlp" not in config.model.lower():
+        assert not (config.bipolarize_am and config.binarize_am)
+        assert not (config.bipolarize_hv and config.binarize_hv)
 
     if config.model == "molehd":
         model = TokenEncoder(

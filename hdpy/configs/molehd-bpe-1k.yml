@@ -6,3 +6,8 @@ ngram_order: 2
 D: 1000
 # epochs: 10
 device: cpu
+sim_metric: cosine
+binarize_am: False
+binarize_hv: False
+bipolarize_am: False
+bipolarize_hv: True

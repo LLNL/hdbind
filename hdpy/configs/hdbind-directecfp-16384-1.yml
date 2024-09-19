@@ -1,0 +1,12 @@
+device: cuda:0
+model: directecfp
+embedding: directecfp
+input_size: 16384 
+ecfp_length: 16384
+ecfp_radius: 1 
+D: 16384
+sim_metric: cosine
+binarize_am: False
+binarize_hv: False
+bipolarize_am: False
+bipolarize_hv: True

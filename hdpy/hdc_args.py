@@ -62,6 +62,8 @@ def parse_args():
 
 
 def get_config(args):
+    # import pdb
+    # pdb.set_trace()
     with open(args.config, "r") as f:
         config = yaml.load(f, Loader=SafeLoader)
         config = argparse.Namespace(**config)

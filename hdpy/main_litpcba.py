@@ -550,14 +550,14 @@ if __name__ == "__main__":
     # pdb.set_trace()
     # if "sim_metric" not in vars(config).keys():
         # print("did not find a similarity metric in the config: {args.config}, using cosine similarity in place.")
-    config.sim_metric = args.sim_metric
+    # config.sim_metric = args.sim_metric
 
-    assert not (args.bipolarize_am and args.binarize_am)
-    assert not (args.bipolarize_hv and args.binarize_hv)
-    config.bipolarize_am = args.bipolarize_am
-    config.binarize_am = args.binarize_am
-    config.bipolarize_hv = args.bipolarize_hv
-    config.binarize_hv = args.binarize_hv
+    # assert not (args.bipolarize_am and args.binarize_am)
+    # assert not (args.bipolarize_hv and args.binarize_hv)
+    # config.bipolarize_am = args.bipolarize_am
+    # config.binarize_am = args.binarize_am
+    # config.bipolarize_hv = args.bipolarize_hv
+    # config.binarize_hv = args.binarize_hv
 
 
     if config.device == "cpu":
