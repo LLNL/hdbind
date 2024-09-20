@@ -15,6 +15,8 @@ import time
 from hdpy.utils import collate_list_fn, binarize_ as binarize, bipolarize, seed_rngs
 from hdpy.molehd import tokenize_smiles
 from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GridSearchCV
 
 try:
     from ray.tune.schedulers import ASHAScheduler
@@ -1292,7 +1294,7 @@ def train_mlp(model, train_dataloader, epochs, device):
         "train_loss_time_cuda_norm": (loss_cuda_time / epochs) / len(train_dataloader.dataset),
 
         "train_backward_time_cpu_sum": backward_cpu_time,
-        "train_backward_time_cpu_norm": (backward_cpu_time / epochs) / len(train_dataloader.datasets),
+        "train_backward_time_cpu_norm": (backward_cpu_time / epochs) / len(train_dataloader.dataset),
 
         "train_backward_time_cuda_sum": backward_cuda_time,
         "train_backward_time_cuda_norm": (backward_cuda_time / epochs) / len(train_dataloader.dataset)
@@ -1340,7 +1342,8 @@ def val_mlp(model, val_dataloader, device):
             forward_cpu_start = time.perf_counter()
             forward_cuda_starter.record()
 
-            y_, batch_forward_time = model.forward(x, return_time=False)
+            # y_, batch_forward_time = model.forward(x, return_time=False)
+            y_ = model.forward(x, return_time=False)
 
             forward_cuda_ender.record()
             torch.cuda.synchronize()
@@ -1363,7 +1366,7 @@ def val_mlp(model, val_dataloader, device):
             loss = model.criterion(y_, y)
             
             loss_cuda_ender.record()
-            torch.cuda.sycnhronize()
+            torch.cuda.synchronize()
 
             loss_cpu_end = time.perf_counter()
 
@@ -1418,9 +1421,10 @@ def ray_mlp_job(params, device, train_dataloader, val_dataloader):
     val_dict = val_mlp(model=model, val_dataloader=val_dataloader, device=device)
 
     loss = val_dict["loss"] / val_dict["y_pred"].shape[0]
-    val_time = val_dict["forward_time"] / val_dict["y_pred"].shape[0]
+    # val_time = val_dict["forward_time"] / val_dict["y_pred"].shape[0]
 
-    tune.report(loss=loss, val_time=val_time)
+    # tune.report(loss=loss, val_time=val_time)
+    tune.report(loss=loss)
 
 
 def run_mlp(
@@ -1602,6 +1606,20 @@ def run_mlp(
         # trial_dict["backward_cpu_time_train"] = train_dict["backward_cpu_time"]
         # trial_dict["backward_cuda_time_train"] = train_dict["backward_cuda_time"]       
 
+
+        trial_dict["test_forward_time_cpu_sum"] = test_dict["test_forward_time_cpu_sum"]
+        trial_dict["test_forward_time_cpu_norm"] = test_dict["test_forward_time_cpu_norm"]
+
+        trial_dict["test_forward_time_cuda_sum"] = test_dict["test_forward_time_cuda_sum"]
+        trial_dict["test_forward_time_cuda_norm"] = test_dict["test_forward_time_cuda_norm"]
+
+        trial_dict["test_loss_time_cpu_sum"] = test_dict["test_loss_time_cpu_sum"]
+        trial_dict["test_loss_time_cpu_norm"] = test_dict["test_loss_time_cpu_norm"]
+        
+        trial_dict["test_loss_time_cuda_sum"] = test_dict["test_loss_time_cuda_sum"]
+        trial_dict["test_loss_time_cuda_norm"] = test_dict["test_loss_time_cuda_norm"]
+
+
         # trial_dict["forward_cpu_time_test"] = test_dict["forward_cpu_time"]
         # trial_dict["forward_cuda_time_test"] = test_dict["forward_cuda_time"]
         # trial_dict["loss_cpu_time_test"] = test_dict["loss_cpu_time"]
@@ -1662,8 +1680,10 @@ def get_model(config):
             D=config.D,
             num_classes=2,
             sim_metric=config.sim_metric,
-            binarize=config.binarize,
-            bipolarize=config.bipolarize,
+            binarize_hv=config.binarize_hv,
+            bipolarize_hv=config.bipolarize_hv,
+            binarize_am=config.binarize_am,
+            bipolarize_am=config.bipolarize_am,
         )
         # will update item_mem after processing input data
 
@@ -1752,6 +1772,12 @@ def get_model(config):
             binarize_hv=config.binarize_hv,
             bipolarize_hv=config.bipolarize_hv,
         )
+    elif config.model == "logistic":
+        model = LogisticRegression(solver="liblinear", penalty="l2")
+        param_grid = {'C': [0.001, 0.01, 0.1, 1, 10, 100]}
+        model = GridSearchCV(model, param_grid, cv=5)
+
+
     else:
         # if using sklearn or pytorch non-hd model
         model = None

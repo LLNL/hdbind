@@ -8,15 +8,14 @@
 from cProfile import run
 import torch
 import random
-import time
-# random.seed(time.perf_counter())
+
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import normalize
-from hdpy.dataset import ECFPFromSMILESDataset, StreamingECFPDataset, StreamingComboDataset
-# , SMILESDataset
+from hdpy.dataset import ECFPFromSMILESDataset, StreamingECFPDataset, StreamingComboDataset, SMILESDataset
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, classification_report
 from torch.utils.data import TensorDataset
 from pathlib import Path
 from hdpy.model import run_mlp, run_hdc, get_model
@@ -60,6 +59,45 @@ def main(
             train_dataset=train_dataset,
             test_dataset=test_dataset,
         )
+
+    elif config.model in ["logistic"]:
+        # model = LogisticRegression(solver="liblinear")
+
+        x_train, y_train = train_dataset.fps, train_dataset.labels
+        x_test, y_test = test_dataset.fps, test_dataset.labels
+
+        model.fit(X=x_train, y=y_train)
+
+        y_ = model.predict(X=x_test)
+        scores = model.predict_proba(X=x_test)
+
+
+
+        # import pdb
+        # pdb.set_trace()
+        class_report = classification_report(y_true=y_test, y_pred=y_)
+        roc_auc = roc_auc_score(y_score=scores[:,1], y_true=y_test) 
+        roc_enrich_1 = compute_roc_enrichment(scores=scores[:,1], labels=y_test, fpr_thresh=.01)
+        enrich_1 = compute_enrichment_factor(scores=scores[:,1], labels=y_test, n_percent=.01)
+        enrich_10 = compute_enrichment_factor(scores=scores[:,1], labels=y_test, n_percent=.1)
+
+        result_dict = {
+            "trials": {
+                    0:
+                        {
+                            "y_true": y_test, 
+                            "y_pred": y_, 
+                            "y_score": scores,
+                            "class_report": class_report, 
+                            "roc-auc": roc_auc,
+                            "er-1": roc_enrich_1,
+                            "enrich-1": enrich_1,
+                            "enrich-10": enrich_10,
+                        }
+                    }
+        }
+
+
     else:
         raise NotImplementedError
 
@@ -379,7 +417,6 @@ def run_trials(model, target_path, target_name, lit_pcba_ave_p, result_dict=None
 
 
 def driver():
-    train_dataset, test_dataset = None, None
 
     model = get_model(config) 
 
@@ -409,7 +446,6 @@ def driver():
     lit_pcba_ave_p = Path("/p/vast1/jones289/lit_pcba/AVE_unbiased")
 
     target_list = list(lit_pcba_ave_p.glob("*/"))
-    # target_list = [lit_pcba_ave_p / Path("VDR")]
 
     random.shuffle(target_list)
     for target_path in tqdm(target_list):
@@ -424,15 +460,13 @@ def driver():
             f"{output_result_dir}/{exp_name}.{dataset}-{target_path.name}-{args.split_type}.{args.random_state}.pkl"
         )
         print(f"{output_file}\t{output_file.exists()}")
-        # import pdb
-        # pdb.set_trace()
+
         if output_file.exists():
 
         
             print(f"output_file: {output_file} exists. skipping.")
             result_dict = torch.load(output_file)
 
-        # '''
             result_dict = run_trials(model=model, target_path=target_path, target_name=target_name, lit_pcba_ave_p=lit_pcba_ave_p, result_dict=result_dict,
                             result_path=output_file)
         else:
@@ -460,10 +494,8 @@ def driver():
         except KeyError as e:
             print(f"{e}. result missing enrichment metrics. computing these now.")
 
-            # for trial_idx, trial_dict in result_dict['trials'].items():
             for trial_idx, _ in result_dict['trials'].items():
-                # import pdb
-                # pdb.set_trace()
+
                 scores = None
                 if config.model in ["molehd", "selfies", "ecfp", "rp", "directecfp"]:
                     scores = result_dict["trials"][trial_idx]["eta"]
@@ -477,8 +509,7 @@ def driver():
                                                                     labels=result_dict["trials"][trial_idx]["y_true"],
                                                                     n_percent=.1)
 
-            # enrich_1_values.append(result_dict["trials"][trial_idx]["enrich-1"])
-            # enrich_10_values.append(result_dict["trials"][trial_idx]["enrich-10"])
+
             enrich_1_values.append(
                 np.mean([value["enrich-1"] for value in result_dict["trials"].values()])
             )
@@ -513,8 +544,7 @@ def driver():
                     
                     labels = result_dict["trials"][trial_idx]['y_true']
 
-                    # import pdb
-                    # pdb.set_trace()
+
                     er_1 = compute_roc_enrichment(scores=scores, labels=labels, fpr_thresh=.01)
 
                     result_dict["trials"][trial_idx]["er-1"] = er_1
@@ -530,7 +560,6 @@ def driver():
             )
             torch.save(result_dict, output_file)           
 
-    # print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.std(roc_values)})")
     print(f"Average ROC-AUC is {np.mean(roc_values)} +/- ({np.mean(std_values)}) \t {np.mean(roc_values)*100:.2f} ({np.mean(std_values)*100:.2f})")
     print(f"Median EF-1% is {np.median(enrich_1_values)}")
     print(f"Median EF-10% is {np.median(enrich_10_values)}")
@@ -543,6 +572,8 @@ if __name__ == "__main__":
     args = hdc_args.parse_args()
     assert args.split_type is not None and args.dataset is not None
     assert args.dataset == "lit-pcba-ave"
+
+
     # config contains general information about the model/data processing
     config = hdc_args.get_config(args)
 
