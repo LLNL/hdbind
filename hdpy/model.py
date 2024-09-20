@@ -63,64 +63,16 @@ class HDModel(nn.Module):
         raise NotImplementedError("Please implement this function in a subclass")
 
     def build_am(self, dataset_hvs, labels):
-        if self.binarize_am:
-            self.am = binarize(self.am)
-        if self.bipolarize_am:
-            self.am = bipolarize(self.am)
-
-        if self.binarize_hv:
-            dataset_hvs = binarize(dataset_hvs)
-        if self.bipolarize_am:
-            dataset_hvs = bipolarize(dataset_hvs)
-
-        self.am = torch.zeros(2, self.D, dtype=int)
-
-        # print(type(dataset_hvs))
-
-        for hv, label in zip(dataset_hvs, labels):
-            if int(label) not in self.am.keys():
-                print(dir(self.am))
-                self.am[int(label)] = hv.int()
-            else:
-                self.am[int(label)] += hv.int()
-
-        if self.binarize_am:
-            self.am = binarize(self.am)
-        if self.bipolarize_am:
-            self.am = bipolarize(self.am)
+        raise NotImplementedError
 
     def update_am(self, hvs, labels):
-        if self.binarize_am:
-            self.am = binarize(self.am)
-        if self.bipolarize_am:
-            self.am = bipolarize(self.am)
-
-        if self.binarize_hv:
-            hvs = binarize(hvs)
-        if self.bipolarize_am:
-            hvs = bipolarize(hvs)
-
-        # this avoids creating a new associative memory and instead just updates the existing one...not sure why we need two functions so that should be updated at some point
-        if self.am is None:
-            self.am = {}
-        for hv, label in zip(hvs, labels):
-            if int(label) not in self.am.keys():
-                print(dir(self.am))
-                self.am[int(label)] = hv
-            else:
-                self.am[int(label)] += hv
-
-        if self.binarize_am:
-            self.am = binarize(self.am)
-        if self.bipolarize_am:
-            self.am = bipolarize(self.am)
+        raise NotImplementedError
 
     def encode(self, x):
         raise NotImplementedError("Please implement this function in a subclass")
 
     def predict(self, hvs, return_time=False):
-        # import pdb
-        # pdb.set_trace()
+
         if self.binarize_am:
             self.am = binarize(self.am)
 
@@ -144,52 +96,14 @@ class HDModel(nn.Module):
         sim_func = None
         if self.sim_metric == "cosine":
             sim_func = torchmetrics.functional.pairwise_cosine_similarity
-            # starter.record()
-            # preds = torch.argmax(
-            # torchmetrics.functional.pairwise_cosine_similarity(
-            # enc_hvs, am
-            # ),
-            # dim=1,
-            # )
-            # ender.record()
-            # torch.cuda.synchronize()
 
-            # convert elapsed time in milliseconds to seconds
-            # total_time = starter.elapsed_time(ender) / 1000
 
         elif self.sim_metric == "tanimoto":
             sim_func = matrix_tanimoto_similarity
-            # predict_time_cpu_start = time.perf_counter()
-            # starter.record()
-            # preds = torch.argmax(
-            # matrix_tanimoto_similarity(enc_hvs, am),
-            # dim=1,
-            # )
 
-            # ender.record()
-            # torch.cuda.synchronize()
-
-            # convert elapsed time in milliseconds to seconds
-            # predict_time_cuda_batch = starter.elapsed_time(ender) / 1000
-
-            # predict_time_cpu_end = time.perf_counter()
-            # predict_time_cpu_sum += (predict_time_cpu_end)
 
         elif self.sim_metric == "hamming":
             sim_func = pairwise_hamming_distance
-            # predict_time_cpu_start = time.perf_counter()
-            # starter.record()
-            # preds = torch.argmax(
-            # pairwise_hamming_distance(enc_hvs, am),
-            # dim=1,
-            # )
-            # ender.record()
-            # torch.cuda.synchronize()
-
-            # predict_time_cuda_batch = starter.elapsed_time(ender) / 1000
-
-            # predict_time_cpu_end = time.perf_counter()
-            # predict_time_cpu_sum += (predict_time_cpu_end)
 
         else:
             raise NotImplementedError(f"{self.sim_metric} not implemented.")
@@ -211,9 +125,6 @@ class HDModel(nn.Module):
         predict_time_cpu_sum = (
             predict_time_cpu_end - predict_time_cpu_start
         )
-
-        # if self.binarize_am:
-        # self.am = binarize(self.am)
 
         if return_time:
             return preds, predict_time_cpu_sum, predict_time_cuda_sum
