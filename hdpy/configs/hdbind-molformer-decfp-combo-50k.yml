@@ -1,7 +1,7 @@
 device: "cuda:0"
 model: combo 
 embedding: molformer-decfp-combo 
-ecfp_length: 1000000
+ecfp_length: 50000 
 ecfp_radius: 4
 input_size: 768 
 D: 50000

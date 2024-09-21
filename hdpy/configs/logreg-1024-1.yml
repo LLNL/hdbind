@@ -1,0 +1,12 @@
+device: "cpu"
+model: logistic
+embedding: ecfp
+ecfp_length: 1024
+ecfp_radius: 1
+input_size: 1024
+D:
+sim_metric:
+binarize_am: False
+binarize_hv: False
+bipolarize_hv: False
+bipolarize_am: False

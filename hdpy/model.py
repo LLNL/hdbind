@@ -59,6 +59,15 @@ class HDModel(nn.Module):
         self.D = D
         self.sim_metric = sim_metric
 
+
+    def check_am(self):
+        if self.binarize_am:
+            self.am = binarize(self.am)
+        if self.bipolarize_am:
+            self.am = bipolarize(self.am)
+        
+        return self
+
     def build_item_memory(self, x_train, train_labels):
         raise NotImplementedError("Please implement this function in a subclass")
 
@@ -168,63 +177,11 @@ class HDModel(nn.Module):
         else:
             return eta
 
-    """
     def retrain(self, dataset_hvs, labels, return_mistake_count=False, lr=1.0):
-        # should do this in parallel instead of the sequential? or can we define two functions and possibly combine the two? i.e. use the parallel version most of the time and then periodically update with the sequential version?
-
-        shuffle_idx = torch.randperm(dataset_hvs.size()[0])
-        dataset_hvs = dataset_hvs[shuffle_idx].int()
-        labels = labels[shuffle_idx].int()
-
-        # because we'll use this multiple times but only need to compute once, taking care to maintain sorted order
-
-        mistakes = 0
-
-        for hv, label in tqdm(zip(dataset_hvs, labels), total=len(dataset_hvs)):
-            # out = int(
-                # torch.argmax(torch.nn.CosineSimilarity()(hv.float(), self.am.float()))
-            # )
-            # out = int(
-                # torch.argmax(torch.nn.CosineSimilarity()(hv.float(), self.am.float()))
-            # )
-
-
-            if out == int(label):
-                pass
-            else:
-                mistakes += 1
-                self.am[out] -= (lr * hv).int()
-                self.am[int(label)] += (lr * hv).int()
-
-        if return_mistake_count:
-            return mistakes
-    """
+        raise NotImplementedError
 
     def fit(self, x_train, y_train, num_epochs, lr=1.0):
-        if self.binarize_am:
-            self.am = binarize(self.am)
-
-        if self.bipolarize_am:
-            self.am = bipolarize(self.am)
-
-        if self.binarize_hv:
-            hvs = binarize(hvs)
-        if self.bipolarize_am:
-            hvs = bipolarize(hvs)
-
-        for _ in tqdm(range(num_epochs), total=num_epochs, desc="training HD..."):
-            self.train_step(train_features=x_train, train_labels=y_train, lr=lr)
-
-        if self.binarize_am:
-            self.am = binarize(self.am)
-
-        if self.bipolarize_am:
-            self.am = bipolarize(self.am)
-
-        if self.binarize_hv:
-            hvs = binarize(hvs)
-        if self.bipolarize_am:
-            hvs = bipolarize(hvs)
+        raise NotImplementedError
 
 
 class RPEncoder(HDModel):
@@ -451,111 +408,6 @@ class TokenEncoder(HDModel):
         return torch.cat([self.encode(z) for z in token_list])
 
 
-class HD_Kron_Classification(HDModel):
-    def __init__(self, Kron_shape, input_size, D, num_classes, binary=True):
-        super(HD_Kron_Classification, self).__init__()
-        self.Kron_shape = Kron_shape
-        self.D, self.F = D, input_size
-        self.binary = binary
-
-        self.Kron_1 = nn.Linear(Kron_shape[1], Kron_shape[0], bias=False)
-        self.Kron_2 = nn.Linear(
-            self.F // Kron_shape[1], self.D // Kron_shape[0], bias=False
-        )
-        self.init_class_hvs = torch.zeros(num_classes, self.D).float().cuda()
-
-        if binary:
-            init_rp_mat = (
-                torch.bernoulli(
-                    torch.tensor([[0.5] * Kron_shape[1]] * Kron_shape[0])
-                ).float()
-                * 2
-                - 1
-            )
-            self.Kron_1.weight = nn.parameter.Parameter(
-                init_rp_mat, requires_grad=False
-            )
-            init_rp_mat = (
-                torch.bernoulli(
-                    torch.tensor(
-                        [[0.5] * (self.F // Kron_shape[1])] * (self.D // Kron_shape[0])
-                    )
-                ).float()
-                * 2
-                - 1
-            )
-            self.Kron_2.weight = nn.parameter.Parameter(
-                init_rp_mat, requires_grad=False
-            )
-
-    def RP_encoding(self, x):
-        x = x.view(x.size()[0], self.F // self.Kron_shape[1], self.Kron_shape[1])
-        out = self.Kron_1(x)
-        out = self.Kron_2(out.permute(0, 2, 1))
-        out = out.view(out.size()[0], -1)
-
-        if self.binary:
-            out = torch.where(out > 0, 1.0, -1.0)
-        return out
-
-    def init_class(self, x_train, train_labels):
-        out = self.RP_encoding(x_train)
-        for i in range(x_train.size()[0]):
-            self.init_class_hvs[train_labels[i]] += out[i]
-        self.am = self.init_class_hvs
-
-        self.am = binarize(self.am)
-
-
-class HD_Level_Classification(HDModel):
-    def __init__(self, input_size, D, num_classes, quan_level=8):
-        super(HD_Level_Classification, self).__init__()
-        self.rp_layer = nn.Linear(input_size, D, bias=False)
-
-        # self.
-        self.quantize_scale = 1.0 / quan_level
-
-        density = 0.5
-
-        init_rp_mat = torch.bernoulli(
-            torch.tensor([[density] * input_size] * D)
-        ).float()
-        self.rp_layer.weight = nn.parameter.Parameter(init_rp_mat, requires_grad=False)
-
-        self.init_class_hvs = torch.zeros(num_classes, D).float().cuda()
-
-    def quantize(self, x):
-        return torch.fake_quantize_per_tensor_affine(
-            x, scale=self.quantize_scale, zero_point=0, quant_min=0, quant_max=3
-        )
-
-    # def encoding(self, x):
-    #    out = self.rp_layer(x)
-    # out = torch.where(out>0, 1.0, -1.0)
-    #    return out
-
-    def encode(self, x):
-        return self.RP_encoding(x).to(torch.int32)
-
-    def RP_encoding(self, x):
-        # ipdb.set_trace()
-        out = self.rp_layer(x)
-        out = torch.where(out > 0, 1.0, -1.0)
-        return out
-
-    def init_class(self, x_train, train_labels):
-        out = self.RP_encoding(x_train)
-        for i in range(x_train.size()[0]):
-            self.init_class_hvs[train_labels[i]] += out[i]
-        # self.am = nn.parameter.Parameter(self.init_class_hvs, requires_grad=True)
-        self.am = self.init_class_hvs
-
-    def forward(self, x):
-        out = self.level_encoding(x)
-        out = nn.CosineSimilarity()(class_hvs=self.am, enc_hv=out)
-        return out
-
-
 class MLPClassifier(nn.Module):
     def __init__(self, layer_sizes, lr, activation, criterion, optimizer):
         super(MLPClassifier, self).__init__()
@@ -596,23 +448,6 @@ class MLPClassifier(nn.Module):
             return out
 
 
-from sklearn.neighbors import KNeighborsClassifier
-
-
-class kNN(nn.Module):
-    def __init__(self, model_type):
-        self.model = KNeighborsClassifier(n_neighbors=1, metric=model_type.lower())
-
-    def forward(self, x):
-        return self.model.predict(x)
-
-    def fit(self, features, labels, num_epochs):
-        self.model.fit(features.cpu(), labels.cpu())
-
-    def predict(self, features):
-        return self.model.predict(features.cpu())
-
-
 # utility functions for training and testing
 def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
     am_time_cpu_sum = 0
@@ -641,12 +476,19 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
             if not isinstance(x, list):
                 x = x.to(device)
 
+
+
+            # if need to binarize/bipolarize do so
+            model = model.check_am()
+
             cuda_starter, cuda_ender = torch.cuda.Event(
                 enable_timing=True
             ), torch.cuda.Event(enable_timing=True)
 
             am_time_cpu_start = time.perf_counter()
             cuda_starter.record()
+
+
 
             #############################Begin Critical Section############################
             for class_idx in range(2):  # binary classification
@@ -687,6 +529,11 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                 cuda_starter.elapsed_time(cuda_ender) / 1000
             )  # convert elapsed time in milliseconds to seconds
 
+            # if need to binarize/bipolarize do so
+            model = model.check_am()
+
+
+
         retrain_time_cpu_sum = 0
         retrain_time_cuda_sum = 0
 
@@ -699,6 +546,9 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
             # TODO: initialize the associative memory with single pass training instead of the random initialization?
 
             for batch in tqdm(train_dataloader, desc=f"training HDC epoch {epoch}"):
+
+                # binarize/bipolarize the am if needed
+                model = model.check_am()
 
                 x, y, hv = None, None, None
 
@@ -771,7 +621,10 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                 )  # convert elapsed time in milliesecons to seconds
                 retrain_time_cpu_sum += (
                     retrain_time_cpu_end - retrain_time_cpu_start
-                ) 
+                )
+
+            # if need to binarize/bipolarize, do so
+            model = model.check_am() 
 
             learning_curve.append(mistake_ct.cpu().numpy())
             # train_encode_time_list.append(epoch_encode_time_total)
