@@ -513,6 +513,8 @@ def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
                             .sum(dim=0)
                         )
                     else:
+                        # import pdb
+                        # pdb.set_trace()
                         model.am[class_idx] += (
                             (x[class_mask, :]).sum(dim=0).reshape(-1).int()
                         )
@@ -845,7 +847,7 @@ def run_hdc(
         pin_memory=True,
     )
 
-    if result_dict is None:
+    if result_dict is None or result_dict == {}:
         result_dict = {"trials": {}}
 
     # print(f"result_dict: {result_dict}")

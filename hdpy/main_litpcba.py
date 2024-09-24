@@ -26,6 +26,8 @@ SCRATCH_DIR = "/p/vast1/jones289/"
 
 
 def main(
+    args,
+    config,
     model,
     train_dataset,
     test_dataset,
@@ -33,6 +35,9 @@ def main(
     result_dict=None,
     result_path=None,
 ):
+    
+    # import pdb 
+    # pdb.set_trace()
     if config.model in ["molehd", "selfies", "ecfp", "rp", "directecfp", "combo"]:
         result_dict = run_hdc(
             model=model,
@@ -395,7 +400,7 @@ def run_trials(model, target_path, target_name, lit_pcba_ave_p, result_dict=None
     encode = True
     if config.embedding == "directecfp":
         encode = False
-    result_dict = main(
+    result_dict = main(args=args, config=config,
         model=model, train_dataset=train_dataset, test_dataset=test_dataset, encode=encode,
         result_path=result_path, result_dict=result_dict,
 
@@ -576,20 +581,6 @@ if __name__ == "__main__":
 
     # config contains general information about the model/data processing
     config = hdc_args.get_config(args)
-
-    # import pdb
-    # pdb.set_trace()
-    # if "sim_metric" not in vars(config).keys():
-        # print("did not find a similarity metric in the config: {args.config}, using cosine similarity in place.")
-    # config.sim_metric = args.sim_metric
-
-    # assert not (args.bipolarize_am and args.binarize_am)
-    # assert not (args.bipolarize_hv and args.binarize_hv)
-    # config.bipolarize_am = args.bipolarize_am
-    # config.binarize_am = args.binarize_am
-    # config.bipolarize_hv = args.bipolarize_hv
-    # config.binarize_hv = args.binarize_hv
-
 
     if config.device == "cpu":
         device = "cpu"

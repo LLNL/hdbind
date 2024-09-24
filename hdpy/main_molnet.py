@@ -24,34 +24,36 @@ from hdpy.utils import dump_dataset_to_disk
 
 SCRATCH_DIR = "/p/vast1/jones289"
 
-def main(args, config,
-    model,
-    train_dataset,
-    test_dataset,
-    encode=True,
-):
-    if config.model in ["molehd", "selfies", "ecfp", "rp", "directecfp", "combo"]:
-        result_dict = run_hdc(
-            model=model,
-            config=config,
-            epochs=args.epochs,
-            batch_size=args.batch_size,
-            num_workers=args.num_workers,
-            n_trials=args.n_trials,
-            random_state=args.random_state,
-            train_dataset=train_dataset,
-            test_dataset=test_dataset,
-            encode=encode
-        )
-    elif config.model in ["mlp", "mlp-small"]:
-        result_dict = run_mlp(config=config, batch_size=args.batch_size, epochs=args.epochs,
-                              num_workers=args.num_workers, n_trials=args.n_trials,
-                              random_state=args.random_state,
-                              train_dataset=train_dataset, test_dataset=test_dataset)
-    else:
-        raise NotImplementedError
+from hdpy.main_litpcba import main
 
-    return result_dict
+# def main(args, config,
+    # model,
+    # train_dataset,
+    # test_dataset,
+    # encode=True,
+# ):
+    # if config.model in ["molehd", "selfies", "ecfp", "rp", "directecfp", "combo"]:
+        # result_dict = run_hdc(
+            # model=model,
+            # config=config,
+            # epochs=args.epochs,
+            # batch_size=args.batch_size,
+            # num_workers=args.num_workers,
+            # n_trials=args.n_trials,
+            # random_state=args.random_state,
+            # train_dataset=train_dataset,
+            # test_dataset=test_dataset,
+            # encode=encode
+        # )
+    # elif config.model in ["mlp", "mlp-small"]:
+        # result_dict = run_mlp(config=config, batch_size=args.batch_size, epochs=args.epochs,
+                            #   num_workers=args.num_workers, n_trials=args.n_trials,
+                            #   random_state=args.random_state,
+                            #   train_dataset=train_dataset, test_dataset=test_dataset)
+    # else:
+        # raise NotImplementedError
+# 
+    # return result_dict
 
 
 def driver():
@@ -318,9 +320,12 @@ def driver():
             encode = True
             if config.embedding == "directecfp":
                 encode = False
-            result_dict = main(args=args, config=config,
-                    model=model, train_dataset=train_dataset, test_dataset=test_dataset,
-                    encode=encode
+            # result_dict = main(args=args, config=config,
+                    # model=model, train_dataset=train_dataset, test_dataset=test_dataset,
+                    # encode=encode, result_dict={}, result_path=output_file
+                # )
+                result_dict = main(args=args, config=config, model=model, train_dataset=train_dataset, test_dataset=test_dataset,
+                    encode=encode, result_dict=None, result_path=output_file
                 )
 
             result_dict["smiles_train"] = smiles_train
@@ -342,7 +347,7 @@ def driver():
     dump_dataset_to_disk(dataset=test_dataset, output_path=Path(f"/p/vast1/jones289/hdbind/molnet/{args.dataset}/{exp_name}_test_hvs.npy"))
     
     if config.model in ["smiles-pe", "selfies", "ecfp", "rp", "directecfp"]:
-        am = model.am.numpy()
+        am = model.am.cpu().numpy()
 
         np.save(Path(f"/p/vast1/jones289/hdbind/molnet/{args.dataset}/{exp_name}_am.npy"), am)
 
