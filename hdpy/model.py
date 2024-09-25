@@ -42,6 +42,7 @@ class HDModel(nn.Module):
         bipolarize_am=False,
         binarize_hv=False,
         bipolarize_hv=False,
+        #TODO: store the device?
     ):
         super(HDModel, self).__init__()
         if name:
@@ -161,6 +162,8 @@ class HDModel(nn.Module):
             enable_timing=True
         )
 
+
+        #TODO: remove the cuda call and use the device instead
         starter.record()
         sims = torchmetrics.functional.pairwise_cosine_similarity(
             hvs.clone().float().cuda(), self.am.clone().float().cuda()
@@ -450,6 +453,8 @@ class MLPClassifier(nn.Module):
 
 # utility functions for training and testing
 def train_hdc(model, train_dataloader, device, num_epochs, encode=True):
+    print(device)
+
     am_time_cpu_sum = 0
     am_time_cuda_sum = 0
     retrain_time_cpu_sum = 0
@@ -832,7 +837,7 @@ def run_hdc(
         train_dataset,
         batch_size=batch_size,
         num_workers=num_workers,
-        persistent_workers=True,
+        persistent_workers=True if num_workers >1 else False,
         shuffle=True,
         collate_fn=collate_fn,
         pin_memory=True,
@@ -1177,6 +1182,12 @@ def val_mlp(model, val_dataloader, device):
 
 
 def ray_mlp_job(params, device, train_dataloader, val_dataloader):
+
+    # hyperopt_cuda_starter, hyperopt_cuda_ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
+    # hyperpot_cpu_start = time.perf_counter()
+    # hyperopt_cuda_starter.record()
+    
     model = MLPClassifier(**params)
 
     train_dict = train_mlp(
@@ -1185,14 +1196,52 @@ def ray_mlp_job(params, device, train_dataloader, val_dataloader):
     model = train_dict["model"]
 
     val_dict = val_mlp(model=model, val_dataloader=val_dataloader, device=device)
+    
+    # hyperopt_cuda_ender.record()
+    # torch.cuda.synchronize()
+    # hyperopt_cpu_end = time.perf_counter()
 
     loss = val_dict["loss"] / val_dict["y_pred"].shape[0]
     # val_time = val_dict["forward_time"] / val_dict["y_pred"].shape[0]
 
     # tune.report(loss=loss, val_time=val_time)
-    tune.report(loss=loss)
+
+    train_time_cpu_sum = train_dict["train_forward_time_cpu_sum"] +\
+                        train_dict["train_loss_time_cpu_sum"] +\
+                        train_dict["train_backward_time_cpu_sum"]
+
+    train_time_cpu_norm = train_dict["train_forward_time_cpu_norm"] +\
+                        train_dict["train_loss_time_cpu_norm"] +\
+                        train_dict["train_backward_time_cpu_norm"]
+
+    train_time_cuda_sum = train_dict["train_forward_time_cuda_sum"] +\
+                        train_dict["train_loss_time_cuda_sum"] +\
+                        train_dict["train_backward_time_cuda_sum"]
+
+    train_time_cuda_norm = train_dict["train_forward_time_cuda_norm"] +\
+                        train_dict["train_loss_time_cuda_norm"] +\
+                        train_dict["train_backward_time_cuda_norm"]
 
 
+    test_time_cpu_sum = val_dict["test_forward_time_cpu_sum"]
+
+    test_time_cpu_norm = val_dict["test_forward_time_cpu_norm"]
+
+    test_time_cuda_sum = val_dict["test_forward_time_cuda_sum"]
+
+    test_time_cuda_norm = val_dict["test_forward_time_cuda_norm"]   
+
+
+
+    tune.report(loss=loss, 
+                train_time_cpu_sum=train_time_cpu_sum,
+                train_time_cpu_norm=train_time_cpu_norm,
+                train_time_cuda_sum=train_time_cuda_sum,
+                train_time_cuda_norm=train_time_cuda_norm,
+                test_time_cpu_sum=test_time_cpu_sum,
+                test_time_cpu_norm=test_time_cpu_norm,
+                test_time_cuda_sum=test_time_cuda_sum,
+                test_time_cuda_norm=test_time_cuda_norm)
 def run_mlp(
     config,
     batch_size,
@@ -1302,7 +1351,21 @@ def run_mlp(
         param_space=param_dist,
         run_config=RunConfig(verbose=1),
     )
+
+
+
+    # hyperopt_cuda_starter, hyperopt_cuda_ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
+    # hyperpot_cpu_start = time.perf_counter()
+    # hyperopt_cuda_starter.record()
     results = tuner.fit()
+    # hyperopt_cuda_ender.record()
+    # torch.cuda.synchronize()
+    # hyperopt_cpu_end = time.perf_counter()
+
+
+    # hyperopt_cpu_time = hyperopt_cpu_end - hyperpot_cpu_start
+    # hyperopt_cuda_time = hyperopt_cuda_starter.elapsed_time(hyperopt_cuda_ender)
 
     # import ipdb
     # ipdb.set_trace()
@@ -1310,6 +1373,9 @@ def run_mlp(
     # get best model then run on full training set for config.num_epochs
 
     best_params = results.get_best_result("loss", "min").config
+
+    hyperopt_df = results.get_dataframe()
+
 
     print(f"best MLP params: {best_params}")
 
@@ -1344,6 +1410,25 @@ def run_mlp(
             "y_true"
         ].numpy()  # these were being saved as torch arrays, may slow down notebooks
 
+        # import pdb
+        # pdb.set_trace()
+        # I also want to sum the norm values because I'm interested in the total time used per molecule by the search
+        trial_dict["hyperopt_train_time_cpu_sum"] = hyperopt_df["train_time_cpu_sum"].sum()
+        trial_dict["hyperopt_train_time_cuda_sum"] = hyperopt_df["train_time_cuda_sum"].sum()
+        trial_dict["hyperopt_train_time_cpu_norm"] = hyperopt_df["train_time_cpu_norm"].sum()
+        trial_dict["hyperopt_train_time_cuda_norm"] = hyperopt_df["train_time_cuda_norm"].sum()
+
+
+        trial_dict["hyperopt_test_time_cpu_sum"] = hyperopt_df["test_time_cpu_sum"].sum()
+        trial_dict["hyperopt_test_time_cuda_sum"] = hyperopt_df["test_time_cuda_sum"].sum()
+        trial_dict["hyperopt_test_time_cpu_norm"] = hyperopt_df["test_time_cpu_norm"].sum()
+        trial_dict["hyperopt_test_time_cuda_norm"] = hyperopt_df["test_time_cuda_norm"].sum()
+
+
+
+        # trial_dict["hyperopt_time_cpu_norm"] = results.metrics[""] 
+        # trial_dict["hyperopt_time_cuda_sum"] = hyperopt_cuda_time
+        # trial_dict["hyperopt_time_cuda_norm"] = hyperopt_cuda_time / (len(train_dataloader.dataset) + len(val_dataloader.dataset))
 
         trial_dict["train_forward_time_cpu_sum"] = train_dict["train_forward_time_cpu_sum"]
         trial_dict["train_forward_time_cpu_norm"] = train_dict["train_forward_time_cpu_norm"]

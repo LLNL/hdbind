@@ -53,7 +53,8 @@ def main(
             result_dict=result_dict,
             result_path=result_path,
         )
-    elif config.model in ["mlp"]:
+    # elif config.model in ["mlp"]:
+    elif "mlp" in config.model:
         result_dict = run_mlp(
             config=config,
             batch_size=args.batch_size,
@@ -111,8 +112,8 @@ def main(
 
 
 
-def run_trials(model, target_path, target_name, lit_pcba_ave_p, result_dict=None, result_path=None):
-
+# def run_trials(model, target_path, target_name, lit_pcba_ave_p, result_dict=None, result_path=None):
+def load_litpcba_dataset(model, lit_pcba_ave_p, target_path, target_name):
 
     smiles_train, smiles_test, y_train, y_test = None, None, None, None
 
@@ -394,8 +395,14 @@ def run_trials(model, target_path, target_name, lit_pcba_ave_p, result_dict=None
         raise NotImplementedError
 
 
-    # import pdb
-    # pdb.set_trace()
+    return train_dataset, test_dataset, smiles_train, smiles_test, y_train, y_test
+
+def run_trials(model, target_path, target_name, lit_pcba_ave_p, result_dict=None, result_path=None):
+
+
+
+    train_dataset, test_dataset, smiles_train, smiles_test, y_train, y_test = load_litpcba_dataset(model=model, lit_pcba_ave_p=lit_pcba_ave_p, target_path=target_path, target_name=target_name)
+
 
     encode = True
     if config.embedding == "directecfp":
@@ -544,7 +551,7 @@ def driver():
 
                     if config.model in ["molehd", "selfies", "ecfp", "rp", "directecfp", "combo"]:
                         scores = result_dict["trials"][trial_idx]["eta"]
-                    elif config.model == "mlp":
+                    elif "mlp" in config.model:
                         scores = result_dict["trials"][trial_idx]["eta"][:, 1]
                     
                     labels = result_dict["trials"][trial_idx]['y_true']

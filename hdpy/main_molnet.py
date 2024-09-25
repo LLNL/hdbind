@@ -308,6 +308,9 @@ def driver():
             raise NotImplementedError
 
 
+        # import pdb
+        # pdb.set_trace()
+
         # todo: add target list or target_idx to output_file? this is already the format for dude/lit-pcba/clintox so just extend trivially
         output_file = Path(
             f"{output_result_dir}/{exp_name}.{args.dataset}-{target_name.replace(' ','_')}-{args.split_type}.{args.random_state}.pkl"
@@ -324,7 +327,7 @@ def driver():
                     # model=model, train_dataset=train_dataset, test_dataset=test_dataset,
                     # encode=encode, result_dict={}, result_path=output_file
                 # )
-                result_dict = main(args=args, config=config, model=model, train_dataset=train_dataset, test_dataset=test_dataset,
+            result_dict = main(args=args, config=config, model=model, train_dataset=train_dataset, test_dataset=test_dataset,
                     encode=encode, result_dict=None, result_path=output_file
                 )
 
