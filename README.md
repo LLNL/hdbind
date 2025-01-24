@@ -1,6 +1,6 @@
 # hdpy 
 
-Repository for ``HD-Bind: Encoding of Molecular Structure with Low Precision, Hyperdimensional Binary Representations'' by Derek Jones, Xiaohua Zhang, Brian J. Bennion, Sumukh Pinge, Weihong Xu, Jaeyoung Kang, Behnam Khaleghi, Niema Moshiri, Jonathan E. Allen and Tajana S. Rosing
+Repository for *HD-Bind: Encoding of Molecular Structure with Low Precision, Hyperdimensional Binary Represenations* by Derek Jones, Xiaohua Zhang, Brian J. Bennion, Sumukh Pinge, Weihong Xu, Jaeyoung Kang, Behnam Khaleghi, Niema Moshiri, Jonathan E. Allen and Tajana S. Rosing
 
 
 Link to manuscript [here](https://www.nature.com/articles/s41598-024-80009-w)
