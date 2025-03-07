@@ -89,4 +89,4 @@ Contact Derek Jones for any questions/collaboration to expand the project! djone
 
 ## Citation
 
-Jones, D., Allen, J. E., Zhang, X., Khaleghi, B., Kang, J., Xu, W., Moshiri, N., & Rosing, T. S. (2023, March 27). HD-Bind: Encoding of Molecular Structure with Low Precision, Hyperdimensional Binary Representations. arXiv. http://arxiv.org/abs/2303.15604
+Jones, D., Zhang, X., Bennion, B. J., Pinge, S., Xu, W., Kang, J., Khaleghi, B., Moshiri, N., Allen, J. E., & Rosing, T. S. (2024). HDBind: encoding of molecular structure with hyperdimensional binary representations. Scientific Reports, 14(1), 1-16.. https://doi.org/10.1038/s41598-024-80009-w
